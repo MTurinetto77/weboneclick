@@ -1,29 +1,35 @@
-# Aukan Aire Libre — web-aukan
+# OneClick Store — web-oneclick
 
-Sitio web de **Aukan Aire Libre** (pesca y camping): catálogo público, carrito/checkout, contacto y panel de administración.
+Sitio web de **[OneClick](https://www.oneclickstore.com/)** (Apple Premium Reseller): catálogo público sincronizado con Odoo, carrito/checkout, páginas institucionales y panel de administración.
+
+Repositorio: [contactoevolutia/weboneclick](https://github.com/contactoevolutia/weboneclick)
 
 ## Stack
 
-- Next.js 16 (App Router, TypeScript)
-- Prisma + MariaDB
+- Next.js 16 (App Router, TypeScript, React 19)
+- Prisma + MariaDB (`oneclickstore`)
 - Auth.js (NextAuth v5) con Google OAuth (clientes del shop + admin)
-- Imágenes de productos en filesystem (`uploads/`)
+- Sync de catálogo vía JSON-RPC a Odoo
+- Imágenes de productos en filesystem (`uploads/`) y assets estáticos en `public/oneclick/`
 
 ## Requisitos locales
 
 - Node.js 20+
 - MariaDB en `localhost:3306`
 - Credenciales OAuth de Google (login shop y panel admin)
+- Acceso API a Odoo (opcional para sync; hay backup SQL en `db/`)
 
 ## Setup
 
-1. Clonar el repositorio e instalar dependencias:
+1. Clonar e instalar:
 
 ```bash
+git clone https://github.com/contactoevolutia/weboneclick.git
+cd weboneclick
 npm install
 ```
 
-2. Copiar variables de entorno:
+2. Variables de entorno:
 
 ```bash
 cp .env.example .env
@@ -33,22 +39,33 @@ Editar `.env`:
 
 | Variable | Descripción |
 |---|---|
-| `DATABASE_URL` | `mysql://root:root@localhost:3306/aukan` (local) |
+| `DATABASE_URL` | `mysql://root:root@localhost:3306/oneclickstore` |
 | `AUTH_SECRET` | Secreto aleatorio (`openssl rand -base64 32`) |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Credenciales OAuth Google |
 | `AUTH_URL` | `http://localhost:3000` en local |
 | `AUTH_DEV_BYPASS` | `true` para saltar Google en local (se ignora en `production`) |
 | `NEXT_PUBLIC_WHATSAPP_PHONE` | Número WhatsApp (ej. `54911...`) |
-| `UPLOADS_DIR` | Carpeta de imágenes (`uploads`). En Hostinger preferir ruta persistente si los deploys borran el directorio de la app. |
-| `NEXT_PUBLIC_UPLOADS_BASE_URL` | Base pública de imágenes. Default `/api/uploads`. URL final: `{base}/productos/archivo.jpg` → `https://aukanairelibre.com/api/uploads/productos/...`. No usar `hstgr.io`. |
+| `NEXT_PUBLIC_SITE_NAME` | Nombre del sitio (`OneClick`) |
+| `UPLOADS_DIR` | Carpeta de imágenes (`uploads`) |
+| `NEXT_PUBLIC_UPLOADS_BASE_URL` | Base pública de imágenes. Default `/api/uploads` |
 | `SEED_ADMIN_EMAIL` | Mail Google del admin (debe coincidir con la cuenta OAuth) |
+| `ODOO_URL` / `ODOO_DB` / `ODOO_UID` / `ODOO_API_KEY` | Sync de catálogo |
 
-3. Crear la base y migrar:
+3. Crear la base y cargar datos:
 
 ```bash
-# En MariaDB: CREATE DATABASE aukan CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-npx prisma migrate deploy
+# En MariaDB:
+# CREATE DATABASE oneclickstore CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+npx prisma db push
 npm run db:seed
+
+# Opción A — restaurar backup incluido:
+# mysql -u root -proot < db/oneclickstore.sql
+
+# Opción B — sync desde Odoo (puede omitir imágenes/stock al inicio):
+npm run sync:odoo
+# npm run sync:odoo -- --skip-images --skip-stock
 ```
 
 4. Arrancar:
@@ -56,6 +73,8 @@ npm run db:seed
 ```bash
 npm run dev
 ```
+
+Usar `npm run dev` (webpack + heap 8GB). Turbopack (`dev:turbo`) puede quedarse sin memoria en la home.
 
 - Sitio: http://localhost:3000  
 - Admin: http://localhost:3000/admin/login  
@@ -73,101 +92,89 @@ npm run dev
 Cualquier cuenta Google puede iniciar sesión en el shop (se crea `usuario`/`cliente`).  
 El **panel admin** solo admite `tipo_usuario = admin` y `activo = true`. El seed crea un admin con `SEED_ADMIN_EMAIL`.
 
+## Odoo
+
+- Productos publicados web: `x_studio_publicado_web = true`
+- Precios: `sk.product.price.by.company` con `company_id = 1` (Oneclick Argentino SRL)
+- Sync: `npm run sync:odoo` o botón en el admin (`POST /api/admin/sync-odoo`)
+
 ## Estructura principal
 
-- `src/app/(shop)/` — Home, catálogo, carrito, checkout, cuenta, contacto
-- `src/app/admin/` — Panel (ventas, productos, categorías, almacenes, características, usuarios)
-- `src/app/api/uploads/` — Sirve imágenes desde `UPLOADS_DIR`
-- `src/lib/cart.ts` — Carrito por cookie
-- `prisma/schema.prisma` — Modelo según DER
-- `prisma/seed.ts` — Datos de prueba (~25 productos)
+- `src/app/(shop)/` — Home, catálogo, producto, marcas, carrito, checkout, tiendas, institucionales
+- `src/app/admin/` — Panel (productos, categorías, banners, marcas, tiendas, sync Odoo, ventas)
+- `src/lib/odoo.ts` / `odoo-sync.ts` — Cliente y sync
+- `src/lib/pricing.ts` — Contado (−10%) y sin impuestos (/1.105)
+- `src/lib/nav.ts` — Mega-menú estilo OneClick
+- `prisma/schema.prisma` — Modelo de datos
+- `public/oneclick/` — Logo, hero, promos y banners de home
+- `db/oneclickstore.sql` — Backup de la base
 
 ## Documentación
 
-- [docs/ETAPA-2-CARRITO.md](docs/ETAPA-2-CARRITO.md) — detalle de la Etapa 2 (carrito, checkout, ventas)
+- [docs/ESTADO-PROYECTO.md](docs/ESTADO-PROYECTO.md) — estado actual, home, sync y dónde tocar
+- [docs/ETAPA-2-CARRITO.md](docs/ETAPA-2-CARRITO.md) — carrito, checkout, ventas
 - [docs/FUTUROS-CAMBIOS.md](docs/FUTUROS-CAMBIOS.md) — guía para seguir desarrollando
 - [DER.txt](DER.txt) — modelo de datos
-
-## Despliegue en Hostinger (Business)
-
-1. Crear base MariaDB en hPanel y anotar host, usuario, password y nombre de DB.
-2. Crear / configurar la app **Node.js** (Import from GitHub).
-3. Comandos recomendados en el panel:
-   - **Install:** `npm ci`
-   - **Build:** `npm run build`
-   - **Start:** `npm start` (usa `PORT` de Hostinger vía `scripts/start-server.mjs`)
-   - **Node:** 20.x o 22.x
-   - No fijes el puerto en `3000`: Hostinger inyecta `$PORT`.
-4. Variables de entorno en el panel (no uses las de local):
-   - **`DATABASE_URL`:** usá el host que muestra phpMyAdmin / MySQL Databases.
-     - En Hostinger suele ser **`127.0.0.1`**, no `localhost` (con `localhost` Prisma puede fallar la autenticación).
-     - Ejemplo:
-       ```env
-       DATABASE_URL="mysql://USUARIO:PASSWORD@127.0.0.1:3306/u639431874_aukan"
-       ```
-     - El nombre de la DB debe ser el completo del panel (ej. `u639431874_aukan`).
-     - Encodeá caracteres especiales del password (`+`→`%2B`, `$`→`%24`). El guion `-` no hace falta.
-   - `AUTH_URL="https://aukanairelibre.com"` (nunca `localhost`)
-   - `AUTH_SECRET=...`
-   - `AUTH_DEV_BYPASS` en `false` o sin definir
-5. Tras el deploy: `npx prisma migrate deploy` (y seed solo si hace falta).
-6. Carpeta `uploads/` con permisos de escritura y persistente.
-7. Google OAuth redirect: `https://aukanairelibre.com/api/auth/callback/google`.
-
-### Imágenes de productos en Hostinger
-
-**No uses** las URLs del File Manager (`https://srvXXXX-files.hstgr.io/.../files/...`).  
-Esa interfaz es solo para administrar archivos en el panel; **no son URLs públicas** del sitio. Por eso a veces “se ven” si estás logueado en Hostinger y fallan en el catálogo para visitantes.
-
-Flujo correcto (el que ya trae la app):
-
-1. El admin sube la imagen → se guarda en disco (`UPLOADS_DIR`, por defecto carpeta `uploads/` junto a la app).
-2. En la DB queda un path relativo, ej. `productos/uuid.jpg`.
-3. El sitio las muestra como:
-   ```text
-   https://aukanairelibre.com/api/uploads/productos/uuid.jpg
-   ```
-
-Variables en Hostinger:
-
-```env
-UPLOADS_DIR="uploads"
-NEXT_PUBLIC_UPLOADS_BASE_URL="/api/uploads"
-```
-
-Si tras cada deploy se pierden las imágenes, apuntá `UPLOADS_DIR` a una ruta **persistente** fuera del directorio que Hostinger reemplaza en cada deploy (preguntá en hPanel / soporte cuál carpeta sobrevive). Ejemplo (ruta absoluta del servidor):
-
-```env
-UPLOADS_DIR="/home/USUARIO/persistent/uploads"
-```
-
-Para verificar una imagen subida desde el admin, abrí en el navegador (sesión normal, sin panel Hostinger):
-
-`https://aukanairelibre.com/api/uploads/productos/NOMBRE-DEL-ARCHIVO.jpg`
-
-Si da 404, el archivo no está en `UPLOADS_DIR` de la app Node.
-
-### Si ves HTTP 503 en todo el sitio
-
-La app Node no está respondiendo al proxy.
-
-1. hPanel → app Node → **Logs** / reiniciar.
-2. Start command: `npm start` (debe loguear el `PORT` real de Hostinger).
-3. Si el log dice `0.0.0.0:3000` y Hostinger asignó otro puerto, el proxy devolverá 503.
+- [db/README.md](db/README.md) — backup y restore
 
 ## Scripts útiles
 
 ```bash
-npm run dev          # desarrollo
-npm run build        # build producción
-npm run db:migrate   # migraciones en desarrollo
-npm run db:deploy    # migraciones en producción
-npm run db:seed      # datos de prueba
+npm run dev            # desarrollo (webpack)
+npm run build          # build producción
+npm run start          # start (respeta PORT)
+npm run db:migrate     # migraciones en desarrollo
+npm run db:deploy      # migraciones en producción
+npm run db:seed        # seed inicial
+npm run sync:odoo      # sync catálogo Odoo
+npm run assets:download
 ```
 
-## Etapa actual y siguiente
+## Despliegue (Hostinger / Node)
 
-**Etapa 2 (hecha):** carrito, checkout (invitado/Google), registro de ventas, panel de ventas.  
-**Etapa 3 (pendiente):** MercadoPago, tarifas de envío, mails, branding definitivo.
+1. Crear base MariaDB y anotar host, usuario, password y nombre de DB.
+2. Importar desde GitHub la app Node.js.
+3. Comandos recomendados:
+   - **Install:** `npm ci`
+   - **Build:** `npm run build`
+   - **Start:** `npm start` (usa `PORT` vía `scripts/start-server.mjs`)
+   - **Node:** 20.x o 22.x
+4. Variables de entorno (ejemplo):
 
-Detalle: [docs/ETAPA-2-CARRITO.md](docs/ETAPA-2-CARRITO.md) · Continuación: [docs/FUTUROS-CAMBIOS.md](docs/FUTUROS-CAMBIOS.md).
+```env
+DATABASE_URL="mysql://USUARIO:PASSWORD@127.0.0.1:3306/NOMBRE_DB"
+AUTH_URL="https://TU-DOMINIO"
+AUTH_SECRET=...
+AUTH_DEV_BYPASS=false
+NEXT_PUBLIC_SITE_NAME="OneClick"
+UPLOADS_DIR="uploads"
+NEXT_PUBLIC_UPLOADS_BASE_URL="/api/uploads"
+```
+
+En Hostinger suele funcionar mejor `127.0.0.1` que `localhost` en `DATABASE_URL`.  
+Encodeá caracteres especiales del password (`+`→`%2B`, `$`→`%24`).
+
+5. Tras el deploy: `npx prisma migrate deploy` (o restaurar `db/oneclickstore.sql`) y sync Odoo si hace falta.
+6. Google OAuth redirect: `https://TU-DOMINIO/api/auth/callback/google`.
+
+### Imágenes
+
+Flujo de la app:
+
+1. Admin sube imagen → disco (`UPLOADS_DIR`).
+2. En DB queda path relativo, ej. `productos/uuid.jpg`.
+3. URL pública: `{NEXT_PUBLIC_UPLOADS_BASE_URL}/productos/uuid.jpg`
+
+No usar URLs del File Manager de Hostinger (`hstgr.io`); no son públicas para visitantes.
+
+## Home (orden actual)
+
+1. Hero Mac  
+2. Barra utilidad + strip Mundial  
+3. Destacados  
+4. 3 promo cards (Mophie / asesores / servicio técnico)  
+5. ¡Llevá la fiesta a donde quieras! (JBL)  
+6. Banners Audio / Mochilas / Fundas  
+7. Potenciá tu iPhone  
+
+Detalle y pendientes: [docs/ESTADO-PROYECTO.md](docs/ESTADO-PROYECTO.md).
