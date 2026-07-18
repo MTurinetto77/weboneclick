@@ -1,0 +1,41 @@
+import { NextRequest, NextResponse } from "next/server";
+import { readFile, stat } from "fs/promises";
+import path from "path";
+import { getUploadsRoot } from "@/lib/uploads";
+
+const MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".svg": "image/svg+xml",
+};
+
+type Params = Promise<{ path: string[] }>;
+
+export async function GET(_req: NextRequest, { params }: { params: Params }) {
+  const { path: parts } = await params;
+  const relative = parts.join("/");
+  const root = path.resolve(getUploadsRoot());
+  const absolute = path.resolve(root, relative);
+
+  const rootWithSep = root.endsWith(path.sep) ? root : root + path.sep;
+  if (absolute !== root && !absolute.startsWith(rootWithSep)) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  try {
+    await stat(absolute);
+    const data = await readFile(absolute);
+    const ext = path.extname(absolute).toLowerCase();
+    return new NextResponse(data, {
+      headers: {
+        "Content-Type": MIME[ext] || "application/octet-stream",
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  } catch {
+    return new NextResponse("Not found", { status: 404 });
+  }
+}

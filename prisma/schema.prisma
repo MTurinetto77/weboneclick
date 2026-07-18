@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model marca {
+  id_marca Int     @id @default(autoincrement())
+  nombre   String  @db.VarChar(255)
+  slug     String  @unique @db.VarChar(255)
+  logo     String? @db.VarChar(500)
+  odoo_id  Int?    @unique
+  activo   Boolean @default(true)
+
+  productos producto[]
+}
+
+model etiqueta {
+  id_etiqueta Int     @id @default(autoincrement())
+  nombre      String  @db.VarChar(255)
+  slug        String  @unique @db.VarChar(255)
+  odoo_id     Int?    @unique
+  activo      Boolean @default(true)
+
+  productos etiqueta_producto[]
+}
+
+model etiqueta_producto {
+  id_etiqueta Int
+  id_producto Int
+
+  etiqueta etiqueta @relation(fields: [id_etiqueta], references: [id_etiqueta], onDelete: Cascade)
+  producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_etiqueta, id_producto])
+}
+
+model familia {
+  id_familia   Int     @id @default(autoincrement())
+  nombre       String  @db.VarChar(255)
+  slug         String  @unique @db.VarChar(255)
+  titulo       String? @db.VarChar(255)
+  descripcion  String? @db.Text
+  imagen_hero  String? @db.VarChar(500)
+  orden        Int     @default(0)
+  id_categoria Int?
+  activo       Boolean @default(true)
+
+  categoria categoria? @relation(fields: [id_categoria], references: [id_categoria], onDelete: SetNull)
+}
+
+model grupo_producto {
+  id_grupo    Int     @id @default(autoincrement())
+  nombre      String  @db.VarChar(255)
+  slug        String  @unique @db.VarChar(255)
+  descripcion String? @db.Text
+  activo      Boolean @default(true)
+
+  items grupo_producto_item[]
+}
+
+model grupo_producto_item {
+  id_grupo    Int
+  id_producto Int
+  orden       Int @default(0)
+
+  grupo    grupo_producto @relation(fields: [id_grupo], references: [id_grupo], onDelete: Cascade)
+  producto producto       @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_grupo, id_producto])
+}
+
+model beneficio {
+  id_beneficio    Int       @id @default(autoincrement())
+  nombre          String    @db.VarChar(255)
+  slug            String    @unique @db.VarChar(255)
+  descripcion     String?   @db.Text
+  cuotas          Int?
+  imagen          String?   @db.VarChar(500)
+  vigencia_desde  DateTime?
+  vigencia_hasta  DateTime?
+  activo          Boolean   @default(true)
+
+  tarjetas beneficio_tarjeta[]
+}
+
+model tarjeta_adherida {
+  id_tarjeta Int     @id @default(autoincrement())
+  nombre     String  @db.VarChar(255)
+  slug       String  @unique @db.VarChar(255)
+  logo       String? @db.VarChar(500)
+  banco      String? @db.VarChar(255)
+  activo     Boolean @default(true)
+
+  beneficios beneficio_tarjeta[]
+}
+
+model beneficio_tarjeta {
+  id_beneficio Int
+  id_tarjeta   Int
+
+  beneficio beneficio        @relation(fields: [id_beneficio], references: [id_beneficio], onDelete: Cascade)
+  tarjeta   tarjeta_adherida @relation(fields: [id_tarjeta], references: [id_tarjeta], onDelete: Cascade)
+
+  @@id([id_beneficio, id_tarjeta])
+}
+
+model banner {
+  id_banner       Int       @id @default(autoincrement())
+  titulo          String    @db.VarChar(255)
+  imagen_desktop  String    @db.VarChar(500)
+  imagen_mobile   String?   @db.VarChar(500)
+  link            String?   @db.VarChar(500)
+  ubicacion       String    @db.VarChar(50)
+  orden           Int       @default(0)
+  vigencia_desde  DateTime
+  vigencia_hasta  DateTime?
+  activo          Boolean   @default(true)
+}
+
+model tienda {
+  id_tienda  Int      @id @default(autoincrement())
+  nombre     String   @db.VarChar(255)
+  slug       String   @unique @db.VarChar(255)
+  direccion  String   @db.VarChar(500)
+  localidad  String   @db.VarChar(100)
+  provincia  String   @db.VarChar(100)
+  telefono   String?  @db.VarChar(50)
+  horarios   String?  @db.Text
+  latitud    Decimal? @db.Decimal(10, 7)
+  longitud   Decimal? @db.Decimal(10, 7)
+  imagen     String?  @db.VarChar(500)
+  activo     Boolean  @default(true)
+
+  almacenes almacen[]
+}
+
+model lista_deseos {
+  id_lista     Int      @id @default(autoincrement())
+  id_cliente   Int      @unique
+  fecha_creada DateTime @default(now())
+
+  cliente cliente             @relation(fields: [id_cliente], references: [id_cliente], onDelete: Cascade)
+  items   lista_deseos_item[]
+}
+
+model lista_deseos_item {
+  id_lista    Int
+  id_producto Int
+  fecha_alta  DateTime @default(now())
+
+  lista    lista_deseos @relation(fields: [id_lista], references: [id_lista], onDelete: Cascade)
+  producto producto     @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_lista, id_producto])
+}
+
+model producto {
+  id_producto Int     @id @default(autoincrement())
+  titulo      String  @db.VarChar(255)
+  slug        String  @unique @db.VarChar(255)
+  descripcion String  @db.Text
+  sku         String? @db.VarChar(100)
+  odoo_id     Int?    @unique
+  id_marca    Int?
+  cuotas_max  Int?
+  activo      Boolean @default(true)
+
+  marca           marca?                    @relation(fields: [id_marca], references: [id_marca], onDelete: SetNull)
+  stocks          stock[]
+  archivos        archivo_producto[]
+  categorias      categoria_producto[]
+  precios         precio_producto[]
+  caracteristicas producto_caracteristica[]
+  venta_detalles  venta_detalle[]
+  etiquetas       etiqueta_producto[]
+  grupos          grupo_producto_item[]
+  wishlist_items  lista_deseos_item[]
+}
+
+model almacen {
+  id_almacen  Int    @id @default(autoincrement())
+  descripcion String @db.VarChar(255)
+  odoo_id     Int?   @unique
+  id_tienda   Int?
+
+  tienda tienda? @relation(fields: [id_tienda], references: [id_tienda], onDelete: SetNull)
+  stocks stock[]
+}
+
+model stock {
+  id_producto Int
+  id_almacen  Int
+  cantidad    Decimal @db.Decimal(12, 2)
+
+  producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+  almacen  almacen  @relation(fields: [id_almacen], references: [id_almacen], onDelete: Cascade)
+
+  @@id([id_producto, id_almacen])
+}
+
+model archivo {
+  id_archivo  Int    @id @default(autoincrement())
+  link        String @db.VarChar(500)
+  tipo        String @db.VarChar(50)
+  descripcion String @db.VarChar(255)
+
+  productos archivo_producto[]
+}
+
+model archivo_producto {
+  id_archivo  Int
+  id_producto Int
+
+  archivo  archivo  @relation(fields: [id_archivo], references: [id_archivo], onDelete: Cascade)
+  producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_archivo, id_producto])
+}
+
+model categoria {
+  id_categoria    Int     @id @default(autoincrement())
+  nombre          String  @db.VarChar(255)
+  slug            String  @unique @db.VarChar(255)
+  nivel           Int
+  id_cat_superior Int?
+  odoo_id         Int?    @unique
+  imagen          String? @db.VarChar(500)
+
+  superior        categoria?                 @relation("CategoriaJerarquia", fields: [id_cat_superior], references: [id_categoria], onDelete: SetNull)
+  subcategorias   categoria[]                @relation("CategoriaJerarquia")
+  productos       categoria_producto[]
+  caracteristicas caracteristica_categoria[]
+  familias        familia[]
+}
+
+model categoria_producto {
+  id_categoria Int
+  id_producto  Int
+
+  categoria categoria @relation(fields: [id_categoria], references: [id_categoria], onDelete: Cascade)
+  producto  producto  @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_categoria, id_producto])
+}
+
+model precio_producto {
+  id_producto Int
+  fecha_desde DateTime @db.Date
+  precio      Decimal  @db.Decimal(12, 2)
+
+  producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_producto, fecha_desde])
+}
+
+model caracteristica {
+  id_caracteristica Int    @id @default(autoincrement())
+  nombre            String @db.VarChar(255)
+
+  categorias caracteristica_categoria[]
+  productos  producto_caracteristica[]
+}
+
+model caracteristica_categoria {
+  id_caracteristica Int
+  id_categoria      Int
+
+  caracteristica caracteristica @relation(fields: [id_caracteristica], references: [id_caracteristica], onDelete: Cascade)
+  categoria      categoria      @relation(fields: [id_categoria], references: [id_categoria], onDelete: Cascade)
+
+  @@id([id_caracteristica, id_categoria])
+}
+
+model producto_caracteristica {
+  id_producto       Int
+  id_caracteristica Int
+  valor_numerico    Boolean @default(false)
+  valor             String  @db.VarChar(255)
+
+  producto       producto       @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+  caracteristica caracteristica @relation(fields: [id_caracteristica], references: [id_caracteristica], onDelete: Cascade)
+
+  @@id([id_producto, id_caracteristica])
+}
+
+model usuario {
+  id_usuario          Int      @id @default(autoincrement())
+  mail                String   @unique @db.VarChar(255)
+  tipo_usuario        String   @db.VarChar(20)
+  fecha_hora_registro DateTime @default(now())
+  activo              Boolean  @default(true)
+
+  cliente cliente?
+}
+
+model cliente {
+  id_cliente             Int      @id @default(autoincrement())
+  id_usuario             Int?     @unique
+  id_direccion_principal Int?     @unique
+  nombre                 String   @db.VarChar(100)
+  apellido               String   @db.VarChar(100)
+  mail                   String   @unique @db.VarChar(255)
+  tipo_documento         String?  @db.VarChar(20)
+  numero_documento       String?  @db.VarChar(50)
+  telefono               String?  @db.VarChar(50)
+  fecha_hora_registro    DateTime @default(now())
+
+  usuario             usuario?      @relation(fields: [id_usuario], references: [id_usuario], onDelete: SetNull)
+  direccion_principal direccion?    @relation("DireccionPrincipal", fields: [id_direccion_principal], references: [id_direccion], onDelete: SetNull)
+  direcciones         direccion[]   @relation("ClienteDirecciones")
+  ventas              venta[]
+  lista_deseos        lista_deseos?
+}
+
+model direccion {
+  id_direccion  Int      @id @default(autoincrement())
+  id_cliente    Int
+  calle         String   @db.VarChar(255)
+  numero        String   @db.VarChar(20)
+  piso          String?  @db.VarChar(20)
+  departamento  String?  @db.VarChar(20)
+  barrio        String?  @db.VarChar(100)
+  localidad     String   @db.VarChar(100)
+  provincia     String   @db.VarChar(100)
+  pais          String   @default("Argentina") @db.VarChar(100)
+  codigo_postal String?  @db.VarChar(20)
+  latitud       Decimal? @db.Decimal(10, 7)
+  longitud      Decimal? @db.Decimal(10, 7)
+  referencias   String?  @db.VarChar(500)
+
+  cliente                cliente  @relation("ClienteDirecciones", fields: [id_cliente], references: [id_cliente], onDelete: Cascade)
+  cliente_como_principal cliente? @relation("DireccionPrincipal")
+  envios                 envio[]
+}
+
+model venta {
+  id_venta     Int      @id @default(autoincrement())
+  id_cliente   Int
+  fecha_hora   DateTime @default(now())
+  estado       String   @db.VarChar(30)
+  tipo_entrega String   @db.VarChar(20)
+  subtotal     Decimal  @db.Decimal(12, 2)
+  descuento    Decimal  @default(0) @db.Decimal(12, 2)
+  costo_envio  Decimal  @default(0) @db.Decimal(12, 2)
+  total        Decimal  @db.Decimal(12, 2)
+
+  cliente  cliente         @relation(fields: [id_cliente], references: [id_cliente])
+  detalles venta_detalle[]
+  pagos    pago[]
+  envios   envio[]
+}
+
+model venta_detalle {
+  id_venta        Int
+  item            Int
+  id_producto     Int
+  nombre_producto String  @db.VarChar(255)
+  cantidad        Decimal @db.Decimal(12, 2)
+  precio_unitario Decimal @db.Decimal(12, 2)
+  subtotal        Decimal @db.Decimal(12, 2)
+
+  venta    venta    @relation(fields: [id_venta], references: [id_venta], onDelete: Cascade)
+  producto producto @relation(fields: [id_producto], references: [id_producto])
+
+  @@id([id_venta, item])
+}
+
+model pago {
+  id_pago        Int     @id @default(autoincrement())
+  id_venta       Int
+  tipo_pago      String  @db.VarChar(20)
+  estado         String  @db.VarChar(30)
+  monto          Decimal @db.Decimal(12, 2)
+  referencia     String? @db.VarChar(255)
+  transaction_id String? @db.VarChar(255)
+
+  venta venta @relation(fields: [id_venta], references: [id_venta], onDelete: Cascade)
+}
+
+model envio {
+  id_envio     Int     @id @default(autoincrement())
+  id_venta     Int
+  tipo         String  @db.VarChar(30)
+  estado       String  @db.VarChar(30)
+  id_direccion Int
+  tracking     String? @db.VarChar(255)
+
+  venta     venta     @relation(fields: [id_venta], references: [id_venta], onDelete: Cascade)
+  direccion direccion @relation(fields: [id_direccion], references: [id_direccion])
+}

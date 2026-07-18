@@ -1,0 +1,28 @@
+Tablas (DER OneClick Store):
+
+Heredadas de Aukan + campos nuevos:
+- producto: id, titulo, slug, descripcion, sku, odoo_id, id_marca, cuotas_max, activo
+- categoria: id, nombre, slug, nivel, id_cat_superior, odoo_id, imagen
+- almacen: id, descripcion, odoo_id, id_tienda
+- stock, archivo, archivo_producto, categoria_producto, precio_producto
+- caracteristica*
+- usuario, cliente, direccion, venta*, pago, envio
+
+Nuevas:
+- marca (odoo product.brand)
+- etiqueta + etiqueta_producto
+- familia (landing + id_categoria)
+- grupo_producto + grupo_producto_item
+- beneficio + tarjeta_adherida + beneficio_tarjeta
+- banner (vigencia_desde / vigencia_hasta)
+- tienda
+- lista_deseos + lista_deseos_item
+
+Sync Odoo:
+- product.category → categoria
+- stock.warehouse → almacen
+- product.brand → marca
+- product.tag → etiqueta
+- product.product (x_studio_publicado_web=true) → producto
+- sk.product.price.by.company (company_id=1) → precio_producto
+- stock.quant → stock

@@ -1,0 +1,17 @@
+Web oneclickstore.com (base Aukan)
+
+Objetivo: Recrear la web de OneClick Store sobre el proyecto Next.js de Aukan Aire Libre.
+
+Requerimientos técnicos:
+- Next.js 16 + Prisma + MariaDB (base oneclickstore)
+- Sync catálogo desde Odoo (oneclick.adhoc.ar) vía JSON-RPC
+- Filtro productos: x_studio_publicado_web = true
+- Precios: sk.product.price.by.company (company_id=1 Oneclick Argentino SRL)
+- Estilo clon de oneclickstore.com (WoodMart / Apple-like)
+- Rutas Woo: /shop, /producto/{slug}, /{categoria}, /marca, /etiqueta, /familia, /group
+- Tablas nuevas: marca, etiqueta, familia, grupo_producto, beneficio, tarjeta_adherida, banner, tienda, lista_deseos
+
+Scripts:
+- npm run sync:odoo
+- npm run assets:download
+- npm run db:seed
