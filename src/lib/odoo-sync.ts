@@ -292,6 +292,152 @@ async function saveProductImage(
   }
 }
 
+async function upsertProductImage(
+  id_producto: number,
+  odooId: number,
+  base64: string,
+  titulo: string
+): Promise<boolean> {
+  if (typeof base64 !== "string" || base64.length < 100) return false;
+  const link = await saveProductImage(odooId, base64, titulo);
+  if (!link) return false;
+
+  const existingFile = await prisma.archivo_producto.findFirst({
+    where: { id_producto, archivo: { tipo: "imagen_principal" } },
+    include: { archivo: true },
+  });
+  if (existingFile) {
+    await prisma.archivo.update({
+      where: { id_archivo: existingFile.id_archivo },
+      data: { link, descripcion: titulo },
+    });
+  } else {
+    const archivo = await prisma.archivo.create({
+      data: {
+        link,
+        tipo: "imagen_principal",
+        descripcion: titulo,
+      },
+    });
+    await prisma.archivo_producto.create({
+      data: { id_archivo: archivo.id_archivo, id_producto },
+    });
+  }
+  return true;
+}
+
+/** Productos que se muestran hoy en la home (destacados + JBL + Potenciá). */
+export async function getHomeVisibleProductIds(): Promise<number[]> {
+  const [jbl, fundasCat] = await Promise.all([
+    prisma.marca.findFirst({ where: { slug: "jbl" }, select: { id_marca: true } }),
+    prisma.categoria.findFirst({
+      where: { slug: "accesorios-fundas-y-cobertores" },
+      select: { id_categoria: true },
+    }),
+  ]);
+
+  const { getActiveProducts } = await import("@/lib/products");
+  const [destacados, jblProducts, potencia] = await Promise.all([
+    getActiveProducts({ take: 8 }),
+    jbl
+      ? getActiveProducts({ marcaId: jbl.id_marca, take: 5 })
+      : Promise.resolve({ items: [] as { id_producto: number }[] }),
+    fundasCat
+      ? getActiveProducts({
+          categoriaId: fundasCat.id_categoria,
+          q: "iPhone 17",
+          take: 6,
+        })
+      : getActiveProducts({ q: "Funda", take: 6 }),
+  ]);
+
+  const ids = new Set<number>();
+  for (const p of [...destacados.items, ...jblProducts.items, ...potencia.items]) {
+    ids.add(p.id_producto);
+  }
+  return [...ids];
+}
+
+/**
+ * Descarga image_1920 de Odoo solo para los productos indicados (o los visibles en home).
+ * Guarda en uploads/ y actualiza archivo / archivo_producto.
+ */
+export async function syncImagesForProducts(options?: {
+  productIds?: number[];
+  dryRun?: boolean;
+}): Promise<{
+  requested: number;
+  withOdooId: number;
+  downloaded: number;
+  skipped: number;
+  errors: string[];
+}> {
+  const productIds = options?.productIds ?? (await getHomeVisibleProductIds());
+  const result = {
+    requested: productIds.length,
+    withOdooId: 0,
+    downloaded: 0,
+    skipped: 0,
+    errors: [] as string[],
+  };
+
+  if (!productIds.length) return result;
+
+  const products = await prisma.producto.findMany({
+    where: { id_producto: { in: productIds }, odoo_id: { not: null } },
+    select: { id_producto: true, odoo_id: true, titulo: true },
+  });
+  result.withOdooId = products.length;
+
+  const odooIds = products.map((p) => p.odoo_id!).filter(Boolean);
+  if (!odooIds.length) return result;
+
+  // Odoo read por ids (incluye image_1920 solo de estos)
+  const rows = await executeKw<
+    { id: number; image_1920?: string | false; display_name?: string; name?: string }[]
+  >("product.product", "read", [odooIds], {
+    fields: ["id", "image_1920", "display_name", "name"],
+  });
+
+  const byOdoo = new Map(products.map((p) => [p.odoo_id!, p]));
+
+  for (const row of rows) {
+    const local = byOdoo.get(row.id);
+    if (!local) continue;
+    const titulo =
+      (typeof row.display_name === "string" && row.display_name) ||
+      (typeof row.name === "string" && row.name) ||
+      local.titulo;
+
+    if (typeof row.image_1920 !== "string" || row.image_1920.length < 100) {
+      result.skipped += 1;
+      continue;
+    }
+
+    if (options?.dryRun) {
+      result.downloaded += 1;
+      continue;
+    }
+
+    try {
+      const ok = await upsertProductImage(
+        local.id_producto,
+        row.id,
+        row.image_1920,
+        titulo
+      );
+      if (ok) result.downloaded += 1;
+      else result.skipped += 1;
+    } catch (e) {
+      result.errors.push(
+        `producto ${local.id_producto} odoo=${row.id}: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+  }
+
+  return result;
+}
+
 export async function syncProductos(stats: SyncStats, options?: { skipImages?: boolean }) {
   const domain = [["x_studio_publicado_web", "=", true]];
   const fields = [
@@ -430,31 +576,8 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
 
       // Image
       if (!options?.skipImages && typeof row.image_1920 === "string" && row.image_1920.length > 100) {
-        const link = await saveProductImage(row.id, row.image_1920, titulo);
-        if (link) {
-          const existingFile = await prisma.archivo_producto.findFirst({
-            where: { id_producto, archivo: { tipo: "imagen_principal" } },
-            include: { archivo: true },
-          });
-          if (existingFile) {
-            await prisma.archivo.update({
-              where: { id_archivo: existingFile.id_archivo },
-              data: { link, descripcion: titulo },
-            });
-          } else {
-            const archivo = await prisma.archivo.create({
-              data: {
-                link,
-                tipo: "imagen_principal",
-                descripcion: titulo,
-              },
-            });
-            await prisma.archivo_producto.create({
-              data: { id_archivo: archivo.id_archivo, id_producto },
-            });
-          }
-          stats.productos.images += 1;
-        }
+        const ok = await upsertProductImage(id_producto, row.id, row.image_1920, titulo);
+        if (ok) stats.productos.images += 1;
       }
     } catch (e) {
       stats.errors.push(`producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`);

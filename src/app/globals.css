@@ -1280,7 +1280,7 @@ img { max-width: 100%; display: block; }
 
 .oc-product-card-media {
   aspect-ratio: 1;
-  background: var(--oc-bg-soft);
+  background: #fff;
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -1334,7 +1334,7 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-gallery {
-  background: var(--oc-bg-soft);
+  background: #fff;
   border-radius: 16px;
   padding: 2rem;
   display: grid;
