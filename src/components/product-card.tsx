@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { addToCart } from "@/app/(shop)/carrito/actions";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
 import { uploadPublicUrl } from "@/lib/utils";
 import type { ProductListItem } from "@/lib/products";
 
-/** Card liviana: sin server actions (evita hinchar el grafo de Turbopack/Webpack). */
+/** Card de producto estilo OneClick (cuotas en rojo + CTA animado). */
 export function ProductCard({ product }: { product: ProductListItem }) {
   const sinImp = precioSinImpuestos(product.precio);
   const cuotas = product.cuotas_max ?? 12;
@@ -27,10 +28,37 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         {sinImp != null && (
           <p className="oc-sin-imp">Sin imp nacionales: {formatPriceArs(sinImp)}</p>
         )}
-        <Link href={`/producto/${product.slug}`} className="oc-btn oc-btn-cart">
-          Ver producto
-        </Link>
+        <form action={addToCart} className="oc-add-form">
+          <input type="hidden" name="id_producto" value={product.id_producto} />
+          <input type="hidden" name="cantidad" value={1} />
+          <input type="hidden" name="stay" value="1" />
+          <button type="submit" className="oc-btn oc-btn-cart">
+            <span className="oc-btn-cart-label">Agregar al carrito</span>
+            <span className="oc-btn-cart-icon" aria-hidden>
+              <CartBagIcon />
+            </span>
+          </button>
+        </form>
       </div>
     </article>
+  );
+}
+
+function CartBagIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M6 8h12l-1 12H7L6 8z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 8V7a3 3 0 016 0v1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

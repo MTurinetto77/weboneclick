@@ -170,7 +170,7 @@ export default async function HomePage() {
               </Link>
             </div>
           </div>
-          <div className="oc-product-grid">
+          <div className="oc-product-grid oc-product-scroll">
             {destacados.items.map((p) => (
               <ProductCard key={p.id_producto} product={p} />
             ))}
@@ -259,17 +259,21 @@ export default async function HomePage() {
       {jblProducts.items.length > 0 && (
         <section className="oc-section">
           <div className="container">
-            <h2>¡Llevá la fiesta a donde quieras!</h2>
-            <div className="oc-product-grid">
+            <div className="oc-section-head">
+              <h2>¡Llevá la fiesta a donde quieras!</h2>
+              <Link
+                href="/marca/jbl"
+                className="oc-section-more"
+                aria-label="Ver más productos JBL"
+              >
+                +
+              </Link>
+            </div>
+            <div className="oc-product-grid oc-product-grid-5">
               {jblProducts.items.map((p) => (
                 <ProductCard key={p.id_producto} product={p} />
               ))}
             </div>
-            <p style={{ marginTop: "1.25rem" }}>
-              <Link href="/marca/jbl" className="oc-btn oc-btn-ghost">
-                Ver Productos
-              </Link>
-            </p>
           </div>
         </section>
       )}

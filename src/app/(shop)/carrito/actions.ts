@@ -42,6 +42,12 @@ export async function addToCart(formData: FormData) {
   revalidatePath("/carrito");
   revalidatePath("/shop");
   revalidatePath("/");
+
+  // Desde cards del loop: quedar en la página (como ajax del sitio original)
+  if (String(formData.get("stay") || "") === "1") {
+    return;
+  }
+
   redirect("/carrito");
 }
 
