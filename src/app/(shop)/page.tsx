@@ -85,29 +85,68 @@ export default async function HomePage() {
       {/* Barra utilitaria oscura debajo del hero */}
       <section className="oc-utility-bar">
         <div className="container oc-utility-bar-inner">
-          <p className="oc-utility-brand">OneClick - Apple Premium Reseller</p>
+          <p className="oc-utility-brand">
+            <span className="oc-utility-ico" aria-hidden>
+              <UtilityAppleIcon />
+            </span>
+            OneClick - Apple Premium Reseller
+          </p>
           <div className="oc-utility-links">
-            <Link href="/seguimiento-de-envios">Seguí tu compra</Link>
-            <Link href="/tiendas">Tiendas</Link>
-            <Link href="/empresas">Corporativos</Link>
-            <Link href="/faqs">Preguntas frecuentes</Link>
+            <Link href="/seguimiento-de-envios">
+              <span className="oc-utility-ico" aria-hidden>
+                <UtilityPackageIcon />
+              </span>
+              Seguí tu compra
+            </Link>
+            <Link href="/tiendas">
+              <span className="oc-utility-ico" aria-hidden>
+                <UtilityStoreIcon />
+              </span>
+              Tiendas
+            </Link>
+            <Link href="/empresas">
+              <span className="oc-utility-ico" aria-hidden>
+                <UtilityBuildingIcon />
+              </span>
+              Corporativos
+            </Link>
+            <Link href="/faqs">
+              <span className="oc-utility-ico" aria-hidden>
+                <UtilityChatIcon />
+              </span>
+              Preguntas frecuentes
+            </Link>
           </div>
           <Link href="/servicio-tecnico" className="oc-utility-service">
+            <span className="oc-utility-ico" aria-hidden>
+              <UtilityToolsIcon />
+            </span>
             Servicio técnico personalizado
           </Link>
         </div>
       </section>
 
-      {/* Franja mundial — dentro del mismo ancho que Destacados */}
+      {/* Franja mundial — un poco más ancha y baja */}
       <section className="oc-mundial-wrap">
-        <div className="container">
-          <div className="oc-mundial">
-            <div className="oc-mundial-inner">
-              <div>
-                <h2>¡El mundial ya está acá!</h2>
-                <p>Disfrutalo con precios especiales</p>
+        <div className="oc-mundial">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="oc-mundial-bg"
+            src="/oneclick/scraped/home-08.webp"
+            alt=""
+          />
+          <div className="oc-mundial-shade" aria-hidden />
+          <div className="oc-mundial-inner">
+            <div className="oc-mundial-copy">
+              <div className="oc-mundial-stars" aria-hidden>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/oneclick/mundial-stars.png" alt="" />
               </div>
-              <Link href="/promo/mundial" className="oc-btn oc-btn-red">
+              <h2>¡El mundial ya está acá!</h2>
+            </div>
+            <div className="oc-mundial-aside">
+              <p>Disfrutalo con precios especiales</p>
+              <Link href="/promo/mundial" className="oc-btn oc-btn-red oc-mundial-cta">
                 Ver productos
               </Link>
             </div>
@@ -275,15 +314,81 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
-      <a
-        className="oc-whatsapp"
-        href="https://wa.me/5491100000000"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Atención personalizada
-      </a>
     </>
+  );
+}
+
+function UtilityAppleIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M16.7 12.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9-.7 0-1.9-.8-3.1-.8-1.6 0-3.1 1-3.9 2.5-1.7 2.9-.4 7.2 1.2 9.6.8 1.1 1.7 2.4 3 2.4 1.2 0 1.6-.8 3.1-.8s1.8.8 3.1.8c1.3 0 2.1-1.1 2.9-2.3.9-1.3 1.3-2.6 1.3-2.6s-2.5-1-2.7-3.9zM14.4 5.8c.7-.8 1.1-1.9 1-3-.9.1-2.1.6-2.8 1.5-.6.7-1.2 1.9-1 3 1 .1 2.1-.5 2.8-1.5z" />
+    </svg>
+  );
+}
+
+function UtilityPackageIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 2.5 3.5 7v10L12 21.5 20.5 17V7L12 2.5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path d="M12 12 3.5 7M12 12v9.5M12 12l8.5-5" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function UtilityStoreIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 10h16v10H4V10zM3 6.5 4.5 3h15L21 6.5c0 1.4-1.1 2.5-2.5 2.5S16 7.9 16 6.5C16 7.9 14.9 9 13.5 9S11 7.9 11 6.5C11 7.9 9.9 9 8.5 9S6 7.9 6 6.5C6 7.9 4.9 9 3.5 9 3.2 9 3 8.8 3 8.5V6.5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function UtilityBuildingIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h8A1.5 1.5 0 0 1 15 5.5V21M15 10h3.5A1.5 1.5 0 0 1 20 11.5V21M4 21h16"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path d="M8 8h2M8 12h2M8 16h2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function UtilityChatIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H10l-4.5 3.2c-.7.5-1.5 0-1.5-.8V6a2 2 0 0 1 2-2z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function UtilityToolsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-2.5 2.5-2.5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
