@@ -310,7 +310,7 @@ export default async function HomePage() {
                 +
               </Link>
             </div>
-            <div className="oc-product-grid oc-product-grid-6">
+            <div className="oc-product-grid oc-product-scroll">
               {potenciaProducts.items.map((p) => (
                 <ProductCard key={p.id_producto} product={p} />
               ))}
