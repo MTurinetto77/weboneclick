@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE `tienda`
+  ADD COLUMN `direccion_corta` VARCHAR(255) NULL,
+  ADD COLUMN `codigo_postal` VARCHAR(20) NULL,
+  ADD COLUMN `email` VARCHAR(255) NULL,
+  ADD COLUMN `orden` INTEGER NOT NULL DEFAULT 0;

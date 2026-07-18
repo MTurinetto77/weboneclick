@@ -122,18 +122,24 @@ model banner {
 }
 
 model tienda {
-  id_tienda  Int      @id @default(autoincrement())
-  nombre     String   @db.VarChar(255)
-  slug       String   @unique @db.VarChar(255)
-  direccion  String   @db.VarChar(500)
-  localidad  String   @db.VarChar(100)
-  provincia  String   @db.VarChar(100)
-  telefono   String?  @db.VarChar(50)
-  horarios   String?  @db.Text
-  latitud    Decimal? @db.Decimal(10, 7)
-  longitud   Decimal? @db.Decimal(10, 7)
-  imagen     String?  @db.VarChar(500)
-  activo     Boolean  @default(true)
+  id_tienda      Int      @id @default(autoincrement())
+  nombre         String   @db.VarChar(255)
+  slug           String   @unique @db.VarChar(255)
+  /// Dirección completa (como en /contacto)
+  direccion      String   @db.VarChar(500)
+  /// Línea corta para listados / mapa
+  direccion_corta String? @db.VarChar(255)
+  localidad      String   @db.VarChar(100)
+  provincia      String   @db.VarChar(100)
+  codigo_postal  String?  @db.VarChar(20)
+  email          String?  @db.VarChar(255)
+  telefono       String?  @db.VarChar(50)
+  horarios       String?  @db.Text
+  latitud        Decimal? @db.Decimal(10, 7)
+  longitud       Decimal? @db.Decimal(10, 7)
+  imagen         String?  @db.VarChar(500)
+  orden          Int      @default(0)
+  activo         Boolean  @default(true)
 
   almacenes almacen[]
 }

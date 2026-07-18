@@ -49,20 +49,26 @@ export async function createTienda(formData: FormData) {
   await guard();
   const nombre = String(formData.get("nombre") || "").trim();
   const slug = slugify(String(formData.get("slug") || nombre));
+  const ordenRaw = Number(formData.get("orden") || 0);
   await prisma.tienda.create({
     data: {
       nombre,
       slug,
       direccion: String(formData.get("direccion") || "").trim(),
+      direccion_corta: String(formData.get("direccion_corta") || "").trim() || null,
       localidad: String(formData.get("localidad") || "").trim(),
       provincia: String(formData.get("provincia") || "").trim(),
+      codigo_postal: String(formData.get("codigo_postal") || "").trim() || null,
+      email: String(formData.get("email") || "").trim() || null,
       telefono: String(formData.get("telefono") || "").trim() || null,
       horarios: String(formData.get("horarios") || "").trim() || null,
+      orden: Number.isFinite(ordenRaw) ? ordenRaw : 0,
       activo: true,
     },
   });
   revalidatePath("/admin/tiendas");
   revalidatePath("/tiendas");
+  revalidatePath("/contacto");
 }
 
 export async function deleteTienda(id_tienda: number) {
@@ -70,6 +76,7 @@ export async function deleteTienda(id_tienda: number) {
   await prisma.tienda.delete({ where: { id_tienda } });
   revalidatePath("/admin/tiendas");
   revalidatePath("/tiendas");
+  revalidatePath("/contacto");
 }
 
 export async function createBeneficio(formData: FormData) {

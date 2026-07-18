@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { slugify } from "../src/lib/slug";
+import { ONECLICK_TIENDAS } from "../src/lib/tiendas-data";
 
 const prisma = new PrismaClient();
 
@@ -120,43 +121,19 @@ async function main() {
     }
   }
 
-  // Tiendas ejemplo
-  const tiendas = [
-    {
-      nombre: "OneClick Recoleta",
-      slug: "recoleta",
-      direccion: "Av. Santa Fe 1800",
-      localidad: "CABA",
-      provincia: "CABA",
-      telefono: "011-5555-0001",
-      horarios: "Lun a Vie 10–20 · Sáb 10–18",
-    },
-    {
-      nombre: "OneClick Palermo",
-      slug: "palermo",
-      direccion: "Honduras 4800",
-      localidad: "CABA",
-      provincia: "CABA",
-      telefono: "011-5555-0002",
-      horarios: "Lun a Vie 10–20 · Sáb 10–18",
-    },
-    {
-      nombre: "OneClick Unicenter",
-      slug: "unicenter",
-      direccion: "Paraná 3745, Local 1045",
-      localidad: "Martínez",
-      provincia: "Buenos Aires",
-      telefono: "011-5555-0003",
-      horarios: "Lun a Dom 10–22",
-    },
-  ];
-  for (const t of tiendas) {
+  // Tiendas (oneclickstore.com/contacto)
+  const activeSlugs = ONECLICK_TIENDAS.map((t) => t.slug);
+  for (const t of ONECLICK_TIENDAS) {
     await prisma.tienda.upsert({
       where: { slug: t.slug },
       create: { ...t, activo: true },
       update: { ...t, activo: true },
     });
   }
+  await prisma.tienda.updateMany({
+    where: { slug: { notIn: activeSlugs } },
+    data: { activo: false },
+  });
 
   // Banner home
   const now = new Date();
