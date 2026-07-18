@@ -110,10 +110,12 @@ export function AltaProveedorForm() {
       <fieldset>
         <legend>Método de pago</legend>
         <label>
-          <input type="radio" name="metodo_pago" value="TRANSFERENCIA" required /> TRANSFERENCIA
+          <input type="radio" name="metodo_pago" value="TRANSFERENCIA" required />
+          <span>TRANSFERENCIA</span>
         </label>
         <label>
-          <input type="radio" name="metodo_pago" value="E.CHEQ" /> E.CHEQ
+          <input type="radio" name="metodo_pago" value="E.CHEQ" />
+          <span>E.CHEQ</span>
         </label>
       </fieldset>
 
@@ -132,20 +134,23 @@ export function AltaProveedorForm() {
       <fieldset>
         <legend>Impuesto a las Ganancias</legend>
         <label>
-          <input type="radio" name="ganancias" value="Inscripto" required /> Inscripto
+          <input type="radio" name="ganancias" value="Inscripto" required />
+          <span>Inscripto</span>
         </label>
         <label>
-          <input type="radio" name="ganancias" value="No inscripto" /> No inscripto
+          <input type="radio" name="ganancias" value="No inscripto" />
+          <span>No inscripto</span>
         </label>
       </fieldset>
       <fieldset>
         <legend>Impuesto a los Ingresos Brutos</legend>
         <label>
-          <input type="radio" name="iibb" value="Convenio Multilateral" required /> Convenio
-          Multilateral
+          <input type="radio" name="iibb" value="Convenio Multilateral" required />
+          <span>Convenio Multilateral</span>
         </label>
         <label>
-          <input type="radio" name="iibb" value="Convenio Local" /> Convenio Local
+          <input type="radio" name="iibb" value="Convenio Local" />
+          <span>Convenio Local</span>
         </label>
       </fieldset>
       <input name="nro_inscripcion" placeholder="NRO DE INSCRIPCION" />
@@ -155,10 +160,12 @@ export function AltaProveedorForm() {
       <fieldset>
         <legend>Certificación de exclusión</legend>
         <label>
-          <input type="radio" name="exclusion" value="Si" required /> Sí
+          <input type="radio" name="exclusion" value="Si" required />
+          <span>Sí</span>
         </label>
         <label>
-          <input type="radio" name="exclusion" value="No" /> No
+          <input type="radio" name="exclusion" value="No" />
+          <span>No</span>
         </label>
       </fieldset>
 

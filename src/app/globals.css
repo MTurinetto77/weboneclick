@@ -1844,18 +1844,44 @@ img { max-width: 100%; display: block; }
   background: #fff;
 }
 
+.oc-inst-form input[type="radio"],
+.oc-inst-form input[type="checkbox"] {
+  width: auto;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  flex-shrink: 0;
+  accent-color: #111;
+}
+
 .oc-inst-form fieldset {
   border: 1px solid var(--oc-border);
   border-radius: 12px;
   padding: 0.85rem 1rem;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.55rem;
+  justify-items: start;
 }
 
 .oc-inst-form legend {
   padding: 0 0.35rem;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.oc-inst-form fieldset label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: auto;
+  max-width: 100%;
+  font-size: 0.92rem;
+  line-height: 1.3;
+  cursor: pointer;
 }
 
 .oc-inst-form label {
@@ -2491,6 +2517,34 @@ img { max-width: 100%; display: block; }
   font-weight: 600;
 }
 .oc-fiscal-block > h2 strong { font-weight: 800; }
+.oc-fiscal-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.5rem;
+  margin: 0 0 1.75rem;
+  padding: 1.25rem 1.35rem;
+  border: 1px solid var(--oc-border);
+  border-radius: 16px;
+  background: #fafafa;
+}
+.oc-fiscal-facts > div {
+  display: grid;
+  gap: 0.2rem;
+}
+.oc-fiscal-facts dt {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--oc-muted);
+}
+.oc-fiscal-facts dd {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
 .oc-fiscal-kicker {
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2508,6 +2562,41 @@ img { max-width: 100%; display: block; }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
+}
+.oc-fiscal-info-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.oc-fiscal-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--oc-border);
+  border-radius: 16px;
+}
+.oc-fiscal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.oc-fiscal-table th,
+.oc-fiscal-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--oc-border);
+  vertical-align: top;
+}
+.oc-fiscal-table th {
+  background: #f4f4f4;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.oc-fiscal-table tbody tr:last-child td { border-bottom: 0; }
+.oc-fiscal-table td:nth-child(2),
+.oc-fiscal-table td:nth-child(3),
+.oc-fiscal-table th:nth-child(2),
+.oc-fiscal-table th:nth-child(3) {
+  white-space: nowrap;
+  width: 7.5rem;
 }
 .oc-fiscal-info-grid article {
   border: 1px solid var(--oc-border);
@@ -2655,7 +2744,9 @@ img { max-width: 100%; display: block; }
   .oc-promo-bank-grid,
   .oc-st-cards,
   .oc-empresas-grid,
-  .oc-fiscal-info-grid { grid-template-columns: 1fr; }
+  .oc-fiscal-facts { grid-template-columns: 1fr; }
+  .oc-fiscal-info-grid,
+  .oc-fiscal-info-grid-2 { grid-template-columns: 1fr; }
   .oc-st-features-grid { grid-template-columns: 1fr 1fr; }
   .oc-st-form-row,
   .oc-st-request { grid-template-columns: 1fr; }

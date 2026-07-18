@@ -10,15 +10,31 @@ function constanciaHref(item: { archivo: string | null; url_externa: string | nu
   return null;
 }
 
-export default async function FiscalPage() {
-  const constancias = await prisma.constancia_fiscal.findMany({
-    where: { activo: true },
-    orderBy: [{ orden: "asc" }, { titulo: "asc" }],
+function formatDate(d: Date | null) {
+  if (!d) return "—";
+  return d.toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
   });
+}
+
+export default async function FiscalPage() {
+  const [constancias, exclusiones] = await Promise.all([
+    prisma.constancia_fiscal.findMany({
+      where: { activo: true },
+      orderBy: [{ orden: "asc" }, { titulo: "asc" }],
+    }),
+    prisma.exclusion_fiscal.findMany({
+      where: { activo: true },
+      orderBy: [{ orden: "asc" }, { vigencia_desde: "desc" }],
+    }),
+  ]);
 
   const impositivas = constancias.filter((c) => c.categoria === "impositiva");
   const bancarias = constancias.filter((c) => c.categoria === "bancaria");
-  const exclusiones = constancias.filter((c) => c.categoria === "exclusion");
+  const exclusionPdfs = constancias.filter((c) => c.categoria === "exclusion");
 
   return (
     <div className="oc-fiscal-page">
@@ -31,7 +47,39 @@ export default async function FiscalPage() {
 
       <section className="container oc-fiscal-block">
         <h2 className="oc-fiscal-kicker">Información general</h2>
-        <div className="oc-fiscal-info-grid">
+        <dl className="oc-fiscal-facts">
+          <div>
+            <dt>Razón social</dt>
+            <dd>OneClick Argentino S.R.L.</dd>
+          </div>
+          <div>
+            <dt>CUIT Nº</dt>
+            <dd>30-70880869-1</dd>
+          </div>
+          <div>
+            <dt>Domicilio fiscal</dt>
+            <dd>
+              Av. Madres Plaza de Mayo 3020 Piso 14 Rosario - Santa Fe - Argentina -
+              2000
+            </dd>
+          </div>
+          <div>
+            <dt>Actividad principal</dt>
+            <dd>
+              Venta al por menor de equipos - perifericos - accesorios y programas
+              informáticos.
+            </dd>
+          </div>
+          <div>
+            <dt>Código de la actividad principal</dt>
+            <dd>474010</dd>
+          </div>
+          <div>
+            <dt>Nº inscripción IIBB (CM)</dt>
+            <dd>921-758155-1</dd>
+          </div>
+        </dl>
+        <div className="oc-fiscal-info-grid oc-fiscal-info-grid-2">
           <article>
             <h3>
               Agentes de recaudación
@@ -56,23 +104,47 @@ export default async function FiscalPage() {
               <li>921 — Santa Fe</li>
             </ul>
           </article>
-          <article>
-            <h3>
-              Exclusiones de retenciones / percepciones
-              <br />
-              impuestos nacionales
-            </h3>
-            {exclusiones.length ? (
-              <div className="oc-fiscal-downloads">
-                {exclusiones.map((c) => (
-                  <ConstanciaCard key={c.id_constancia} titulo={c.titulo} href={constanciaHref(c)} />
-                ))}
-              </div>
-            ) : (
-              <p className="muted">Consultá la documentación vigente en nuestras constancias.</p>
-            )}
-          </article>
         </div>
+      </section>
+
+      <section className="container oc-fiscal-block">
+        <h2 className="oc-fiscal-kicker">
+          Exclusiones de retenciones / percepciones impuestos nacionales
+        </h2>
+        <div className="oc-fiscal-table-wrap">
+          <table className="oc-fiscal-table">
+            <thead>
+              <tr>
+                <th>Impuesto</th>
+                <th>Desde</th>
+                <th>Hasta</th>
+              </tr>
+            </thead>
+            <tbody>
+              {exclusiones.map((row) => (
+                <tr key={row.id_exclusion}>
+                  <td>{row.impuesto}</td>
+                  <td>{formatDate(row.vigencia_desde)}</td>
+                  <td>{formatDate(row.vigencia_hasta)}</td>
+                </tr>
+              ))}
+              {!exclusiones.length && (
+                <tr>
+                  <td colSpan={3} className="muted">
+                    No hay exclusiones publicadas.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {!!exclusionPdfs.length && (
+          <div className="oc-fiscal-downloads" style={{ marginTop: "1.25rem" }}>
+            {exclusionPdfs.map((c) => (
+              <ConstanciaCard key={c.id_constancia} titulo={c.titulo} href={constanciaHref(c)} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="container oc-fiscal-block">

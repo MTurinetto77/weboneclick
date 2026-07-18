@@ -135,6 +135,18 @@ model constancia_fiscal {
   fecha_modif   DateTime @updatedAt
 }
 
+/// Tabla de exclusiones de retenciones / percepciones en /fiscal
+model exclusion_fiscal {
+  id_exclusion    Int       @id @default(autoincrement())
+  impuesto        String    @db.VarChar(500)
+  vigencia_desde  DateTime  @db.Date
+  vigencia_hasta  DateTime? @db.Date
+  orden           Int       @default(0)
+  activo          Boolean   @default(true)
+  fecha_alta      DateTime  @default(now())
+  fecha_modif     DateTime  @updatedAt
+}
+
 model tienda {
   id_tienda      Int      @id @default(autoincrement())
   nombre         String   @db.VarChar(255)
