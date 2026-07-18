@@ -7,10 +7,27 @@ async function main() {
   const activeSlugs = ONECLICK_TIENDAS.map((t) => t.slug);
 
   for (const t of ONECLICK_TIENDAS) {
+    const data = {
+      nombre: t.nombre,
+      slug: t.slug,
+      direccion: t.direccion,
+      direccion_corta: t.direccion_corta,
+      localidad: t.localidad,
+      provincia: t.provincia,
+      codigo_postal: t.codigo_postal,
+      email: t.email,
+      telefono: t.telefono,
+      orden: t.orden,
+      imagen: t.imagen,
+      latitud: t.latitud,
+      longitud: t.longitud,
+      activo: true,
+      horarios: null as string | null,
+    };
     await prisma.tienda.upsert({
       where: { slug: t.slug },
-      create: { ...t, activo: true, horarios: null },
-      update: { ...t, activo: true, horarios: null },
+      create: data,
+      update: data,
     });
   }
 
@@ -19,28 +36,7 @@ async function main() {
     data: { activo: false },
   });
 
-  const all = await prisma.tienda.findMany({
-    where: { activo: true },
-    orderBy: { orden: "asc" },
-  });
-
-  console.log(
-    JSON.stringify(
-      {
-        deactivated: deactivated.count,
-        active: all.map((t) => ({
-          slug: t.slug,
-          nombre: t.nombre,
-          direccion: t.direccion,
-          codigo_postal: t.codigo_postal,
-          email: t.email,
-          orden: t.orden,
-        })),
-      },
-      null,
-      2
-    )
-  );
+  console.log(JSON.stringify({ deactivated: deactivated.count, count: activeSlugs.length }));
 }
 
 main()

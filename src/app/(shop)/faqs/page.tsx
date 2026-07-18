@@ -1,14 +1,32 @@
-import { StaticPage } from "@/components/static-page";
+import { FAQ_CATEGORIES } from "@/lib/faqs-data";
+
+export const metadata = { title: "Preguntas Frecuentes" };
 
 export default function FaqsPage() {
   return (
-    <StaticPage title="Preguntas frecuentes">
-      <h3>¿Hacen envíos a todo el país?</h3>
-      <p>Sí, realizamos envíos a todo el territorio argentino.</p>
-      <h3>¿Puedo retirar en tienda?</h3>
-      <p>Sí, podés elegir retiro en sucursal al finalizar la compra.</p>
-      <h3>¿Qué medios de pago aceptan?</h3>
-      <p>Tarjetas de crédito/débito, Mercado Pago y promociones bancarias vigentes.</p>
-    </StaticPage>
+    <div className="container oc-inst-page oc-faqs-page">
+      <header className="oc-page-header" style={{ textAlign: "center" }}>
+        <h1>Centro de ayuda y preguntas frecuentes</h1>
+        <p className="oc-section-lead">En OneClick estamos para ayudarte.</p>
+      </header>
+
+      <div className="oc-faqs-sections">
+        {FAQ_CATEGORIES.map((cat) => (
+          <section key={cat.title} className="oc-faqs-cat">
+            <h2>{cat.title}</h2>
+            <div className="oc-faqs-list">
+              {cat.items.map((item) => (
+                <details key={item.q} className="oc-faq-item">
+                  <summary>{item.q}</summary>
+                  <div className="oc-faq-answer">
+                    <p>{item.a}</p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }

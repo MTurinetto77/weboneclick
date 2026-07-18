@@ -1,35 +1,36 @@
-import { prisma } from "@/lib/prisma";
+import { ONECLICK_TIENDAS } from "@/lib/tiendas-data";
 
 export const metadata = { title: "Tiendas" };
 
-export default async function TiendasPage() {
-  const tiendas = await prisma.tienda.findMany({
-    where: { activo: true },
-    orderBy: [{ orden: "asc" }, { nombre: "asc" }],
-  });
+export default function TiendasPage() {
+  const tiendas = [...ONECLICK_TIENDAS].sort((a, b) => a.orden_mapa - b.orden_mapa);
+  const mapQuery = encodeURIComponent("OneClick Store Apple Premium Reseller Argentina");
 
   return (
-    <div className="container">
-      <div className="oc-page-header">
-        <h1>Tiendas</h1>
-        <p className="oc-section-lead">Encontrá la sucursal OneClick más cercana.</p>
-      </div>
-      <div className="oc-store-grid" style={{ paddingBottom: "2.5rem" }}>
-        {tiendas.map((t) => (
-          <article key={t.id_tienda} className="oc-store-card">
-            <h3 style={{ marginTop: 0 }}>{t.nombre}</h3>
-            <p>{t.direccion}</p>
-            {t.codigo_postal && <p className="muted">CP {t.codigo_postal}</p>}
-            {t.telefono && <p>Tel: {t.telefono}</p>}
-            {t.email && (
-              <p>
+    <div className="oc-tiendas-page">
+      <div className="oc-tiendas-layout">
+        <aside className="oc-tiendas-list" aria-label="Listado de tiendas">
+          {tiendas.map((t) => (
+            <article key={t.slug} className="oc-tiendas-item">
+              <div className="oc-tiendas-item-info">
+                <h2>{t.nombre_mapa}</h2>
+                <p>{t.direccion_corta}</p>
                 <a href={`mailto:${t.email}`}>{t.email}</a>
-              </p>
-            )}
-            {t.horarios && <p className="muted">{t.horarios}</p>}
-          </article>
-        ))}
-        {!tiendas.length && <p className="muted">Pronto publicaremos el listado de tiendas.</p>}
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={t.imagen} alt={t.nombre_mapa} className="oc-tiendas-item-img" />
+            </article>
+          ))}
+        </aside>
+        <div className="oc-tiendas-map">
+          <iframe
+            title="Mapa de tiendas OneClick"
+            src={`https://maps.google.com/maps?q=${mapQuery}&z=5&output=embed`}
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            allowFullScreen
+          />
+        </div>
       </div>
     </div>
   );

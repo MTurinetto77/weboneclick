@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { slugify } from "../src/lib/slug";
 import { ONECLICK_TIENDAS } from "../src/lib/tiendas-data";
+import { PROMOCIONES_BANCARIAS } from "../src/lib/promos-bancarias";
 
 const prisma = new PrismaClient();
 
@@ -79,43 +80,47 @@ async function main() {
     });
   }
 
-  // Beneficios
-  const beneficios = [
-    { nombre: "12 cuotas sin interés", slug: "12-cuotas-sin-interes", cuotas: 12 },
-    { nombre: "12 cuotas sin interés Modo", slug: "12-cuotas-sin-interes-modo", cuotas: 12 },
-    { nombre: "24 cuotas sin interés", slug: "24-cuotas-sin-interes", cuotas: 24 },
-    { nombre: "9 cuotas sin interés", slug: "9-cuotas-sin-interes", cuotas: 9 },
-    { nombre: "9 cuotas sin interés OC", slug: "9-cuotas-sin-interes-oc", cuotas: 9 },
-  ];
-  for (const b of beneficios) {
+  // Beneficios (promos bancarias)
+  for (const b of PROMOCIONES_BANCARIAS) {
     await prisma.beneficio.upsert({
       where: { slug: b.slug },
       create: {
-        nombre: b.nombre,
+        nombre: b.titulo,
         slug: b.slug,
         cuotas: b.cuotas,
-        descripcion: `${b.nombre} en productos seleccionados. Consultá bases y condiciones.`,
+        descripcion: `${b.detalles ?? ""}\n\nDisponible en: ${b.disponibleEn}\n\n${b.legales ?? ""}`.trim(),
+        vigencia_desde: new Date(b.vigenciaDesde),
+        vigencia_hasta: new Date(b.vigenciaHasta),
         activo: true,
       },
-      update: { nombre: b.nombre, cuotas: b.cuotas, activo: true },
+      update: {
+        nombre: b.titulo,
+        cuotas: b.cuotas,
+        descripcion: `${b.detalles ?? ""}\n\nDisponible en: ${b.disponibleEn}\n\n${b.legales ?? ""}`.trim(),
+        vigencia_desde: new Date(b.vigenciaDesde),
+        vigencia_hasta: new Date(b.vigenciaHasta),
+        activo: true,
+      },
     });
   }
 
-  // Link some tarjetas to beneficios (visa/master/galicia)
-  const ben24 = await prisma.beneficio.findUnique({ where: { slug: "24-cuotas-sin-interes" } });
+  // Link visa/mastercard a todos los beneficios
   const tarjetasLink = await prisma.tarjeta_adherida.findMany({
-    where: { slug: { in: ["visa", "mastercard", "banco-galicia", "amex"] } },
+    where: { slug: { in: ["visa", "mastercard"] } },
   });
-  if (ben24) {
+  const allBeneficios = await prisma.beneficio.findMany({
+    where: { slug: { in: PROMOCIONES_BANCARIAS.map((p) => p.slug) } },
+  });
+  for (const ben of allBeneficios) {
     for (const t of tarjetasLink) {
       await prisma.beneficio_tarjeta.upsert({
         where: {
           id_beneficio_id_tarjeta: {
-            id_beneficio: ben24.id_beneficio,
+            id_beneficio: ben.id_beneficio,
             id_tarjeta: t.id_tarjeta,
           },
         },
-        create: { id_beneficio: ben24.id_beneficio, id_tarjeta: t.id_tarjeta },
+        create: { id_beneficio: ben.id_beneficio, id_tarjeta: t.id_tarjeta },
         update: {},
       });
     }
@@ -124,10 +129,26 @@ async function main() {
   // Tiendas (oneclickstore.com/contacto)
   const activeSlugs = ONECLICK_TIENDAS.map((t) => t.slug);
   for (const t of ONECLICK_TIENDAS) {
+    const data = {
+      nombre: t.nombre,
+      slug: t.slug,
+      direccion: t.direccion,
+      direccion_corta: t.direccion_corta,
+      localidad: t.localidad,
+      provincia: t.provincia,
+      codigo_postal: t.codigo_postal,
+      email: t.email,
+      telefono: t.telefono,
+      orden: t.orden,
+      imagen: t.imagen,
+      latitud: t.latitud,
+      longitud: t.longitud,
+      activo: true,
+    };
     await prisma.tienda.upsert({
       where: { slug: t.slug },
-      create: { ...t, activo: true },
-      update: { ...t, activo: true },
+      create: data,
+      update: data,
     });
   }
   await prisma.tienda.updateMany({
@@ -194,6 +215,23 @@ async function main() {
   });
 
   console.log("Seed OK", { adminEmail, slugifyDemo: slugify("One Click") });
+
+  // Constancias fiscales por defecto (urls a completar desde admin)
+  const constanciasSeed = [
+    { titulo: "Legajo Impositivo 2026", categoria: "impositiva", orden: 1 },
+    { titulo: "Banco Galicia", categoria: "bancaria", orden: 1 },
+    { titulo: "Banco ICBC", categoria: "bancaria", orden: 2 },
+  ];
+  for (const c of constanciasSeed) {
+    const exists = await prisma.constancia_fiscal.findFirst({
+      where: { titulo: c.titulo, categoria: c.categoria },
+    });
+    if (!exists) {
+      await prisma.constancia_fiscal.create({
+        data: { ...c, activo: true },
+      });
+    }
+  }
 }
 
 main()

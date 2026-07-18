@@ -1,37 +1,41 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import {
+  PROMOCIONES_BANCARIAS,
+  PROMO_CARD_LOGOS,
+} from "@/lib/promos-bancarias";
 
-export default async function OcBeneficiosPage() {
-  const beneficios = await prisma.beneficio.findMany({
-    where: { activo: true },
-    orderBy: { nombre: "asc" },
-    include: { tarjetas: { include: { tarjeta: true } } },
-  });
+export const metadata = { title: "Promociones bancarias" };
 
+export default function OcBeneficiosPage() {
   return (
-    <div className="container">
-      <div className="oc-page-header">
-        <h1>Promociones bancarias</h1>
-        <p className="oc-section-lead">Beneficios y cuotas sin interés con tarjetas adheridas.</p>
-      </div>
-      <div className="oc-benefit-grid" style={{ paddingBottom: "2.5rem" }}>
-        {beneficios.map((b) => (
-          <article key={b.id_beneficio} className="oc-promo-card">
-            <h3>
-              <Link href={`/beneficio/${b.slug}`}>{b.nombre}</Link>
-            </h3>
-            {b.cuotas != null && <p className="oc-cuotas">Hasta {b.cuotas} cuotas</p>}
-            {b.descripcion && <p>{b.descripcion}</p>}
-            <div className="oc-tabs">
-              {b.tarjetas.map((t) => (
-                <Link key={t.id_tarjeta} href={`/tarjeta-adherida/${t.tarjeta.slug}`}>
-                  {t.tarjeta.nombre}
-                </Link>
-              ))}
+    <div className="container oc-inst-page">
+      <header className="oc-page-header" style={{ textAlign: "center" }}>
+        <h1>Beneficios y Promociones Vigentes</h1>
+      </header>
+      <div className="oc-promo-bank-grid">
+        {PROMOCIONES_BANCARIAS.map((p) => (
+          <article key={p.slug} className="oc-promo-bank-card">
+            <div className="oc-promo-bank-logos">
+              {p.tarjetas.map((key) => {
+                const l = PROMO_CARD_LOGOS[key];
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={key} src={l.src} alt={l.alt} />
+                );
+              })}
             </div>
+            <h2>{p.titulo}</h2>
+            <p className="oc-promo-bank-sub">{p.subtitulo}</p>
+            <p className="oc-promo-bank-avail">
+              <strong>Disponible en:</strong>
+              <br />
+              {p.disponibleEn}
+            </p>
+            <Link href={`/beneficio/${p.slug}`} className="oc-promo-bank-detail">
+              Detalle
+            </Link>
           </article>
         ))}
-        {!beneficios.length && <p className="muted">Próximamente publicaremos los beneficios.</p>}
       </div>
     </div>
   );

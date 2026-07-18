@@ -121,6 +121,20 @@ model banner {
   activo          Boolean   @default(true)
 }
 
+/// Constancias fiscales / bancarias descargables en /fiscal (editables desde admin)
+model constancia_fiscal {
+  id_constancia Int      @id @default(autoincrement())
+  titulo        String   @db.VarChar(255)
+  /// impositiva | bancaria | exclusion
+  categoria     String   @db.VarChar(50)
+  archivo       String?  @db.VarChar(500)
+  url_externa   String?  @db.VarChar(500)
+  orden         Int      @default(0)
+  activo        Boolean  @default(true)
+  fecha_alta    DateTime @default(now())
+  fecha_modif   DateTime @updatedAt
+}
+
 model tienda {
   id_tienda      Int      @id @default(autoincrement())
   nombre         String   @db.VarChar(255)

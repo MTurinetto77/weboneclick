@@ -14,7 +14,8 @@ export function getUploadsRoot() {
 export async function saveUploadedFile(file: File, folder = "productos") {
   const bytes = Buffer.from(await file.arrayBuffer());
   const ext = path.extname(file.name || "").toLowerCase() || ".jpg";
-  const safeExt = [".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext) ? ext : ".jpg";
+  const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf"];
+  const safeExt = allowed.includes(ext) ? ext : folder === "fiscal" ? ".pdf" : ".jpg";
   const relative = path.posix.join(folder, `${randomUUID()}${safeExt}`);
   const absolute = path.join(getUploadsRoot(), relative);
   await mkdir(path.dirname(absolute), { recursive: true });

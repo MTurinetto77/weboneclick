@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/marcas", label: "Marcas" },
   { href: "/admin/banners", label: "Banners" },
   { href: "/admin/tiendas", label: "Tiendas" },
+  { href: "/admin/constancias", label: "Constancias fiscales" },
   { href: "/admin/beneficios", label: "Beneficios" },
   { href: "/admin/almacenes", label: "Almacenes" },
   { href: "/admin/caracteristicas", label: "Características" },
