@@ -9,8 +9,25 @@ export type ProductListItem = {
   precio: number | null;
   imagen: string | null;
   stockTotal: number;
+  /** true si hay filas de stock en DB (sincronizado); false = stock desconocido */
+  stockTracked: boolean;
   cuotas_max: number | null;
 };
+
+/**
+ * Disponibilidad de stock.
+ * - Sin filas en `stock` → aún no sincronizado: se considera disponible (como el carrito).
+ * - Con filas → inStock solo si la suma de cantidades es > 0.
+ */
+export function resolveStockAvailability(stocks: { cantidad: unknown }[]) {
+  const stockTotal = stocks.reduce((acc, s) => acc + Number(s.cantidad || 0), 0);
+  const stockTracked = stocks.length > 0;
+  return {
+    stockTotal,
+    stockTracked,
+    inStock: !stockTracked || stockTotal > 0,
+  };
+}
 
 export type CharacteristicFilterDef = {
   id_caracteristica: number;
@@ -253,16 +270,20 @@ export async function getActiveProducts(options?: {
     prisma.producto.count({ where }),
   ]);
 
-  const items: ProductListItem[] = rows.map((p) => ({
-    id_producto: p.id_producto,
-    titulo: p.titulo,
-    slug: p.slug,
-    descripcion: "",
-    precio: pickCurrentPrice(p.precios),
-    imagen: p.archivos[0]?.archivo.link ?? null,
-    stockTotal: p.stocks.reduce((acc, s) => acc + Number(s.cantidad), 0),
-    cuotas_max: p.cuotas_max,
-  }));
+  const items: ProductListItem[] = rows.map((p) => {
+    const stock = resolveStockAvailability(p.stocks);
+    return {
+      id_producto: p.id_producto,
+      titulo: p.titulo,
+      slug: p.slug,
+      descripcion: "",
+      precio: pickCurrentPrice(p.precios),
+      imagen: p.archivos[0]?.archivo.link ?? null,
+      stockTotal: stock.stockTotal,
+      stockTracked: stock.stockTracked,
+      cuotas_max: p.cuotas_max,
+    };
+  });
 
   return { items, total };
 }
@@ -282,10 +303,13 @@ export async function getProductById(id: number) {
   });
   if (!product) return null;
 
+  const stock = resolveStockAvailability(product.stocks);
   return {
     ...product,
     precio: pickCurrentPrice(product.precios),
-    stockTotal: product.stocks.reduce((acc, s) => acc + Number(s.cantidad), 0),
+    stockTotal: stock.stockTotal,
+    stockTracked: stock.stockTracked,
+    inStock: stock.inStock,
   };
 }
 
@@ -304,10 +328,13 @@ export async function getProductBySlug(slug: string) {
   });
   if (!product) return null;
 
+  const stock = resolveStockAvailability(product.stocks);
   return {
     ...product,
     precio: pickCurrentPrice(product.precios),
-    stockTotal: product.stocks.reduce((acc, s) => acc + Number(s.cantidad), 0),
+    stockTotal: stock.stockTotal,
+    stockTracked: stock.stockTracked,
+    inStock: stock.inStock,
   };
 }
 

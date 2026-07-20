@@ -10,9 +10,13 @@ import {
   type CartLine,
 } from "@/lib/cart";
 
-async function stockTotal(id_producto: number): Promise<number> {
+async function getStockState(id_producto: number): Promise<{
+  tracked: boolean;
+  available: number;
+}> {
   const stocks = await prisma.stock.findMany({ where: { id_producto } });
-  return stocks.reduce((acc, s) => acc + Number(s.cantidad), 0);
+  const available = stocks.reduce((acc, s) => acc + Number(s.cantidad), 0);
+  return { tracked: stocks.length > 0, available };
 }
 
 function upsertLine(lines: CartLine[], id_producto: number, cantidad: number): CartLine[] {
@@ -31,11 +35,15 @@ export async function addToCart(formData: FormData) {
   });
   if (!product) throw new Error("Producto no disponible");
 
-  const available = await stockTotal(id_producto);
-  // Si aún no hay stock sincronizado, permitir agregar (catálogo Odoo en progreso)
+  const { tracked, available } = await getStockState(id_producto);
+  // Sin filas de stock = aún no sincronizado → permitir. Con stock 0 = no permitir.
+  if (tracked && available <= 0) {
+    throw new Error("Producto sin stock");
+  }
+
   const lines = await readCartLines();
   const existing = lines.find((l) => l.id_producto === id_producto)?.cantidad ?? 0;
-  const max = available > 0 ? available : existing + cantidad + 99;
+  const max = tracked ? available : existing + cantidad + 99;
   const desired = Math.min(max, existing + cantidad);
   await writeCartLines(upsertLine(lines, id_producto, desired));
 
@@ -56,9 +64,10 @@ export async function updateQuantity(formData: FormData) {
   const cantidad = Math.floor(Number(formData.get("cantidad") || 0));
   if (!id_producto) throw new Error("Producto inválido");
 
-  const available = await stockTotal(id_producto);
+  const { tracked, available } = await getStockState(id_producto);
   const lines = await readCartLines();
-  const nextQty = Math.max(0, Math.min(available, cantidad));
+  const capped = tracked ? Math.min(available, cantidad) : cantidad;
+  const nextQty = Math.max(0, capped);
   await writeCartLines(upsertLine(lines, id_producto, nextQty));
 
   revalidatePath("/carrito");

@@ -68,8 +68,13 @@ export async function confirmarVenta(formData: FormData) {
     for (const item of cart.items) {
       const stocks = await tx.stock.findMany({ where: { id_producto: item.id_producto } });
       const stockTotal = stocks.reduce((acc, s) => acc + Number(s.cantidad), 0);
-      if (stockTotal < item.cantidad || item.precio == null) {
-        throw new Error(`Stock insuficiente o sin precio: ${item.titulo}`);
+      const tracked = stocks.length > 0;
+      if (item.precio == null) {
+        throw new Error(`Sin precio: ${item.titulo}`);
+      }
+      // Solo bloquear si el stock ya está sincronizado y no alcanza
+      if (tracked && stockTotal < item.cantidad) {
+        throw new Error(`Stock insuficiente: ${item.titulo}`);
       }
     }
 

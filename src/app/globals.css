@@ -1420,12 +1420,352 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-gallery {
+  position: relative;
   background: #fff;
   border-radius: 16px;
   padding: 2rem;
   display: grid;
   place-items: center;
+  gap: 1rem;
   min-height: 360px;
+  align-content: center;
+}
+
+.oc-gallery-main {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.oc-gallery img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.oc-gallery-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.oc-gallery-thumbs img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border: 1px solid var(--oc-border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.25rem;
+}
+
+.oc-gallery-oos {
+  background: #f7f7f8;
+}
+
+.oc-pdp-badge-oos {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 2;
+  background: #1d1d1f;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+}
+
+.oc-pdp-buybox h1 {
+  margin: 0.15rem 0 0.5rem;
+  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.oc-pdp-brand {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.oc-pdp-brand a { color: var(--oc-ink); }
+
+.oc-pdp-in-stock {
+  margin: 0.85rem 0 1rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #1a7f37;
+}
+
+.oc-pdp-oos-label {
+  margin: 0.35rem 0 1.15rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #b42318;
+}
+
+.oc-pdp-cart-form {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 0.85rem;
+}
+
+.oc-pdp-qty label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.oc-pdp-qty-controls {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--oc-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.oc-pdp-qty-controls button {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 0;
+  background: #f5f5f7;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #1d1d1f;
+}
+
+.oc-pdp-qty-controls input {
+  width: 3.2rem;
+  height: 2.4rem;
+  border: 0;
+  border-left: 1px solid var(--oc-border);
+  border-right: 1px solid var(--oc-border);
+  text-align: center;
+  font: inherit;
+  -moz-appearance: textfield;
+}
+
+.oc-pdp-qty-controls input::-webkit-outer-spin-button,
+.oc-pdp-qty-controls input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.oc-pdp-add-btn {
+  width: 100%;
+  max-width: 320px;
+}
+
+.oc-pdp-wishlist {
+  display: inline-flex;
+  margin: 0 0 1.25rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--oc-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.oc-pdp-reserve {
+  border: 1px solid var(--oc-border);
+  border-radius: 14px;
+  padding: 1.15rem 1.2rem;
+  background: #fafafa;
+  margin: 0 0 1rem;
+}
+
+.oc-pdp-reserve h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.oc-pdp-reserve > p {
+  margin: 0 0 0.9rem;
+  color: var(--oc-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.oc-pdp-reserve-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.oc-pdp-reserve-form input[type="email"] {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--oc-border);
+  border-radius: 10px;
+  font: inherit;
+  background: #fff;
+}
+
+.oc-pdp-reserve-privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-reserve-privacy input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.oc-pdp-reserve-privacy a {
+  text-decoration: underline;
+  color: var(--oc-ink);
+}
+
+.oc-pdp-reserve-ok { margin: 0.65rem 0 0; font-size: 0.88rem; }
+
+.oc-pdp-reserve-now {
+  border: 1px solid var(--oc-border);
+  border-radius: 14px;
+  padding: 1.15rem 1.2rem;
+  margin: 0 0 1rem;
+}
+
+.oc-pdp-reserve-now h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.oc-pdp-reserve-now p {
+  margin: 0 0 0.9rem;
+  color: var(--oc-muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.oc-pdp-delivery {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 0;
+  margin-bottom: 0.5rem;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.oc-pdp-delivery-icon {
+  color: #1d1d1f;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.oc-pdp-delivery strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.oc-pdp-delivery p {
+  margin: 0.2rem 0 0;
+  color: var(--oc-muted);
+  font-size: 0.85rem;
+}
+
+.oc-pdp-bank {
+  padding: 0.85rem 0 0;
+}
+
+.oc-pdp-bank h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--oc-muted);
+  font-weight: 700;
+}
+
+.oc-pdp-bank-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.oc-pdp-bank-cards {
+  display: flex;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0.55rem 0 0;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-bank-link {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--oc-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.oc-pdp-stores {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.oc-pdp-stores h4 {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.oc-pdp-stores ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.oc-pdp-stores li {
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.oc-pdp-description {
+  padding: 0 0 2.5rem;
+  max-width: 820px;
+}
+
+.oc-pdp-description h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1.25rem;
+}
+
+.oc-pdp-specs { margin-top: 1.5rem; }
+
+.oc-pdp-specs ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  line-height: 1.55;
+}
+
+.oc-pdp-related {
+  padding: 0 0 3.5rem;
+}
+
+.oc-pdp-related h2 {
+  margin: 0 0 1.25rem;
+  font-size: 1.35rem;
 }
 
 .oc-static-page { padding: 2rem 0 3rem; max-width: 800px; }

@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { pickCurrentPrice } from "@/lib/products";
+import { pickCurrentPrice, resolveStockAvailability } from "@/lib/products";
 
 export const CART_COOKIE = "cart";
 export const CART_MAX_AGE = 60 * 60 * 24 * 14; // 14 días
@@ -121,9 +121,12 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
     }
 
     const precio = pickCurrentPrice(product.precios);
-    const stockTotal = product.stocks.reduce((acc, s) => acc + Number(s.cantidad), 0);
+    const stock = resolveStockAvailability(product.stocks);
     const disponible =
-      precio != null && stockTotal > 0 && line.cantidad <= stockTotal && line.cantidad > 0;
+      precio != null &&
+      stock.inStock &&
+      line.cantidad > 0 &&
+      (!stock.stockTracked || line.cantidad <= stock.stockTotal);
     const lineSubtotal = precio != null ? precio * line.cantidad : null;
     if (lineSubtotal != null && disponible) subtotal += lineSubtotal;
     if (!disponible) canCheckout = false;
@@ -133,7 +136,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       titulo: product.titulo,
       cantidad: line.cantidad,
       precio,
-      stockTotal,
+      stockTotal: stock.stockTotal,
       imagen: product.archivos[0]?.archivo.link ?? null,
       subtotal: lineSubtotal,
       disponible,

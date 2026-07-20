@@ -11,11 +11,16 @@ export function formatPrice(value: Decimal | number | string | null | undefined)
   }).format(num);
 }
 
-export function whatsappUrl(productTitle: string, productId: number): string {
+export function whatsappUrl(productTitle: string, productId: number, intent: "consulta" | "reserva" = "consulta") {
   const phone = process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "5491100000000";
-  const text = encodeURIComponent(
-    `Hola OneClick, quiero consultar por el producto "${productTitle}" (ID ${productId}).`
-  );
+  const text =
+    intent === "reserva"
+      ? encodeURIComponent(
+          `Hola OneClick, quiero reservar / consultar alternativas del producto "${productTitle}" (ID ${productId}).`
+        )
+      : encodeURIComponent(
+          `Hola OneClick, quiero consultar por el producto "${productTitle}" (ID ${productId}).`
+        );
   return `https://wa.me/${phone}?text=${text}`;
 }
 

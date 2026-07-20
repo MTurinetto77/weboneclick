@@ -602,69 +602,55 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
   }
 }
 
+/**
+ * Llena `stock` con la suma total disponible en Odoo (`qty_available` de product.product).
+ * Se guarda en un único almacén consolidado por producto (WEB / Ecommerce).
+ */
 export async function syncStock(stats: SyncStats) {
-  const almacenes = await prisma.almacen.findMany({ where: { odoo_id: { not: null } } });
-  const almacenByOdoo = new Map(almacenes.map((a) => [a.odoo_id!, a.id_almacen]));
   const productos = await prisma.producto.findMany({
     where: { odoo_id: { not: null }, activo: true },
     select: { id_producto: true, odoo_id: true },
   });
-  const productoByOdoo = new Map(productos.map((p) => [p.odoo_id!, p.id_producto]));
-
-  if (!productoByOdoo.size || !almacenByOdoo.size) return;
-
-  // Get stock.location ids for warehouses (stock location)
-  type WhLoc = { id: number; lot_stock_id: OdooMany2One };
-  const whs = await paginateAll<WhLoc>("stock.warehouse", [], ["id", "lot_stock_id"]);
-  const locationToWarehouse = new Map<number, number>();
-  for (const wh of whs) {
-    const locId = m2oId(wh.lot_stock_id);
-    if (locId && almacenByOdoo.has(wh.id)) {
-      locationToWarehouse.set(locId, almacenByOdoo.get(wh.id)!);
-    }
+  if (!productos.length) {
+    stats.errors.push("stock: no hay productos con odoo_id para sincronizar");
+    return;
   }
 
-  const productOdooIds = [...productoByOdoo.keys()];
-  // Chunk domain for product_id in
-  for (let i = 0; i < productOdooIds.length; i += 100) {
-    const chunk = productOdooIds.slice(i, i + 100);
-    try {
-      const groups = await executeKw<
-        { product_id: OdooMany2One; location_id: OdooMany2One; quantity: number }[]
-      >(
-        "stock.quant",
-        "read_group",
-        [
-          [
-            ["product_id", "in", chunk],
-            ["location_id.usage", "=", "internal"],
-          ],
-          ["quantity:sum"],
-          ["product_id", "location_id"],
-        ],
-        { lazy: false }
-      );
+  const idAlmacen = await getOrCreateStockAlmacen();
+  const productoByOdoo = new Map(productos.map((p) => [p.odoo_id!, p.id_producto]));
+  const odooIds = [...productoByOdoo.keys()];
 
-      for (const g of groups) {
-        const prodOdoo = m2oId(g.product_id);
-        const locOdoo = m2oId(g.location_id);
-        if (!prodOdoo || !locOdoo) continue;
-        const id_producto = productoByOdoo.get(prodOdoo);
-        const id_almacen = locationToWarehouse.get(locOdoo);
-        if (!id_producto || !id_almacen) continue;
+  for (let i = 0; i < odooIds.length; i += 100) {
+    const chunk = odooIds.slice(i, i + 100);
+    try {
+      const rows = await executeKw<
+        { id: number; qty_available: number; free_qty?: number; virtual_available?: number }[]
+      >("product.product", "read", [chunk], {
+        fields: ["id", "qty_available", "free_qty", "virtual_available"],
+      });
+
+      for (const row of rows) {
+        const id_producto = productoByOdoo.get(row.id);
+        if (!id_producto) continue;
+
+        // qty_available = stock físico en ubicaciones internas (suma Odoo)
         const cantidad = Number(
-          (g as Record<string, unknown>)["quantity"] ??
-            (g as Record<string, unknown>)["quantity_sum"] ??
-            0
+          row.qty_available ?? row.free_qty ?? row.virtual_available ?? 0
         );
+
         if (stats.dryRun) {
           stats.stock.upserted += 1;
           continue;
         }
-        await prisma.stock.upsert({
-          where: { id_producto_id_almacen: { id_producto, id_almacen } },
-          create: { id_producto, id_almacen, cantidad },
-          update: { cantidad },
+
+        // Una sola fila = total consolidado (reemplaza desglose previo por depósito)
+        await prisma.stock.deleteMany({ where: { id_producto } });
+        await prisma.stock.create({
+          data: {
+            id_producto,
+            id_almacen: idAlmacen,
+            cantidad: Number.isFinite(cantidad) ? cantidad : 0,
+          },
         });
         stats.stock.upserted += 1;
       }
@@ -672,6 +658,27 @@ export async function syncStock(stats: SyncStats) {
       stats.errors.push(`stock chunk ${i}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
+}
+
+/** Almacén donde se guarda el total web consolidado. */
+async function getOrCreateStockAlmacen(): Promise<number> {
+  const preferred = await prisma.almacen.findFirst({
+    where: {
+      OR: [
+        { descripcion: { contains: "Ecommerce" } },
+        { descripcion: { contains: "Envío a domicilio" } },
+        { descripcion: { contains: "WEB" } },
+        { descripcion: { contains: "consolidado" } },
+      ],
+    },
+    orderBy: { id_almacen: "asc" },
+  });
+  if (preferred) return preferred.id_almacen;
+
+  const created = await prisma.almacen.create({
+    data: { descripcion: "Stock consolidado (web)" },
+  });
+  return created.id_almacen;
 }
 
 export async function runFullSync(options?: {
@@ -686,5 +693,12 @@ export async function runFullSync(options?: {
   await syncEtiquetas(stats);
   await syncProductos(stats, { skipImages: options?.skipImages });
   if (!options?.skipStock) await syncStock(stats);
+  return stats;
+}
+
+/** Solo sincroniza stock (qty_available) desde Odoo. */
+export async function runStockSync(options?: { dryRun?: boolean }): Promise<SyncStats> {
+  const stats = emptyStats(Boolean(options?.dryRun));
+  await syncStock(stats);
   return stats;
 }
