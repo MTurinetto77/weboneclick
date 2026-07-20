@@ -27,12 +27,31 @@ export async function SiteHeader() {
               </Link>
               {item.children && item.children.length > 0 && (
                 <div className="oc-pill-panel">
-                  <p className="oc-pill-panel-title">{item.label}</p>
-                  {item.children.map((c) => (
-                    <Link key={c.href + c.label} href={c.href}>
-                      {c.label}
-                    </Link>
-                  ))}
+                  <div className="oc-pill-panel-head">
+                    <p className="oc-pill-panel-title">{item.label}</p>
+                    {item.shopLabel ? (
+                      <Link href={item.href} className="oc-pill-panel-shop">
+                        {item.shopLabel}
+                      </Link>
+                    ) : null}
+                  </div>
+                  <div className="oc-pill-panel-list">
+                    {item.children.map((c) => {
+                      const variant = c.variant || "product";
+                      return (
+                        <Link
+                          key={c.href + c.label}
+                          href={c.href}
+                          className={
+                            variant === "link" ? "oc-pill-panel-link" : "oc-pill-panel-product"
+                          }
+                        >
+                          {c.badge ? <span className="oc-pill-badge">{c.badge}</span> : null}
+                          <span className="oc-pill-panel-label">{c.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>

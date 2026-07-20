@@ -130,8 +130,9 @@ img { max-width: 100%; display: block; }
   font-weight: 500;
   color: #1d1d1f;
   white-space: nowrap;
-  border-radius: 999px;
+  border-radius: 0;
   line-height: 1;
+  position: relative;
 }
 
 .oc-pill-caret {
@@ -145,43 +146,128 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-pill-item:hover > a {
-  background: #f5f5f5;
+  background: transparent;
+}
+
+.oc-pill-item:hover > a::after {
+  content: "";
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  bottom: 0.2rem;
+  height: 2px;
+  background: #1d1d1f;
+  border-radius: 1px;
 }
 
 .oc-pill-panel {
   display: none;
   position: absolute;
-  top: calc(100% + 0.55rem);
+  top: calc(100% + 0.65rem);
   left: 0;
-  min-width: 240px;
+  min-width: 300px;
+  max-width: min(420px, calc(100vw - 2rem));
   background: #fff;
-  border-radius: 16px;
-  box-shadow: var(--oc-shadow);
-  padding: 0.85rem;
+  border-radius: 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 1.15rem 1.35rem 1.25rem;
   z-index: 60;
 }
 
+/* Puente invisible: evita que el menú se cierre al cruzar el gap hacia el panel */
+.oc-pill-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 0.85rem;
+}
+
 .oc-pill-item:hover .oc-pill-panel {
-  display: grid;
-  gap: 0.25rem;
+  display: block;
+}
+
+.oc-pill-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  margin-bottom: 0.85rem;
+  border-bottom: 1px solid #e8e8e8;
 }
 
 .oc-pill-panel-title {
-  margin: 0 0 0.45rem;
+  margin: 0;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: #1d1d1f;
+  line-height: 1.15;
 }
 
-.oc-pill-panel a {
-  padding: 0.4rem 0.45rem;
-  border-radius: 8px;
-  color: var(--oc-muted);
-  font-size: 0.88rem;
+.oc-pill-panel-shop {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #6e6e73;
+  white-space: nowrap;
+  padding: 0 !important;
+  border-radius: 0 !important;
 }
 
-.oc-pill-panel a:hover {
-  background: #f5f5f7;
-  color: var(--oc-ink);
+.oc-pill-panel-shop:hover {
+  color: #1d1d1f;
+  background: transparent !important;
+}
+
+.oc-pill-panel-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.oc-pill-panel-product,
+.oc-pill-panel-link {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.15rem 0 !important;
+  border-radius: 0 !important;
+  color: #1d1d1f !important;
+  text-decoration: none;
+}
+
+.oc-pill-panel-product:hover,
+.oc-pill-panel-link:hover {
+  background: transparent !important;
+}
+
+.oc-pill-panel-product:hover .oc-pill-panel-label,
+.oc-pill-panel-link:hover .oc-pill-panel-label {
+  opacity: 0.65;
+}
+
+.oc-pill-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--oc-orange);
+  line-height: 1.2;
+}
+
+.oc-pill-panel-product .oc-pill-panel-label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: #1d1d1f;
+}
+
+.oc-pill-panel-link .oc-pill-panel-label {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #1d1d1f;
+  line-height: 1.3;
 }
 
 .oc-header-icons {
