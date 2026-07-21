@@ -14,13 +14,34 @@ export type CartLine = {
 export type ResolvedCartItem = {
   id_producto: number;
   titulo: string;
+  slug: string | null;
   cantidad: number;
   precio: number | null;
+  /** Alícuota IVA estimada (0.105 | 0.21) para el desglose del total */
+  ivaRate: number;
   stockTotal: number;
+  stockTracked: boolean;
   imagen: string | null;
   subtotal: number | null;
   disponible: boolean;
 };
+
+/** Umbral de envío gratis (sitio original). */
+export const FREE_SHIPPING_THRESHOLD = 200_000;
+
+/** Alícuota IVA aproximada según tipo de producto (paridad visual WooCommerce). */
+export function estimateIvaRate(titulo: string): number {
+  const t = titulo.toLowerCase();
+  if (/\b(macbook|imac|mac mini|mac studio|mac pro|ipad|apple watch|watch series)\b/.test(t)) {
+    return 0.105;
+  }
+  return 0.21;
+}
+
+/** IVA incluido en un precio bruto. */
+export function ivaIncluded(gross: number, rate: number): number {
+  return Math.round(((gross * rate) / (1 + rate)) * 100) / 100;
+}
 
 export type ResolvedCart = {
   lines: CartLine[];
@@ -109,9 +130,12 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       items.push({
         id_producto: line.id_producto,
         titulo: `Producto #${line.id_producto}`,
+        slug: null,
         cantidad: line.cantidad,
         precio: null,
+        ivaRate: 0.21,
         stockTotal: 0,
+        stockTracked: false,
         imagen: null,
         subtotal: null,
         disponible: false,
@@ -134,9 +158,12 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
     items.push({
       id_producto: product.id_producto,
       titulo: product.titulo,
+      slug: product.slug,
       cantidad: line.cantidad,
       precio,
+      ivaRate: estimateIvaRate(product.titulo),
       stockTotal: stock.stockTotal,
+      stockTracked: stock.stockTracked,
       imagen: product.archivos[0]?.archivo.link ?? null,
       subtotal: lineSubtotal,
       disponible,

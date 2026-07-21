@@ -1,12 +1,24 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
-import { getCartItemCount } from "@/lib/cart";
+import { resolveCart } from "@/lib/cart";
 import { MAIN_NAV } from "@/lib/nav";
+import { CartDrawer, type CartDrawerItem } from "@/components/cart-drawer";
+import { uploadPublicUrl } from "@/lib/utils";
 
 export async function SiteHeader() {
-  const [cartCount, session] = await Promise.all([getCartItemCount(), auth()]);
+  const [cart, session] = await Promise.all([resolveCart(), auth()]);
   const email = session?.user?.email;
   const isAdmin = session?.user?.role === "admin";
+
+  const drawerItems: CartDrawerItem[] = cart.items.map((i) => ({
+    id_producto: i.id_producto,
+    titulo: i.titulo,
+    cantidad: i.cantidad,
+    precio: i.precio,
+    imagen: i.imagen ? uploadPublicUrl(i.imagen) : null,
+    subtotal: i.subtotal,
+    disponible: i.disponible,
+  }));
 
   return (
     <header className="oc-header-float">
@@ -106,10 +118,12 @@ export async function SiteHeader() {
               </Link>
             )}
 
-            <Link href="/carrito" className="oc-icon-btn oc-icon-btn-flat nav-cart" aria-label="Carrito">
-              <BagIcon />
-              <span className="cart-badge">{cartCount}</span>
-            </Link>
+            <CartDrawer
+              items={drawerItems}
+              itemCount={cart.itemCount}
+              subtotal={cart.subtotal}
+              canCheckout={cart.canCheckout}
+            />
           </div>
         </nav>
       </div>
@@ -293,25 +307,6 @@ function UserIcon() {
       <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
       <path
         d="M5 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function BagIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6 8h12l-1 12H7L6 8z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M9 8V7a3 3 0 016 0v1"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

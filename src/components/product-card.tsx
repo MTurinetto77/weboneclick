@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { addToCart } from "@/app/(shop)/carrito/actions";
+import { AddToCartButton } from "@/components/add-to-cart";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
 import { uploadPublicUrl } from "@/lib/utils";
 import type { ProductListItem } from "@/lib/products";
@@ -28,17 +28,14 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         {sinImp != null && (
           <p className="oc-sin-imp">Sin imp nacionales: {formatPriceArs(sinImp)}</p>
         )}
-        <form action={addToCart} className="oc-add-form">
-          <input type="hidden" name="id_producto" value={product.id_producto} />
-          <input type="hidden" name="cantidad" value={1} />
-          <input type="hidden" name="stay" value="1" />
-          <button type="submit" className="oc-btn oc-btn-cart">
+        <div className="oc-add-form">
+          <AddToCartButton idProducto={product.id_producto} className="oc-btn oc-btn-cart">
             <span className="oc-btn-cart-label">Agregar al carrito</span>
             <span className="oc-btn-cart-icon" aria-hidden>
               <CartBagIcon />
             </span>
-          </button>
-        </form>
+          </AddToCartButton>
+        </div>
       </div>
     </article>
   );

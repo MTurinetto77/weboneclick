@@ -7,8 +7,11 @@ import {
   readCartLines,
   writeCartLines,
   clearCartCookie,
+  resolveCart,
   type CartLine,
 } from "@/lib/cart";
+import { getActiveProducts, pickCurrentPrice } from "@/lib/products";
+import { uploadPublicUrl } from "@/lib/utils";
 
 async function getStockState(id_producto: number): Promise<{
   tracked: boolean;
@@ -57,6 +60,92 @@ export async function addToCart(formData: FormData) {
   }
 
   redirect("/carrito");
+}
+
+export type AddToCartSummary =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      titulo: string;
+      imagen: string | null;
+      precio: number | null;
+      /** Cantidad agregada en esta operación */
+      cantidad: number;
+      itemCount: number;
+      subtotal: number;
+      related: {
+        id_producto: number;
+        titulo: string;
+        slug: string;
+        imagen: string | null;
+        precio: number | null;
+      }[];
+    };
+
+/** Agrega al carrito y devuelve el resumen para el popup "producto agregado". */
+export async function addToCartWithSummary(input: {
+  id_producto: number;
+  cantidad?: number;
+}): Promise<AddToCartSummary> {
+  const id_producto = Number(input.id_producto);
+  const cantidad = Math.max(1, Math.floor(Number(input.cantidad || 1)));
+  if (!id_producto) return { ok: false, error: "Producto inválido" };
+
+  const product = await prisma.producto.findFirst({
+    where: { id_producto, activo: true },
+    include: {
+      precios: true,
+      archivos: { include: { archivo: true }, take: 1 },
+      categorias: true,
+    },
+  });
+  if (!product) return { ok: false, error: "Producto no disponible" };
+
+  const { tracked, available } = await getStockState(id_producto);
+  if (tracked && available <= 0) {
+    return { ok: false, error: "Producto sin stock" };
+  }
+
+  const lines = await readCartLines();
+  const existing = lines.find((l) => l.id_producto === id_producto)?.cantidad ?? 0;
+  const max = tracked ? available : existing + cantidad + 99;
+  const desired = Math.min(max, existing + cantidad);
+  await writeCartLines(upsertLine(lines, id_producto, desired));
+
+  revalidatePath("/carrito");
+  revalidatePath("/shop");
+  revalidatePath("/");
+
+  const cart = await resolveCart();
+
+  // "Generalmente se compran junto con…": productos de la misma categoría
+  const categoriaId = product.categorias[0]?.id_categoria;
+  let related: Extract<AddToCartSummary, { ok: true }>["related"] = [];
+  if (categoriaId) {
+    const { items } = await getActiveProducts({ categoriaId, take: 10 });
+    related = items
+      .filter((p) => p.id_producto !== id_producto)
+      .slice(0, 8)
+      .map((p) => ({
+        id_producto: p.id_producto,
+        titulo: p.titulo,
+        slug: p.slug,
+        imagen: p.imagen ? uploadPublicUrl(p.imagen) : null,
+        precio: p.precio,
+      }));
+  }
+
+  const imagenLink = product.archivos[0]?.archivo.link ?? null;
+  return {
+    ok: true,
+    titulo: product.titulo,
+    imagen: imagenLink ? uploadPublicUrl(imagenLink) : null,
+    precio: pickCurrentPrice(product.precios),
+    cantidad,
+    itemCount: cart.itemCount,
+    subtotal: cart.subtotal,
+    related,
+  };
 }
 
 export async function updateQuantity(formData: FormData) {

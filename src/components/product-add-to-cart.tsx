@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addToCart } from "@/app/(shop)/carrito/actions";
+import { useAddToCart } from "@/components/add-to-cart";
 
 type Props = {
   idProducto: number;
@@ -11,10 +11,10 @@ type Props = {
 export function ProductAddToCart({ idProducto, maxQty = 99 }: Props) {
   const [qty, setQty] = useState(1);
   const max = Math.max(1, maxQty);
+  const { add, pending, modal } = useAddToCart();
 
   return (
-    <form action={addToCart} className="oc-pdp-cart-form">
-      <input type="hidden" name="id_producto" value={idProducto} />
+    <div className="oc-pdp-cart-form">
       <div className="oc-pdp-qty">
         <label htmlFor={`qty-${idProducto}`}>Cantidad</label>
         <div className="oc-pdp-qty-controls">
@@ -46,9 +46,15 @@ export function ProductAddToCart({ idProducto, maxQty = 99 }: Props) {
           </button>
         </div>
       </div>
-      <button type="submit" className="oc-btn oc-btn-primary oc-pdp-add-btn">
+      <button
+        type="button"
+        className="oc-btn oc-btn-primary oc-pdp-add-btn"
+        disabled={pending}
+        onClick={() => add(idProducto, qty)}
+      >
         Añadir al carrito
       </button>
-    </form>
+      {modal}
+    </div>
   );
 }
