@@ -58,6 +58,7 @@ export default async function ListaDeseosPage() {
         precio: pickCurrentPrice(i.producto.precios),
         imagen: i.producto.archivos[0]?.archivo.link ?? null,
         stockTotal: i.producto.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
+        stockTracked: i.producto.stocks.length > 0,
         cuotas_max: i.producto.cuotas_max,
       })) ?? [];
 

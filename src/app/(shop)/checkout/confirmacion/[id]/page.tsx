@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ mp?: string }>;
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,15 @@ export async function generateMetadata({ params }: { params: Params }) {
   return { title: `Pedido #${id}` };
 }
 
-export default async function ConfirmacionPage({ params }: { params: Params }) {
+export default async function ConfirmacionPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   const { id } = await params;
+  const { mp } = await searchParams;
   const id_venta = Number(id);
   if (!id_venta) notFound();
 
@@ -35,7 +43,13 @@ export default async function ConfirmacionPage({ params }: { params: Params }) {
     <section className="section">
       <div className="container">
         <div className="admin-card confirmation-card">
-          <h1 style={{ marginTop: 0 }}>¡Pedido confirmado!</h1>
+          <h1 style={{ marginTop: 0 }}>
+            {pago?.estado === "aprobado"
+              ? "¡Pago aprobado!"
+              : mp === "failure"
+                ? "No pudimos procesar el pago"
+                : "Recibimos tu pedido"}
+          </h1>
           <p className="muted">Número de venta #{venta.id_venta}</p>
 
           <p>
@@ -43,7 +57,15 @@ export default async function ConfirmacionPage({ params }: { params: Params }) {
             <strong>{formatPrice(venta.total)}</strong>.
           </p>
 
-          {venta.tipo_entrega === "retiro" ? (
+          {pago && ["mercado_pago", "tarjeta"].includes(pago.tipo_pago) ? (
+            <div className="alert alert-info">
+              {pago.estado === "aprobado"
+                ? "Mercado Pago confirmó el pago. Comenzaremos a preparar tu pedido."
+                : mp === "failure"
+                  ? "El pago fue rechazado o cancelado. Podés volver al carrito para intentarlo nuevamente."
+                  : "Estamos verificando el pago con Mercado Pago. Actualizaremos el pedido cuando recibamos la confirmación."}
+            </div>
+          ) : venta.tipo_entrega === "retiro" ? (
             <div className="alert alert-info">
               Elegiste <strong>retiro en tienda</strong>
               {pago?.tipo_pago === "tienda"
@@ -52,8 +74,7 @@ export default async function ConfirmacionPage({ params }: { params: Params }) {
             </div>
           ) : (
             <div className="alert alert-info">
-              Elegiste <strong>envío a domicilio</strong>. El pago online con MercadoPago estará
-              disponible próximamente; el pedido quedó pendiente de pago.
+              Elegiste <strong>envío a domicilio</strong>. El pedido quedó pendiente de pago.
               {envio?.direccion && (
                 <p style={{ marginBottom: 0 }}>
                   Envío a: {envio.direccion.calle} {envio.direccion.numero}
@@ -101,7 +122,7 @@ export default async function ConfirmacionPage({ params }: { params: Params }) {
           </div>
 
           <div className="actions">
-            <Link href="/catalogo" className="btn btn-primary">
+            <Link href="/shop" className="btn btn-primary">
               Seguir comprando
             </Link>
             <Link href="/" className="btn btn-ghost">

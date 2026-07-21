@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, isGoogleAuthConfigured } from "@/auth";
+import { CheckoutCoupon } from "@/components/checkout-coupon";
 import { CheckoutDeliveryFields } from "@/components/checkout-delivery-fields";
+import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
+import { computeTotals } from "@/lib/checkout-venta";
 import {
   FREE_SHIPPING_THRESHOLD,
   ivaIncluded,
@@ -9,6 +12,7 @@ import {
 } from "@/lib/cart";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { confirmarVenta } from "./actions";
 import { continueAsGuest, continueWithGoogle } from "./identity-actions";
 
@@ -41,6 +45,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
 
   const mailLocked = isAuthenticated;
   const freeShipping = cart.subtotal >= FREE_SHIPPING_THRESHOLD;
+  const mercadoPagoConfigured = isMercadoPagoConfigured();
+  const mpPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() || null;
+  const totalContado = computeTotals(cart, "mercado_pago").total;
 
   let iva105 = 0;
   let iva21 = 0;
@@ -188,15 +195,14 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 </tfoot>
               </table>
 
-              <p className="oc-checkout-privacy">
-                Tus datos personales se utilizarán para procesar tu pedido, mejorar tu
-                experiencia en esta web y otros propósitos descritos en nuestra política
-                de privacidad.
-              </p>
+              <CheckoutCoupon />
 
-              <button type="submit" className="oc-btn oc-btn-dark oc-checkout-submit">
-                Realizar el pedido
-              </button>
+              <CheckoutPaymentOptions
+                totalTarjeta={cart.subtotal}
+                totalContado={totalContado}
+                mpConfigured={mercadoPagoConfigured}
+                publicKey={mpPublicKey}
+              />
 
               <Link href="/carrito" className="oc-checkout-back">
                 ← Volver al carrito

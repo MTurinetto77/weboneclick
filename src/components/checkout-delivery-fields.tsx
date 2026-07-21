@@ -49,7 +49,6 @@ type Props = {
 
 export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
   const [tipoEntrega, setTipoEntrega] = useState<"envio" | "retiro">("envio");
-  const [tipoPago, setTipoPago] = useState<"online" | "tienda">("online");
   const provinciaDefault =
     addressDefaults?.provincia &&
     (PROVINCIAS_AR as readonly string[]).includes(addressDefaults.provincia)
@@ -66,10 +65,7 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
             name="tipo_entrega"
             value="envio"
             checked={tipoEntrega === "envio"}
-            onChange={() => {
-              setTipoEntrega("envio");
-              setTipoPago("online");
-            }}
+            onChange={() => setTipoEntrega("envio")}
           />
           Envío a domicilio
         </label>
@@ -145,36 +141,15 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
               defaultValue={addressDefaults?.referencias ?? ""}
             />
           </div>
-          <input type="hidden" name="tipo_pago" value="online" />
           {onlineNote}
         </div>
       )}
 
       {tipoEntrega === "retiro" && (
-        <fieldset className="oc-checkout-fieldset">
-          <legend>Forma de pago</legend>
-          <label className="oc-checkout-radio">
-            <input
-              type="radio"
-              name="tipo_pago"
-              value="tienda"
-              checked={tipoPago === "tienda"}
-              onChange={() => setTipoPago("tienda")}
-            />
-            Pago en tienda
-          </label>
-          <label className="oc-checkout-radio">
-            <input
-              type="radio"
-              name="tipo_pago"
-              value="online"
-              checked={tipoPago === "online"}
-              onChange={() => setTipoPago("online")}
-            />
-            Pago online
-          </label>
-          {tipoPago === "online" && onlineNote}
-        </fieldset>
+        <div className="oc-checkout-note">
+          Seleccionarás la tienda de retiro después de confirmar el pago.
+          {onlineNote}
+        </div>
       )}
     </>
   );

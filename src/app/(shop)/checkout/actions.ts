@@ -3,187 +3,78 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { clearCartCookie, deductStock, readCartLines, resolveCart } from "@/lib/cart";
+import { clearCartCookie } from "@/lib/cart";
+import { createPendingVenta } from "@/lib/checkout-venta";
+import { mercadoPagoPreference, publicSiteUrl } from "@/lib/mercadopago";
 import { prisma } from "@/lib/prisma";
 
-function str(formData: FormData, key: string): string {
-  return String(formData.get(key) || "").trim();
-}
-
+/**
+ * Checkout con redirección a Mercado Pago (opción "contado, 10% de descuento").
+ * El pago con tarjeta embebido va por /api/mercadopago/pay (Card Payment Brick).
+ */
 export async function confirmarVenta(formData: FormData) {
-  const cart = await resolveCart(await readCartLines());
-  if (!cart.canCheckout || cart.items.length === 0) {
-    throw new Error("El carrito no está listo para checkout");
+  const tipo_pago = String(formData.get("tipo_pago") || "").trim();
+  if (tipo_pago !== "mercado_pago") {
+    throw new Error(
+      "Para pagar con tarjeta completá el formulario de tarjeta del checkout."
+    );
   }
 
   const session = await auth();
-  const checkoutMode = str(formData, "checkout_mode");
-  const nombre = str(formData, "nombre");
-  const apellido = str(formData, "apellido");
-  let mail = str(formData, "mail").toLowerCase();
-  const telefono = str(formData, "telefono") || null;
-  const tipo_documento = str(formData, "tipo_documento") || null;
-  const numero_documento = str(formData, "numero_documento") || null;
-  const tipo_entrega = str(formData, "tipo_entrega");
-  let tipo_pago = str(formData, "tipo_pago");
-
-  if (checkoutMode !== "invitado" && session?.user?.email) {
-    mail = session.user.email.toLowerCase();
+  const fields: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (typeof value === "string") fields[key] = value;
   }
 
-  if (!nombre || !apellido || !mail) {
-    throw new Error("Completá nombre, apellido y mail");
-  }
-  if (tipo_entrega !== "envio" && tipo_entrega !== "retiro") {
-    throw new Error("Tipo de entrega inválido");
-  }
-  if (tipo_entrega === "envio") {
-    tipo_pago = "online";
-  }
-  if (tipo_pago !== "online" && tipo_pago !== "tienda") {
-    throw new Error("Tipo de pago inválido");
-  }
-  if (tipo_entrega === "envio") {
-    const calle = str(formData, "calle");
-    const numero = str(formData, "numero");
-    const localidad = str(formData, "localidad");
-    const provincia = str(formData, "provincia");
-    if (!calle || !numero || !localidad || !provincia) {
-      throw new Error("Calle, número, localidad y provincia son obligatorios");
-    }
-  }
+  const venta = await createPendingVenta(
+    fields,
+    "mercado_pago",
+    session?.user?.email ?? null,
+    session?.user?.id ?? null
+  );
 
-  const descuento = 0;
-  const costo_envio = 0;
-  const subtotal = cart.subtotal;
-  const total = subtotal - descuento + costo_envio;
-  const id_usuario =
-    checkoutMode !== "invitado" &&
-    session?.user?.email?.toLowerCase() === mail &&
-    session.user.id
-      ? session.user.id
-      : null;
+  const siteUrl = publicSiteUrl();
+  const notificationUrl = siteUrl.startsWith("https://")
+    ? `${siteUrl}/api/mercadopago/webhook`
+    : undefined;
 
-  const id_venta = await prisma.$transaction(async (tx) => {
-    for (const item of cart.items) {
-      const stocks = await tx.stock.findMany({ where: { id_producto: item.id_producto } });
-      const stockTotal = stocks.reduce((acc, s) => acc + Number(s.cantidad), 0);
-      const tracked = stocks.length > 0;
-      if (item.precio == null) {
-        throw new Error(`Sin precio: ${item.titulo}`);
-      }
-      // Solo bloquear si el stock ya está sincronizado y no alcanza
-      if (tracked && stockTotal < item.cantidad) {
-        throw new Error(`Stock insuficiente: ${item.titulo}`);
-      }
-    }
-
-    let cliente = await tx.cliente.findUnique({ where: { mail } });
-    if (cliente) {
-      cliente = await tx.cliente.update({
-        where: { id_cliente: cliente.id_cliente },
-        data: {
-          nombre,
-          apellido,
-          telefono,
-          tipo_documento,
-          numero_documento,
-          id_usuario: cliente.id_usuario ?? id_usuario,
-        },
-      });
-    } else {
-      cliente = await tx.cliente.create({
-        data: {
-          nombre,
-          apellido,
-          mail,
-          telefono,
-          tipo_documento,
-          numero_documento,
-          id_usuario,
-        },
-      });
-    }
-
-    let id_direccion: number | null = null;
-    if (tipo_entrega === "envio") {
-      const direccion = await tx.direccion.create({
-        data: {
-          id_cliente: cliente.id_cliente,
-          calle: str(formData, "calle"),
-          numero: str(formData, "numero"),
-          piso: str(formData, "piso") || null,
-          departamento: str(formData, "departamento") || null,
-          barrio: str(formData, "barrio") || null,
-          localidad: str(formData, "localidad"),
-          provincia: str(formData, "provincia"),
-          pais: str(formData, "pais") || "Argentina",
-          codigo_postal: str(formData, "codigo_postal") || null,
-          referencias: str(formData, "referencias") || null,
-        },
-      });
-      id_direccion = direccion.id_direccion;
-      if (!cliente.id_direccion_principal) {
-        await tx.cliente.update({
-          where: { id_cliente: cliente.id_cliente },
-          data: { id_direccion_principal: id_direccion },
-        });
-      }
-    }
-
-    const venta = await tx.venta.create({
-      data: {
-        id_cliente: cliente.id_cliente,
-        estado: "pendiente",
-        tipo_entrega,
-        subtotal,
-        descuento,
-        costo_envio,
-        total,
-        detalles: {
-          create: cart.items.map((item, index) => ({
-            item: index + 1,
-            id_producto: item.id_producto,
-            nombre_producto: item.titulo,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio!,
-            subtotal: item.subtotal!,
-          })),
-        },
-        pagos: {
-          create: {
-            tipo_pago,
-            estado: "pendiente",
-            monto: total,
-            referencia: null,
-            transaction_id: null,
-          },
-        },
+  const preference = await mercadoPagoPreference().create({
+    body: {
+      items: venta.itemsCobro.map((item) => ({
+        id: String(item.id_producto),
+        title: item.titulo,
+        quantity: item.cantidad,
+        unit_price: item.unit_price,
+        currency_id: "ARS",
+      })),
+      payer: {
+        name: venta.nombre,
+        surname: venta.apellido,
+        email: venta.mail,
       },
-    });
+      external_reference: String(venta.id_venta),
+      metadata: { id_venta: venta.id_venta },
+      back_urls: {
+        success: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=success`,
+        pending: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=pending`,
+        failure: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=failure`,
+      },
+      auto_return: "approved",
+      notification_url: notificationUrl,
+      statement_descriptor: "ONECLICK",
+    },
+  });
 
-    if (tipo_entrega === "envio" && id_direccion != null) {
-      await tx.envio.create({
-        data: {
-          id_venta: venta.id_venta,
-          tipo: "domicilio",
-          estado: "pendiente",
-          id_direccion,
-          tracking: null,
-        },
-      });
-    }
+  if (!preference.init_point) {
+    throw new Error("Mercado Pago no devolvió una URL de pago");
+  }
 
-    for (const item of cart.items) {
-      await deductStock(tx, item.id_producto, item.cantidad);
-    }
-
-    return venta.id_venta;
+  await prisma.pago.updateMany({
+    where: { id_venta: venta.id_venta, tipo_pago: "mercado_pago" },
+    data: { referencia: preference.id ?? null },
   });
 
   await clearCartCookie();
   revalidatePath("/carrito");
-  revalidatePath("/catalogo");
-  revalidatePath("/");
-  redirect(`/checkout/confirmacion/${id_venta}`);
+  redirect(preference.init_point);
 }

@@ -29,6 +29,7 @@ export default async function EtiquetaPage({ params }: { params: Params }) {
     precio: pickCurrentPrice(p.precios),
     imagen: p.archivos[0]?.archivo.link ?? null,
     stockTotal: p.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
+    stockTracked: p.stocks.length > 0,
     cuotas_max: p.cuotas_max,
   }));
 
