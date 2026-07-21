@@ -2,15 +2,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, isGoogleAuthConfigured } from "@/auth";
 import { CheckoutDeliveryFields } from "@/components/checkout-delivery-fields";
-import { resolveCart } from "@/lib/cart";
+import {
+  FREE_SHIPPING_THRESHOLD,
+  ivaIncluded,
+  resolveCart,
+} from "@/lib/cart";
+import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
 import { confirmarVenta } from "./actions";
 import { continueAsGuest, continueWithGoogle } from "./identity-actions";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Checkout" };
+export const metadata = { title: "Finalizar compra" };
 
 type SearchParams = Promise<{ modo?: string }>;
 
@@ -35,63 +39,58 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
       })
     : null;
 
-  const costoEnvio = 0;
-  const total = cart.subtotal + costoEnvio;
   const mailLocked = isAuthenticated;
+  const freeShipping = cart.subtotal >= FREE_SHIPPING_THRESHOLD;
+
+  let iva105 = 0;
+  let iva21 = 0;
+  for (const item of cart.items) {
+    if (item.subtotal == null || !item.disponible) continue;
+    const tax = ivaIncluded(item.subtotal, item.ivaRate);
+    if (item.ivaRate <= 0.11) iva105 += tax;
+    else iva21 += tax;
+  }
 
   return (
-    <section className="section">
+    <div className="oc-checkout-page">
       <div className="container">
-        <h1 style={{ marginTop: 0 }}>Checkout</h1>
-        <p className="muted">
-          {isAuthenticated
-            ? cliente
-              ? "Encontramos tus datos. Revisalos y confirmá el pedido."
-              : "Completá tus datos para confirmar el pedido."
-            : "Estás comprando como invitado. Completá tus datos para confirmar el pedido."}
-        </p>
+        <h1 className="oc-checkout-title">Finalizar compra</h1>
+
         {isAuthenticated && (
-          <p className="muted" style={{ marginTop: "-0.5rem" }}>
+          <p className="oc-checkout-session">
             Sesión: {session!.user!.email} ·{" "}
             <Link href="/checkout?modo=invitado">Continuar como invitado</Link>
           </p>
         )}
 
-        <div className="checkout-layout">
-          <form action={confirmarVenta} className="checkout-form admin-card">
-            <input
-              type="hidden"
-              name="checkout_mode"
-              value={isAuthenticated ? "google" : "invitado"}
-            />
-            <h2>Datos del cliente</h2>
-            <div className="form-grid-2">
-              <div className="form-field">
-                <label>Nombre</label>
+        <form action={confirmarVenta} className="oc-checkout-layout">
+          <input
+            type="hidden"
+            name="checkout_mode"
+            value={isAuthenticated ? "google" : "invitado"}
+          />
+
+          <div className="oc-checkout-billing">
+            <h2>Detalles de facturación</h2>
+
+            <div className="oc-checkout-grid-2">
+              <div className="oc-checkout-field">
+                <label>
+                  Nombre <abbr title="obligatorio">*</abbr>
+                </label>
                 <input name="nombre" required defaultValue={cliente?.nombre ?? ""} />
               </div>
-              <div className="form-field">
-                <label>Apellido</label>
+              <div className="oc-checkout-field">
+                <label>
+                  Apellidos <abbr title="obligatorio">*</abbr>
+                </label>
                 <input name="apellido" required defaultValue={cliente?.apellido ?? ""} />
               </div>
             </div>
-            <div className="form-field">
-              <label>Mail</label>
-              <input
-                name="mail"
-                type="email"
-                required
-                defaultValue={cliente?.mail ?? session?.user?.email ?? ""}
-                readOnly={mailLocked}
-              />
-            </div>
-            <div className="form-field">
-              <label>Teléfono</label>
-              <input name="telefono" defaultValue={cliente?.telefono ?? ""} />
-            </div>
-            <div className="form-grid-2">
-              <div className="form-field">
-                <label>Tipo documento</label>
+
+            <div className="oc-checkout-grid-2">
+              <div className="oc-checkout-field">
+                <label>Tipo de documento</label>
                 <select
                   name="tipo_documento"
                   defaultValue={cliente?.tipo_documento === "CUIT" ? "CUIT" : "DNI"}
@@ -100,106 +99,158 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                   <option value="CUIT">CUIT</option>
                 </select>
               </div>
-              <div className="form-field">
-                <label>Número documento</label>
-                <input name="numero_documento" defaultValue={cliente?.numero_documento ?? ""} />
+              <div className="oc-checkout-field">
+                <label>Número de documento</label>
+                <input
+                  name="numero_documento"
+                  defaultValue={cliente?.numero_documento ?? ""}
+                />
               </div>
+            </div>
+
+            <div className="oc-checkout-field">
+              <label>Teléfono</label>
+              <input name="telefono" type="tel" defaultValue={cliente?.telefono ?? ""} />
+            </div>
+
+            <div className="oc-checkout-field">
+              <label>
+                Dirección de correo electrónico <abbr title="obligatorio">*</abbr>
+              </label>
+              <input
+                name="mail"
+                type="email"
+                required
+                defaultValue={cliente?.mail ?? session?.user?.email ?? ""}
+                readOnly={mailLocked}
+              />
             </div>
 
             <CheckoutDeliveryFields
               addressDefaults={cliente?.direccion_principal ?? null}
               onlineNote={
-                <p className="muted" style={{ marginTop: "0.75rem" }}>
-                  El pago online con MercadoPago estará disponible en la Etapa 3. Por ahora el
-                  pedido queda registrado como pendiente de pago.
+                <p className="oc-checkout-note">
+                  El pago online con MercadoPago estará disponible próximamente. Por
+                  ahora el pedido queda registrado como pendiente de pago.
                 </p>
               }
             />
+          </div>
 
-            <div className="actions">
-              <Link href="/carrito" className="btn btn-ghost">
-                Volver al carrito
-              </Link>
-              <button className="btn btn-primary" type="submit">
-                Confirmar pedido
+          <aside className="oc-checkout-order">
+            <div className="oc-checkout-order-box">
+              <h2>Tu pedido</h2>
+              <table className="oc-checkout-order-table">
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cart.items.map((item) => (
+                    <tr key={item.id_producto}>
+                      <td>
+                        {item.titulo}{" "}
+                        <strong className="oc-checkout-qty">× {item.cantidad}</strong>
+                      </td>
+                      <td>{formatPriceArs(item.subtotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>Subtotal</th>
+                    <td>{formatPriceArs(cart.subtotal)}</td>
+                  </tr>
+                  <tr>
+                    <th>Envío</th>
+                    <td>
+                      {freeShipping
+                        ? "Envío gratis"
+                        : "Se calcula según tu dirección"}
+                    </td>
+                  </tr>
+                  <tr className="oc-checkout-total">
+                    <th>Total</th>
+                    <td>
+                      <strong>{formatPriceArs(cart.subtotal)}</strong>
+                      {(iva105 > 0 || iva21 > 0) && (
+                        <span className="oc-cart-tax">
+                          (incluye
+                          {iva105 > 0 && <> {formatPriceArs(iva105)} IVA 10.5%</>}
+                          {iva105 > 0 && iva21 > 0 && ","}
+                          {iva21 > 0 && <> {formatPriceArs(iva21)} IVA 21%</>})
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              <p className="oc-checkout-privacy">
+                Tus datos personales se utilizarán para procesar tu pedido, mejorar tu
+                experiencia en esta web y otros propósitos descritos en nuestra política
+                de privacidad.
+              </p>
+
+              <button type="submit" className="oc-btn oc-btn-dark oc-checkout-submit">
+                Realizar el pedido
               </button>
-            </div>
-          </form>
 
-          <aside className="order-summary admin-card">
-            <h2>Resumen</h2>
-            <ul className="order-summary-list">
-              {cart.items.map((item) => (
-                <li key={item.id_producto}>
-                  <span>
-                    {item.titulo} × {item.cantidad}
-                  </span>
-                  <strong>{formatPrice(item.subtotal)}</strong>
-                </li>
-              ))}
-            </ul>
-            <div className="order-summary-totals">
-              <div>
-                <span>Subtotal</span>
-                <strong>{formatPrice(cart.subtotal)}</strong>
-              </div>
-              <div>
-                <span>Envío</span>
-                <strong>{formatPrice(costoEnvio)}</strong>
-              </div>
-              <div className="order-total">
-                <span>Total</span>
-                <strong>{formatPrice(total)}</strong>
-              </div>
+              <Link href="/carrito" className="oc-checkout-back">
+                ← Volver al carrito
+              </Link>
             </div>
           </aside>
-        </div>
+        </form>
       </div>
-    </section>
+    </div>
   );
 }
 
 function CheckoutIdentityGate({ googleConfigured }: { googleConfigured: boolean }) {
   return (
-    <section className="section">
+    <div className="oc-checkout-page">
       <div className="container">
-        <h1 style={{ marginTop: 0 }}>Finalizar compra</h1>
-        <p className="muted">Elegí cómo querés continuar.</p>
+        <h1 className="oc-checkout-title">Finalizar compra</h1>
+        <p className="oc-checkout-session">Elegí cómo querés continuar.</p>
 
-        <div className="checkout-identity admin-card">
+        <div className="oc-checkout-identity">
           {googleConfigured ? (
             <form action={continueWithGoogle}>
-              <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
+              <button type="submit" className="oc-btn oc-btn-dark oc-checkout-submit">
                 Continuar con Google
               </button>
             </form>
           ) : (
-            <div className="alert">
+            <div className="oc-cart-alert">
               Google no está configurado. Podés continuar como invitado.
             </div>
           )}
 
-          <div className="checkout-identity-divider">
+          <div className="oc-checkout-identity-divider">
             <span>o</span>
           </div>
 
           <form action={continueAsGuest}>
-            <button type="submit" className="btn btn-secondary" style={{ width: "100%" }}>
+            <button
+              type="submit"
+              className="oc-btn oc-btn-ghost-dark oc-checkout-submit"
+            >
               Continuar como invitado
             </button>
           </form>
 
-          <p className="muted" style={{ marginBottom: 0, marginTop: "1rem", textAlign: "center" }}>
+          <p className="oc-checkout-note" style={{ textAlign: "center" }}>
             Si ya compraste antes con Google, cargaremos tus datos automáticamente.
           </p>
 
-          <div className="actions" style={{ justifyContent: "center" }}>
-            <Link href="/carrito" className="btn btn-ghost">
-              Volver al carrito
-            </Link>
-          </div>
+          <Link href="/carrito" className="oc-checkout-back">
+            ← Volver al carrito
+          </Link>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

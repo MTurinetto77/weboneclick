@@ -58,9 +58,9 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
 
   return (
     <>
-      <fieldset className="checkout-fieldset">
+      <fieldset className="oc-checkout-fieldset">
         <legend>Tipo de entrega</legend>
-        <label className="radio-row">
+        <label className="oc-checkout-radio">
           <input
             type="radio"
             name="tipo_entrega"
@@ -73,7 +73,7 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
           />
           Envío a domicilio
         </label>
-        <label className="radio-row">
+        <label className="oc-checkout-radio">
           <input
             type="radio"
             name="tipo_entrega"
@@ -86,40 +86,40 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
       </fieldset>
 
       {tipoEntrega === "envio" && (
-        <div className="checkout-address">
+        <div className="oc-checkout-address">
           <h3>Dirección de entrega</h3>
-          <div className="form-field">
+          <div className="oc-checkout-field">
             <label>Calle *</label>
             <input name="calle" required defaultValue={addressDefaults?.calle ?? ""} />
           </div>
-          <div className="form-grid-2">
-            <div className="form-field">
+          <div className="oc-checkout-grid-2">
+            <div className="oc-checkout-field">
               <label>Número *</label>
               <input name="numero" required defaultValue={addressDefaults?.numero ?? ""} />
             </div>
-            <div className="form-field">
+            <div className="oc-checkout-field">
               <label>Piso</label>
               <input name="piso" defaultValue={addressDefaults?.piso ?? ""} />
             </div>
-            <div className="form-field">
+            <div className="oc-checkout-field">
               <label>Departamento</label>
               <input name="departamento" defaultValue={addressDefaults?.departamento ?? ""} />
             </div>
-            <div className="form-field">
+            <div className="oc-checkout-field">
               <label>Código postal</label>
               <input name="codigo_postal" defaultValue={addressDefaults?.codigo_postal ?? ""} />
             </div>
           </div>
-          <div className="form-field">
+          <div className="oc-checkout-field">
             <label>Barrio</label>
             <input name="barrio" defaultValue={addressDefaults?.barrio ?? ""} />
           </div>
-          <div className="form-grid-2">
-            <div className="form-field">
+          <div className="oc-checkout-grid-2">
+            <div className="oc-checkout-field">
               <label>Localidad *</label>
               <input name="localidad" required defaultValue={addressDefaults?.localidad ?? ""} />
             </div>
-            <div className="form-field">
+            <div className="oc-checkout-field">
               <label>Provincia *</label>
               <select name="provincia" required defaultValue={provinciaDefault}>
                 <option value="" disabled>
@@ -133,11 +133,11 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
               </select>
             </div>
           </div>
-          <div className="form-field">
+          <div className="oc-checkout-field">
             <label>País</label>
             <input name="pais" defaultValue={addressDefaults?.pais || "Argentina"} />
           </div>
-          <div className="form-field">
+          <div className="oc-checkout-field">
             <label>Referencias</label>
             <input
               name="referencias"
@@ -151,9 +151,9 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
       )}
 
       {tipoEntrega === "retiro" && (
-        <fieldset className="checkout-fieldset">
+        <fieldset className="oc-checkout-fieldset">
           <legend>Forma de pago</legend>
-          <label className="radio-row">
+          <label className="oc-checkout-radio">
             <input
               type="radio"
               name="tipo_pago"
@@ -163,7 +163,7 @@ export function CheckoutDeliveryFields({ onlineNote, addressDefaults }: Props) {
             />
             Pago en tienda
           </label>
-          <label className="radio-row">
+          <label className="oc-checkout-radio">
             <input
               type="radio"
               name="tipo_pago"
