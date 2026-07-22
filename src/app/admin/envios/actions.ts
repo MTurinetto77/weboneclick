@@ -12,11 +12,6 @@ import {
   type CpEnvioRow,
   type ProveedorEnvio,
 } from "@/lib/envio-import";
-import {
-  PARAM_SMARTPOST_PRECIO,
-  getParametroNumber,
-  upsertParametro,
-} from "@/lib/parametros";
 
 function revalidateEnvios() {
   revalidatePath("/admin/envios");
@@ -62,13 +57,7 @@ export async function importFastrack(formData: FormData) {
   const zonasRaw = String(formData.get("zonas_excluir") ?? "1");
   const zonasExcluir = parseZonasExcluir(zonasRaw, [1]);
 
-  const precioRaw = String(formData.get("precio") || "").trim().replace(",", ".");
-  const precio = Number(precioRaw);
-  if (!Number.isFinite(precio) || precio < 0) {
-    throw new Error("Indicá un precio válido para FastTrack (el Excel no incluye precio)");
-  }
-
-  const rows = parseFastrackWorkbook(buffer, { precio, zonasExcluir });
+  const rows = parseFastrackWorkbook(buffer, { zonasExcluir, precio: 0 });
   if (!rows.length) {
     throw new Error("No se importaron filas. Revisá el archivo o las zonas excluidas.");
   }
@@ -84,29 +73,7 @@ export async function importSmartpost(formData: FormData) {
   await requireAdmin();
 
   const buffer = await readUpload(formData);
-
-  let precio = await getParametroNumber(PARAM_SMARTPOST_PRECIO);
-  const override = String(formData.get("precio") || "").trim().replace(",", ".");
-  if (override) {
-    const n = Number(override);
-    if (!Number.isFinite(n) || n < 0) throw new Error("Precio inválido");
-    precio = n;
-    await upsertParametro({
-      nombre: PARAM_SMARTPOST_PRECIO,
-      tipo: "number",
-      valor: String(n),
-    });
-  }
-  if (precio == null) {
-    throw new Error(
-      `Falta el parámetro ${PARAM_SMARTPOST_PRECIO}. Configuralo en Parámetros antes de importar.`,
-    );
-  }
-
-  const diasRaw = Number(String(formData.get("dias_entrega") || "1").replace(",", "."));
-  const diasEntrega = Number.isFinite(diasRaw) && diasRaw > 0 ? Math.round(diasRaw) : 1;
-
-  const rows = parseSmartpostWorkbook(buffer, { precio, diasEntrega });
+  const rows = parseSmartpostWorkbook(buffer, { diasEntrega: 1 });
   if (!rows.length) {
     throw new Error("No se importaron filas. Revisá el formato del Excel SmartPost.");
   }

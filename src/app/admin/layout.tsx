@@ -32,36 +32,33 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="admin-shell">
       <aside className="admin-nav">
-        <div className="brand" style={{ color: "#fff", marginBottom: "1.25rem" }}>
+        <div className="brand">
           OneClick Admin
-          <span style={{ color: "rgba(255,255,255,0.7)" }}>Panel</span>
+          <span>Panel</span>
         </div>
         {links.map((link) => (
           <Link key={link.href} href={link.href}>
             {link.label}
           </Link>
         ))}
-        <div style={{ marginTop: "2rem", fontSize: "0.85rem", opacity: 0.85 }}>
+        <div className="admin-nav-meta">
           {session.user.email}
-        </div>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/admin/login" });
-          }}
-          style={{ marginTop: "0.75rem" }}
-        >
-          <button
-            type="submit"
-            className="btn btn-ghost"
-            style={{ color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/admin/login" });
+            }}
           >
-            Salir
-          </button>
-        </form>
-        <Link href="/" style={{ marginTop: "1rem", opacity: 0.8 }}>
-          Ver sitio
-        </Link>
+            <button
+              type="submit"
+              className="btn btn-ghost"
+              style={{ color: "#fff", borderColor: "rgba(255,255,255,0.3)" }}
+            >
+              Salir
+            </button>
+          </form>
+          <Link href="/">Ver sitio</Link>
+        </div>
       </aside>
       <div className="admin-main">{children}</div>
     </div>

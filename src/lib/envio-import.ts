@@ -14,7 +14,6 @@ function normalizeCp(raw: unknown): string | null {
   if (raw == null || raw === "") return null;
   const s = String(raw).trim();
   if (!s) return null;
-  // Quitar .0 de números Excel
   const asNum = Number(s);
   if (Number.isFinite(asNum) && String(asNum) === s.replace(/\.0+$/, "")) {
     return String(Math.trunc(asNum));
@@ -53,14 +52,15 @@ function readWorkbook(buffer: Buffer): XLSX.WorkBook {
 
 /**
  * Fast track.xlsx — hoja "Zonas STD"
- * Fila 0 vacía, fila 1 headers: cp | localidad | provincia | tiempo_entrega | Dias | zona
- * Precio no viene en el archivo (se pasa como argumento).
+ * Headers: cp | localidad | provincia | tiempo_entrega | Dias | zona
+ * Precio no viene en el archivo → default 0.
  * Se excluyen zonas indicadas (por defecto zona 1).
  */
 export function parseFastrackWorkbook(
   buffer: Buffer,
-  opts: { precio: number; zonasExcluir: Set<number> },
+  opts: { zonasExcluir: Set<number>; precio?: number },
 ): CpEnvioRow[] {
+  const precio = opts.precio ?? 0;
   const wb = readWorkbook(buffer);
   const sheetName = wb.SheetNames.find((n) => /zona/i.test(n)) ?? wb.SheetNames[0];
   if (!sheetName) throw new Error("El Excel de FastTrack no tiene hojas");
@@ -69,7 +69,6 @@ export function parseFastrackWorkbook(
     defval: null,
   });
 
-  // Buscar fila de headers
   let headerIdx = -1;
   let colCp = -1;
   let colLocalidad = -1;
@@ -119,7 +118,7 @@ export function parseFastrackWorkbook(
       codigo_postal: cp,
       localidad,
       dias_entrega,
-      precio: opts.precio,
+      precio,
     });
   }
 
@@ -128,13 +127,16 @@ export function parseFastrackWorkbook(
 
 /**
  * SmartPost.xlsx — hoja "CP"
- * Headers: cp | localidad | barrio | zona | ... | Costo (se ignora)
- * Precio y días vienen de parámetros / formulario.
+ * Headers: cp | localidad | ... | Costo
+ * Precio se toma de la columna Costo. Días default 1 (no viene en el archivo).
  */
 export function parseSmartpostWorkbook(
   buffer: Buffer,
-  opts: { precio: number; diasEntrega: number },
+  opts?: { diasEntrega?: number },
 ): CpEnvioRow[] {
+  const diasEntrega =
+    opts?.diasEntrega != null && opts.diasEntrega > 0 ? Math.round(opts.diasEntrega) : 1;
+
   const wb = readWorkbook(buffer);
   const sheetName = wb.SheetNames.find((n) => /^cp$/i.test(n)) ?? wb.SheetNames[0];
   if (!sheetName) throw new Error("El Excel de SmartPost no tiene hojas");
@@ -151,18 +153,25 @@ export function parseSmartpostWorkbook(
     const cpKey = keys.find((k) => k.trim().toLowerCase() === "cp") ?? "cp";
     const locKey =
       keys.find((k) => k.trim().toLowerCase() === "localidad") ?? "localidad";
+    const costoKey =
+      keys.find((k) => {
+        const n = k.trim().toLowerCase();
+        return n === "costo" || n === "precio" || n === "costo ";
+      }) ?? keys.find((k) => /costo|precio/i.test(k.trim()));
 
     const cp = normalizeCp(obj[cpKey]);
     if (!cp) continue;
     if (seen.has(cp)) continue;
     seen.add(cp);
 
+    const precio = costoKey ? cellNum(obj[costoKey]) : null;
+
     out.push({
       proveedor: "smartpost",
       codigo_postal: cp,
       localidad: cellStr(obj[locKey]) || "—",
-      dias_entrega: opts.diasEntrega > 0 ? Math.round(opts.diasEntrega) : 1,
-      precio: opts.precio,
+      dias_entrega: diasEntrega,
+      precio: precio != null && precio >= 0 ? precio : 0,
     });
   }
 
