@@ -193,6 +193,237 @@ async function productIdsMatchingNumericFilters(
   return ids ?? [];
 }
 
+export type ShopOrder = "ultimos" | "precio-asc" | "precio-desc" | "nombre";
+
+export type ShopCategoryNode = {
+  id_categoria: number;
+  nombre: string;
+  slug: string;
+  count: number;
+  children: ShopCategoryNode[];
+};
+
+export type ShopBrandFacet = {
+  id_marca: number;
+  nombre: string;
+  slug: string;
+  count: number;
+};
+
+export type ShopFacets = {
+  categories: ShopCategoryNode[];
+  brands: ShopBrandFacet[];
+  priceMin: number;
+  priceMax: number;
+};
+
+/** IDs de categoría a filtrar: incluye hijos por jerarquía Prisma o por nombre "Padre / Hijo". */
+export async function resolveCategoryFilterIds(categoriaId: number): Promise<number[]> {
+  const cat = await prisma.categoria.findUnique({
+    where: { id_categoria: categoriaId },
+    select: { id_categoria: true, nombre: true },
+  });
+  if (!cat) return [];
+
+  const byTree = await getCategoryAndDescendantIds(categoriaId);
+  if (!cat.nombre.includes(" / ")) {
+    const byName = await prisma.categoria.findMany({
+      where: { nombre: { startsWith: `${cat.nombre} /` } },
+      select: { id_categoria: true },
+    });
+    return [...new Set([...byTree, ...byName.map((c) => c.id_categoria)])];
+  }
+  return byTree.length ? byTree : [categoriaId];
+}
+
+export async function resolveCategoryFilterIdsBySlug(
+  slug: string
+): Promise<{ id: number; nombre: string; slug: string } | null> {
+  const cat = await prisma.categoria.findUnique({
+    where: { slug },
+    select: { id_categoria: true, nombre: true, slug: true },
+  });
+  if (!cat) return null;
+  return { id: cat.id_categoria, nombre: cat.nombre, slug: cat.slug };
+}
+
+/** Facetas del sidebar de /shop: categorías con conteo, marcas y rango de precios. */
+export async function getShopFacets(): Promise<ShopFacets> {
+  const [categories, brands, priceRows] = await Promise.all([
+    prisma.categoria.findMany({
+      select: {
+        id_categoria: true,
+        nombre: true,
+        slug: true,
+        id_cat_superior: true,
+        productos: {
+          where: { producto: { activo: true } },
+          select: { id_producto: true },
+        },
+      },
+      orderBy: { nombre: "asc" },
+    }),
+    prisma.marca.findMany({
+      where: { activo: true },
+      select: {
+        id_marca: true,
+        nombre: true,
+        slug: true,
+        _count: { select: { productos: { where: { activo: true } } } },
+      },
+      orderBy: { nombre: "asc" },
+    }),
+    prisma.$queryRaw<{ min_p: Prisma.Decimal | null; max_p: Prisma.Decimal | null }[]>`
+      SELECT MIN(pp.precio) AS min_p, MAX(pp.precio) AS max_p
+      FROM precio_producto pp
+      INNER JOIN producto p ON p.id_producto = pp.id_producto
+      WHERE p.activo = 1
+        AND pp.fecha_desde = (
+          SELECT MAX(pp2.fecha_desde)
+          FROM precio_producto pp2
+          WHERE pp2.id_producto = pp.id_producto
+            AND pp2.fecha_desde <= CURDATE()
+        )
+    `,
+  ]);
+
+  type Flat = {
+    id_categoria: number;
+    nombre: string;
+    slug: string;
+    id_cat_superior: number | null;
+    count: number;
+    displayName: string;
+    parentKey: string | null;
+  };
+
+  const flat: Flat[] = categories.map((c) => {
+    const parts = c.nombre.split(" / ");
+    const isChild = parts.length > 1;
+    return {
+      id_categoria: c.id_categoria,
+      nombre: c.nombre,
+      slug: c.slug,
+      id_cat_superior: c.id_cat_superior,
+      count: c.productos.length,
+      displayName: isChild ? parts.slice(1).join(" / ") : c.nombre,
+      parentKey: isChild ? parts[0].trim() : null,
+    };
+  });
+
+  const roots: ShopCategoryNode[] = [];
+  const childrenByParent = new Map<string, Flat[]>();
+
+  for (const c of flat) {
+    if (c.parentKey) {
+      const list = childrenByParent.get(c.parentKey) ?? [];
+      list.push(c);
+      childrenByParent.set(c.parentKey, list);
+    }
+  }
+
+  const rootCandidates = flat.filter((c) => !c.parentKey);
+  for (const root of rootCandidates) {
+    // Ocultar categorías técnicas vacías poco útiles en la tienda
+    if (["all", "parts", "servicio"].includes(root.slug)) continue;
+
+    const namedChildren = childrenByParent.get(root.nombre) ?? [];
+    const treeChildren = flat.filter(
+      (c) => c.id_cat_superior === root.id_categoria && c.id_categoria !== root.id_categoria
+    );
+    const childMap = new Map<number, Flat>();
+    for (const ch of [...namedChildren, ...treeChildren]) {
+      childMap.set(ch.id_categoria, ch);
+    }
+    const children = [...childMap.values()]
+      .filter((ch) => ch.count > 0)
+      .map((ch) => ({
+        id_categoria: ch.id_categoria,
+        nombre: ch.displayName,
+        slug: ch.slug,
+        count: ch.count,
+        children: [] as ShopCategoryNode[],
+      }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+    const rolled = root.count + children.reduce((acc, ch) => acc + ch.count, 0);
+    if (rolled <= 0 && children.length === 0) continue;
+
+    roots.push({
+      id_categoria: root.id_categoria,
+      nombre: root.displayName,
+      slug: root.slug,
+      count: rolled,
+      children,
+    });
+  }
+
+  // Hojas huérfanas "Padre / Hijo" cuyo padre no existe como categoría raíz
+  for (const [parentName, kids] of childrenByParent) {
+    if (roots.some((r) => r.nombre === parentName)) continue;
+    const parent = flat.find((c) => c.nombre === parentName);
+    const children = kids
+      .filter((ch) => ch.count > 0)
+      .map((ch) => ({
+        id_categoria: ch.id_categoria,
+        nombre: ch.displayName,
+        slug: ch.slug,
+        count: ch.count,
+        children: [] as ShopCategoryNode[],
+      }));
+    if (!children.length) continue;
+    roots.push({
+      id_categoria: parent?.id_categoria ?? kids[0].id_categoria,
+      nombre: parentName,
+      slug: parent?.slug ?? kids[0].slug,
+      count: children.reduce((a, c) => a + c.count, 0),
+      children,
+    });
+  }
+
+  roots.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+  const brandFacets = brands
+    .filter((b) => b._count.productos > 0)
+    .map((b) => ({
+      id_marca: b.id_marca,
+      nombre: b.nombre,
+      slug: b.slug,
+      count: b._count.productos,
+    }));
+
+  const priceMin = Number(priceRows[0]?.min_p ?? 0);
+  const priceMax = Number(priceRows[0]?.max_p ?? 0);
+
+  return {
+    categories: roots,
+    brands: brandFacets,
+    priceMin: Number.isFinite(priceMin) ? Math.floor(priceMin) : 0,
+    priceMax: Number.isFinite(priceMax) ? Math.ceil(priceMax) : 0,
+  };
+}
+
+async function currentPricesByProductIds(
+  ids: number[]
+): Promise<Map<number, number>> {
+  if (!ids.length) return new Map();
+  const rows = await prisma.precio_producto.findMany({
+    where: {
+      id_producto: { in: ids },
+      fecha_desde: { lte: new Date() },
+    },
+    orderBy: { fecha_desde: "desc" },
+    select: { id_producto: true, precio: true },
+  });
+  const map = new Map<number, number>();
+  for (const row of rows) {
+    if (!map.has(row.id_producto)) {
+      map.set(row.id_producto, Number(row.precio));
+    }
+  }
+  return map;
+}
+
 export async function getActiveProducts(options?: {
   q?: string;
   categoriaId?: number;
@@ -200,6 +431,9 @@ export async function getActiveProducts(options?: {
   characteristicFilters?: AppliedCharacteristicFilter[];
   take?: number;
   skip?: number;
+  order?: ShopOrder;
+  minPrice?: number;
+  maxPrice?: number;
 }): Promise<{ items: ProductListItem[]; total: number }> {
   const where: Prisma.productoWhereInput = {
     activo: true,
@@ -215,7 +449,7 @@ export async function getActiveProducts(options?: {
 
   let categoryIds: number[] | undefined;
   if (options?.categoriaId) {
-    categoryIds = await getCategoryAndDescendantIds(options.categoriaId);
+    categoryIds = await resolveCategoryFilterIds(options.categoriaId);
     where.categorias = {
       some: { id_categoria: { in: categoryIds } },
     };
@@ -242,48 +476,130 @@ export async function getActiveProducts(options?: {
 
   const take = options?.take ?? 24;
   const skip = options?.skip ?? 0;
+  const order = options?.order ?? "ultimos";
+  const needsPricePass =
+    order === "precio-asc" ||
+    order === "precio-desc" ||
+    options?.minPrice != null ||
+    options?.maxPrice != null;
 
-  // Consulta liviana: sin descripcion TEXT, 1 precio reciente, 1 imagen, stock agregado
-  const [rows, total] = await Promise.all([
-    prisma.producto.findMany({
-      where,
-      select: {
-        id_producto: true,
-        titulo: true,
-        slug: true,
-        cuotas_max: true,
-        precios: {
-          orderBy: { fecha_desde: "desc" },
-          take: 1,
-          select: { fecha_desde: true, precio: true },
+  if (!needsPricePass) {
+    const [rows, total] = await Promise.all([
+      prisma.producto.findMany({
+        where,
+        select: {
+          id_producto: true,
+          titulo: true,
+          slug: true,
+          cuotas_max: true,
+          precios: {
+            orderBy: { fecha_desde: "desc" },
+            take: 1,
+            select: { fecha_desde: true, precio: true },
+          },
+          archivos: {
+            take: 1,
+            select: { archivo: { select: { link: true } } },
+          },
+          stocks: { select: { cantidad: true } },
         },
-        archivos: {
-          take: 1,
-          select: { archivo: { select: { link: true } } },
-        },
-        stocks: { select: { cantidad: true } },
-      },
-      orderBy: { id_producto: "desc" },
-      take,
-      skip,
-    }),
-    prisma.producto.count({ where }),
-  ]);
+        orderBy:
+          order === "nombre" ? { titulo: "asc" } : { id_producto: "desc" },
+        take,
+        skip,
+      }),
+      prisma.producto.count({ where }),
+    ]);
 
-  const items: ProductListItem[] = rows.map((p) => {
-    const stock = resolveStockAvailability(p.stocks);
-    return {
-      id_producto: p.id_producto,
-      titulo: p.titulo,
-      slug: p.slug,
-      descripcion: "",
-      precio: pickCurrentPrice(p.precios),
-      imagen: p.archivos[0]?.archivo.link ?? null,
-      stockTotal: stock.stockTotal,
-      stockTracked: stock.stockTracked,
-      cuotas_max: p.cuotas_max,
-    };
+    const items: ProductListItem[] = rows.map((p) => {
+      const stock = resolveStockAvailability(p.stocks);
+      return {
+        id_producto: p.id_producto,
+        titulo: p.titulo,
+        slug: p.slug,
+        descripcion: "",
+        precio: pickCurrentPrice(p.precios),
+        imagen: p.archivos[0]?.archivo.link ?? null,
+        stockTotal: stock.stockTotal,
+        stockTracked: stock.stockTracked,
+        cuotas_max: p.cuotas_max,
+      };
+    });
+
+    return { items, total };
+  }
+
+  // Orden/filtro por precio: resolver IDs + precio actual, luego paginar
+  const candidates = await prisma.producto.findMany({
+    where,
+    select: { id_producto: true, titulo: true },
   });
+  const priceMap = await currentPricesByProductIds(candidates.map((c) => c.id_producto));
+
+  let ranked = candidates.map((c) => ({
+    id_producto: c.id_producto,
+    titulo: c.titulo,
+    precio: priceMap.get(c.id_producto) ?? null,
+  }));
+
+  if (options?.minPrice != null) {
+    ranked = ranked.filter((r) => r.precio != null && r.precio >= options.minPrice!);
+  }
+  if (options?.maxPrice != null) {
+    ranked = ranked.filter((r) => r.precio != null && r.precio <= options.maxPrice!);
+  }
+
+  ranked.sort((a, b) => {
+    if (order === "precio-asc") {
+      return (a.precio ?? Number.POSITIVE_INFINITY) - (b.precio ?? Number.POSITIVE_INFINITY);
+    }
+    if (order === "precio-desc") {
+      return (b.precio ?? Number.NEGATIVE_INFINITY) - (a.precio ?? Number.NEGATIVE_INFINITY);
+    }
+    return a.titulo.localeCompare(b.titulo, "es");
+  });
+
+  const total = ranked.length;
+  const pageIds = ranked.slice(skip, skip + take).map((r) => r.id_producto);
+  if (!pageIds.length) return { items: [], total };
+
+  const rows = await prisma.producto.findMany({
+    where: { id_producto: { in: pageIds } },
+    select: {
+      id_producto: true,
+      titulo: true,
+      slug: true,
+      cuotas_max: true,
+      precios: {
+        orderBy: { fecha_desde: "desc" },
+        take: 1,
+        select: { fecha_desde: true, precio: true },
+      },
+      archivos: {
+        take: 1,
+        select: { archivo: { select: { link: true } } },
+      },
+      stocks: { select: { cantidad: true } },
+    },
+  });
+  const byId = new Map(rows.map((r) => [r.id_producto, r]));
+  const items: ProductListItem[] = pageIds
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((p) => {
+      const stock = resolveStockAvailability(p!.stocks);
+      return {
+        id_producto: p!.id_producto,
+        titulo: p!.titulo,
+        slug: p!.slug,
+        descripcion: "",
+        precio: pickCurrentPrice(p!.precios),
+        imagen: p!.archivos[0]?.archivo.link ?? null,
+        stockTotal: stock.stockTotal,
+        stockTracked: stock.stockTracked,
+        cuotas_max: p!.cuotas_max,
+      };
+    });
 
   return { items, total };
 }
