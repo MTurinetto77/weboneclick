@@ -14,6 +14,8 @@ const links = [
   { href: "/admin/tiendas", label: "Tiendas" },
   { href: "/admin/constancias", label: "Constancias fiscales" },
   { href: "/admin/exclusiones", label: "Exclusiones retenciones" },
+  { href: "/admin/envios", label: "Envíos" },
+  { href: "/admin/parametros", label: "Parámetros" },
   { href: "/admin/beneficios", label: "Beneficios" },
   { href: "/admin/almacenes", label: "Almacenes" },
   { href: "/admin/caracteristicas", label: "Características" },

@@ -232,6 +232,17 @@ async function main() {
       });
     }
   }
+
+  // Parámetro de precio SmartPost (el Excel no se usa para precio comercial)
+  await prisma.parametro.upsert({
+    where: { nombre: "smartpost_precio_envio" },
+    create: {
+      nombre: "smartpost_precio_envio",
+      tipo: "number",
+      valor: "4380.44",
+    },
+    update: {},
+  });
 }
 
 main()
