@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  SHIPPING_QUOTE_EVENT,
+  type ShippingQuoteDetail,
+} from "@/lib/shipping-quote";
 
 type Metodo = "tarjeta" | "mercado_pago";
 
 type Props = {
-  /** Total pagando con tarjeta (precio de lista) */
+  /** Total productos pagando con tarjeta (sin envío) */
   totalTarjeta: number;
-  /** Total pagando por Mercado Pago al contado (10% off) */
+  /** Total productos Mercado Pago contado (sin envío) */
   totalContado: number;
-  /** Access token configurado en el server (habilita ambos flujos) */
   mpConfigured: boolean;
-  /** Public key para el Card Payment Brick (formulario de tarjeta embebido) */
   publicKey: string | null;
 };
 
@@ -32,14 +34,39 @@ export function CheckoutPaymentOptions({
 }: Props) {
   const [metodo, setMetodo] = useState<Metodo>("tarjeta");
   const [error, setError] = useState<string | null>(null);
+  const [shippingCost, setShippingCost] = useState(0);
+  const [shippingOk, setShippingOk] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const brickEnabled = mpConfigured && !!publicKey;
+  const payTarjeta = Math.round((totalTarjeta + shippingCost) * 100) / 100;
+  const payContado = Math.round((totalContado + shippingCost) * 100) / 100;
+
+  useEffect(() => {
+    function onQuote(e: Event) {
+      const detail = (e as CustomEvent<ShippingQuoteDetail>).detail;
+      if (!detail) return;
+      if (detail.tipo === "retiro") {
+        setShippingCost(0);
+        setShippingOk(true);
+        return;
+      }
+      setShippingCost(detail.ok ? detail.costo : 0);
+      setShippingOk(detail.ok);
+    }
+    window.addEventListener(SHIPPING_QUOTE_EVENT, onQuote);
+    return () => window.removeEventListener(SHIPPING_QUOTE_EVENT, onQuote);
+  }, []);
 
   async function payWithCard(cardData: unknown): Promise<void> {
     setError(null);
     const form = wrapperRef.current?.closest("form");
     if (!form) throw new Error("Formulario no encontrado");
+    if (!shippingOk) {
+      const message = "Ingresá un código postal con cobertura de envío";
+      setError(message);
+      throw new Error(message);
+    }
     if (!form.reportValidity()) {
       throw new Error("Completá los datos de facturación");
     }
@@ -67,7 +94,6 @@ export function CheckoutPaymentOptions({
     <div className="oc-checkout-payment" ref={wrapperRef}>
       <h3>Medio de pago</h3>
 
-      {/* Opción 1: tarjeta de crédito sin interés (formulario embebido) */}
       <label
         className={`oc-checkout-payment-option${metodo === "tarjeta" ? " is-active" : ""}`}
       >
@@ -88,7 +114,7 @@ export function CheckoutPaymentOptions({
               ⟶
             </span>
             <span className="oc-checkout-payment-amount">
-              Total a pagar: <strong>{formatArs(totalTarjeta)}</strong>
+              Total a pagar: <strong>{formatArs(payTarjeta)}</strong>
             </span>
           </span>
           <small>
@@ -101,14 +127,13 @@ export function CheckoutPaymentOptions({
       {metodo === "tarjeta" && (
         <div className="oc-checkout-card-panel">
           {brickEnabled ? (
-            <CardBrick amount={totalTarjeta} publicKey={publicKey!} onPay={payWithCard} />
+            <CardBrick amount={payTarjeta} publicKey={publicKey!} onPay={payWithCard} />
           ) : (
             <CardPlaceholder />
           )}
         </div>
       )}
 
-      {/* Opción 2: Mercado Pago contado con 10% de descuento */}
       <label
         className={`oc-checkout-payment-option${metodo === "mercado_pago" ? " is-active" : ""}`}
       >
@@ -129,7 +154,7 @@ export function CheckoutPaymentOptions({
               ⟶
             </span>
             <span className="oc-checkout-payment-amount">
-              Total a pagar: <strong>{formatArs(totalContado)}</strong>
+              Total a pagar: <strong>{formatArs(payContado)}</strong>
             </span>
           </span>
           <small>
@@ -140,6 +165,12 @@ export function CheckoutPaymentOptions({
       </label>
 
       {error && <p className="oc-checkout-payment-warning">{error}</p>}
+
+      {!shippingOk && (
+        <p className="oc-checkout-payment-warning">
+          Para envío a domicilio, validá un código postal con cobertura antes de pagar.
+        </p>
+      )}
 
       {!mpConfigured && (
         <p className="oc-checkout-payment-warning">
@@ -158,7 +189,7 @@ export function CheckoutPaymentOptions({
         <button
           type="submit"
           className="oc-btn oc-btn-dark oc-checkout-submit"
-          disabled={!mpConfigured}
+          disabled={!mpConfigured || !shippingOk}
         >
           Pagar con Mercado Pago
         </button>
@@ -204,6 +235,7 @@ function CardBrick({
 
   return (
     <Brick
+      key={amount}
       initialization={{ amount }}
       onSubmit={onPay}
       onError={(err) => console.error("MP Brick error", err)}

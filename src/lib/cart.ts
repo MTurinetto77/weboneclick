@@ -26,7 +26,7 @@ export type ResolvedCartItem = {
   disponible: boolean;
 };
 
-/** Umbral de envío gratis (sitio original). */
+/** Fallback si falta el parámetro valor_para_envio_gratis. */
 export const FREE_SHIPPING_THRESHOLD = 200_000;
 
 /** Alícuota IVA aproximada según tipo de producto (paridad visual WooCommerce). */

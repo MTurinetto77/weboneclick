@@ -20,6 +20,7 @@ type Props = {
   itemCount: number;
   subtotal: number;
   canCheckout: boolean;
+  valorEnvioGratis: number;
 };
 
 function formatArs(value: number | null): string {
@@ -32,9 +33,22 @@ function formatArs(value: number | null): string {
   }).format(value);
 }
 
-export function CartDrawer({ items, itemCount, subtotal, canCheckout }: Props) {
+export function CartDrawer({
+  items,
+  itemCount,
+  subtotal,
+  canCheckout,
+  valorEnvioGratis,
+}: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+
+  const remainingForFreeShip = Math.max(0, valorEnvioGratis - subtotal);
+  const freeShipProgress = Math.min(
+    100,
+    subtotal > 0 && valorEnvioGratis > 0 ? (subtotal / valorEnvioGratis) * 100 : 0,
+  );
+  const hasFreeShipping = remainingForFreeShip <= 0 && subtotal > 0;
 
   // Cerrar al navegar a otra página
   useEffect(() => {
@@ -108,6 +122,26 @@ export function CartDrawer({ items, itemCount, subtotal, canCheckout }: Props) {
           </div>
         ) : (
           <>
+            <div className="oc-cart-shipping oc-cart-shipping-drawer">
+              {hasFreeShipping ? (
+                <p>¡Ya tienes envío gratis disponible!</p>
+              ) : (
+                <p>
+                  ¡Te faltan <strong>{formatArs(remainingForFreeShip)}</strong> para
+                  obtener envío gratis!
+                </p>
+              )}
+              <div
+                className="oc-cart-shipping-bar"
+                role="progressbar"
+                aria-valuenow={Math.round(freeShipProgress)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <span style={{ width: `${freeShipProgress}%` }} />
+              </div>
+            </div>
+
             <ul className="oc-cart-drawer-list">
               {items.map((item) => (
                 <li key={item.id_producto} className="oc-cart-drawer-item">

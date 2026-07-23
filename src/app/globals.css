@@ -3777,6 +3777,20 @@ img { max-width: 100%; display: block; }
   transition: width 0.25s ease;
 }
 
+.oc-cart-shipping-drawer {
+  margin: 0.75rem 1rem 0;
+  padding: 0.75rem 0.85rem;
+}
+
+.oc-cart-shipping-drawer p {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.oc-cart-shipping-drawer .oc-cart-shipping-bar {
+  height: 10px;
+}
+
 .oc-cart-table-wrap {
   overflow-x: auto;
   background: #fff;
@@ -4159,6 +4173,72 @@ img { max-width: 100%; display: block; }
   width: auto;
   height: auto;
   accent-color: #1d1d1f;
+}
+
+.oc-checkout-entrega-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.oc-checkout-cp-box {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1 1 11rem;
+  min-width: 10rem;
+}
+
+.oc-checkout-cp-box label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.oc-checkout-cp-box input {
+  width: 7.5rem;
+  max-width: 100%;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #d2d2d7;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.oc-checkout-cp-check {
+  color: #1b7f3a;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.oc-checkout-cp-msg {
+  margin: 0.35rem 0 0.55rem;
+  font-size: 0.82rem;
+  color: #6e6e73;
+}
+
+.oc-checkout-cp-msg.is-ok {
+  color: #1b7f3a;
+}
+
+.oc-checkout-cp-msg.is-error {
+  color: #b42318;
+}
+
+.oc-checkout-envio-error {
+  color: #b42318;
+  font-weight: 600;
+}
+
+.oc-checkout-envio-meta {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  color: #8e8e93;
+  font-weight: 500;
 }
 
 .oc-checkout-address {

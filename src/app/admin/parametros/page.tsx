@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import { PARAM_SMARTPOST_PRECIO } from "@/lib/parametros";
+import { PARAM_SMARTPOST_PRECIO, PARAM_VALOR_ENVIO_GRATIS } from "@/lib/parametros";
 import {
   deleteParametroAction,
   updateParametroAction,
@@ -17,9 +17,8 @@ export default async function AdminParametrosPage() {
     <div>
       <h1 style={{ marginTop: 0 }}>Parámetros</h1>
       <p className="muted">
-        Configuración genérica (nombre / tipo / valor). SmartPost usa{" "}
-        <code>{PARAM_SMARTPOST_PRECIO}</code> (tipo <code>number</code>) al importar
-        envíos.
+        Configuración genérica (nombre / tipo / valor). Ejemplos:{" "}
+        <code>{PARAM_SMARTPOST_PRECIO}</code>, <code>{PARAM_VALOR_ENVIO_GRATIS}</code>.
       </p>
 
       <form

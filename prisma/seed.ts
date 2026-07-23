@@ -233,13 +233,22 @@ async function main() {
     }
   }
 
-  // Parámetro de precio SmartPost (el Excel no se usa para precio comercial)
+  // Parámetros de configuración
   await prisma.parametro.upsert({
     where: { nombre: "smartpost_precio_envio" },
     create: {
       nombre: "smartpost_precio_envio",
       tipo: "number",
       valor: "4380.44",
+    },
+    update: {},
+  });
+  await prisma.parametro.upsert({
+    where: { nombre: "valor_para_envio_gratis" },
+    create: {
+      nombre: "valor_para_envio_gratis",
+      tipo: "number",
+      valor: "200000",
     },
     update: {},
   });
