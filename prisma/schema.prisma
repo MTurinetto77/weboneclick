@@ -339,6 +339,8 @@ model cliente {
   tipo_documento         String?  @db.VarChar(20)
   numero_documento       String?  @db.VarChar(50)
   telefono               String?  @db.VarChar(50)
+  /// CF = Consumidor Final | RI = IVA responsable inscripto
+  responsabilidad_impositiva String @default("CF") @db.VarChar(2)
   fecha_hora_registro    DateTime @default(now())
 
   usuario             usuario?      @relation(fields: [id_usuario], references: [id_usuario], onDelete: SetNull)

@@ -1,9 +1,6 @@
 import Link from "next/link";
-import {
-  FREE_SHIPPING_THRESHOLD,
-  ivaIncluded,
-  resolveCart,
-} from "@/lib/cart";
+import { ivaIncluded, resolveCart } from "@/lib/cart";
+import { getValorEnvioGratis } from "@/lib/parametros";
 import { formatPriceArs } from "@/lib/pricing";
 import { uploadPublicUrl } from "@/lib/utils";
 import { CartCouponForm } from "@/components/cart-coupon-form";
@@ -15,12 +12,17 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Carrito" };
 
 export default async function CarritoPage() {
-  const cart = await resolveCart();
+  const [cart, valorEnvioGratis] = await Promise.all([
+    resolveCart(),
+    getValorEnvioGratis(),
+  ]);
 
-  const remainingForFreeShip = Math.max(0, FREE_SHIPPING_THRESHOLD - cart.subtotal);
+  const remainingForFreeShip = Math.max(0, valorEnvioGratis - cart.subtotal);
   const freeShipProgress = Math.min(
     100,
-    cart.subtotal > 0 ? (cart.subtotal / FREE_SHIPPING_THRESHOLD) * 100 : 0
+    cart.subtotal > 0 && valorEnvioGratis > 0
+      ? (cart.subtotal / valorEnvioGratis) * 100
+      : 0,
   );
   const hasFreeShipping = remainingForFreeShip <= 0 && cart.subtotal > 0;
 

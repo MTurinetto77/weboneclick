@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { resolveCart } from "@/lib/cart";
+import { getValorEnvioGratis } from "@/lib/parametros";
 import { MAIN_NAV } from "@/lib/nav";
 import { CartDrawer, type CartDrawerItem } from "@/components/cart-drawer";
 import { uploadPublicUrl } from "@/lib/utils";
 
 export async function SiteHeader() {
-  const [cart, session] = await Promise.all([resolveCart(), auth()]);
+  const [cart, session, valorEnvioGratis] = await Promise.all([
+    resolveCart(),
+    auth(),
+    getValorEnvioGratis(),
+  ]);
   const email = session?.user?.email;
   const isAdmin = session?.user?.role === "admin";
 
@@ -123,6 +128,7 @@ export async function SiteHeader() {
               itemCount={cart.itemCount}
               subtotal={cart.subtotal}
               canCheckout={cart.canCheckout}
+              valorEnvioGratis={valorEnvioGratis}
             />
           </div>
         </nav>

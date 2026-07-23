@@ -1,4 +1,5 @@
 import { deductStock, resolveCart, type ResolvedCart } from "@/lib/cart";
+import { resolveCostoEnvio } from "@/lib/envio-costo";
 import { CONTADO_DISCOUNT } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 
@@ -49,6 +50,9 @@ export async function createPendingVenta(
   const telefono = field(fields, "telefono") || null;
   const tipo_documento = field(fields, "tipo_documento") || null;
   const numero_documento = field(fields, "numero_documento") || null;
+  const responsabilidadRaw = field(fields, "responsabilidad_impositiva").toUpperCase();
+  const responsabilidad_impositiva =
+    responsabilidadRaw === "RI" ? "RI" : "CF";
   const tipo_entrega = field(fields, "tipo_entrega");
 
   if (checkoutMode !== "invitado" && sessionEmail) {
@@ -66,13 +70,33 @@ export async function createPendingVenta(
     const numero = field(fields, "numero");
     const localidad = field(fields, "localidad");
     const provincia = field(fields, "provincia");
+    const codigo_postal = field(fields, "codigo_postal");
     if (!calle || !numero || !localidad || !provincia) {
       throw new Error("Calle, número, localidad y provincia son obligatorios");
     }
+    if (!codigo_postal) {
+      throw new Error("Ingresá el código postal de entrega");
+    }
   }
 
-  const { subtotal, descuento, total, itemsCobro } = computeTotals(cart, tipo_pago);
-  const costo_envio = 0;
+  const { subtotal, descuento, total: totalProductos, itemsCobro } = computeTotals(
+    cart,
+    tipo_pago,
+  );
+
+  let costo_envio = 0;
+  if (tipo_entrega === "envio") {
+    const quote = await resolveCostoEnvio({
+      codigo_postal: field(fields, "codigo_postal"),
+      subtotal,
+    });
+    if (!quote.ok) {
+      throw new Error(quote.message || "Código postal sin cobertura de envío");
+    }
+    costo_envio = quote.costo;
+  }
+
+  const total = round2(totalProductos + costo_envio);
   const id_usuario =
     checkoutMode !== "invitado" &&
     sessionEmail?.toLowerCase() === mail &&
@@ -106,6 +130,7 @@ export async function createPendingVenta(
           telefono,
           tipo_documento,
           numero_documento,
+          responsabilidad_impositiva,
           id_usuario: cliente.id_usuario ?? id_usuario,
         },
       });
@@ -118,6 +143,7 @@ export async function createPendingVenta(
           telefono,
           tipo_documento,
           numero_documento,
+          responsabilidad_impositiva,
           id_usuario,
         },
       });

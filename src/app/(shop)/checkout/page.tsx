@@ -3,13 +3,10 @@ import { redirect } from "next/navigation";
 import { auth, isGoogleAuthConfigured } from "@/auth";
 import { CheckoutCoupon } from "@/components/checkout-coupon";
 import { CheckoutDeliveryFields } from "@/components/checkout-delivery-fields";
+import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { computeTotals } from "@/lib/checkout-venta";
-import {
-  FREE_SHIPPING_THRESHOLD,
-  ivaIncluded,
-  resolveCart,
-} from "@/lib/cart";
+import { ivaIncluded, resolveCart } from "@/lib/cart";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
@@ -37,17 +34,45 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   }
 
   const cliente = isAuthenticated
-    ? await prisma.cliente.findUnique({
-        where: { mail: session!.user!.email!.toLowerCase() },
-        include: { direccion_principal: true },
+    ? await prisma.cliente.findFirst({
+        where: {
+          OR: [
+            { mail: session!.user!.email!.toLowerCase() },
+            ...(session!.user!.id > 0
+              ? [{ id_usuario: session!.user!.id }]
+              : []),
+          ],
+        },
+        include: {
+          direccion_principal: true,
+          direcciones: { orderBy: { id_direccion: "desc" }, take: 1 },
+        },
       })
     : null;
 
   const mailLocked = isAuthenticated;
-  const freeShipping = cart.subtotal >= FREE_SHIPPING_THRESHOLD;
   const mercadoPagoConfigured = isMercadoPagoConfigured();
   const mpPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() || null;
   const totalContado = computeTotals(cart, "mercado_pago").total;
+
+  const addressDefaults =
+    cliente?.direccion_principal ?? cliente?.direcciones[0] ?? null;
+
+  // Si el cliente aún no tiene nombre real (alta Google), usar el de la sesión
+  const sessionName = (session?.user?.name || "").trim();
+  const sessionParts = sessionName.split(/\s+/).filter(Boolean);
+  const defaultNombre =
+    cliente?.nombre && cliente.nombre !== "Cliente"
+      ? cliente.nombre
+      : sessionParts[0] || cliente?.nombre || "";
+  const defaultApellido =
+    cliente?.apellido && cliente.apellido !== "-" && cliente.apellido !== "Google"
+      ? cliente.apellido
+      : sessionParts.length > 1
+        ? sessionParts.slice(1).join(" ")
+        : cliente?.apellido && cliente.apellido !== "-"
+          ? cliente.apellido
+          : "";
 
   let iva105 = 0;
   let iva21 = 0;
@@ -62,13 +87,6 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     <div className="oc-checkout-page">
       <div className="container">
         <h1 className="oc-checkout-title">Finalizar compra</h1>
-
-        {isAuthenticated && (
-          <p className="oc-checkout-session">
-            Sesión: {session!.user!.email} ·{" "}
-            <Link href="/checkout?modo=invitado">Continuar como invitado</Link>
-          </p>
-        )}
 
         <form action={confirmarVenta} className="oc-checkout-layout">
           <input
@@ -85,13 +103,13 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 <label>
                   Nombre <abbr title="obligatorio">*</abbr>
                 </label>
-                <input name="nombre" required defaultValue={cliente?.nombre ?? ""} />
+                <input name="nombre" required defaultValue={defaultNombre} />
               </div>
               <div className="oc-checkout-field">
                 <label>
                   Apellidos <abbr title="obligatorio">*</abbr>
                 </label>
-                <input name="apellido" required defaultValue={cliente?.apellido ?? ""} />
+                <input name="apellido" required defaultValue={defaultApellido} />
               </div>
             </div>
 
@@ -122,6 +140,22 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
 
             <div className="oc-checkout-field">
               <label>
+                Responsabilidad impositiva <abbr title="obligatorio">*</abbr>
+              </label>
+              <select
+                name="responsabilidad_impositiva"
+                required
+                defaultValue={
+                  cliente?.responsabilidad_impositiva === "RI" ? "RI" : "CF"
+                }
+              >
+                <option value="CF">Consumidor Final</option>
+                <option value="RI">IVA responsable inscripto</option>
+              </select>
+            </div>
+
+            <div className="oc-checkout-field">
+              <label>
                 Dirección de correo electrónico <abbr title="obligatorio">*</abbr>
               </label>
               <input
@@ -134,13 +168,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
             </div>
 
             <CheckoutDeliveryFields
-              addressDefaults={cliente?.direccion_principal ?? null}
-              onlineNote={
-                <p className="oc-checkout-note">
-                  El pago online con MercadoPago estará disponible próximamente. Por
-                  ahora el pedido queda registrado como pendiente de pago.
-                </p>
-              }
+              addressDefaults={addressDefaults}
+              cartSubtotal={cart.subtotal}
             />
           </div>
 
@@ -170,28 +199,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                     <th>Subtotal</th>
                     <td>{formatPriceArs(cart.subtotal)}</td>
                   </tr>
-                  <tr>
-                    <th>Envío</th>
-                    <td>
-                      {freeShipping
-                        ? "Envío gratis"
-                        : "Se calcula según tu dirección"}
-                    </td>
-                  </tr>
-                  <tr className="oc-checkout-total">
-                    <th>Total</th>
-                    <td>
-                      <strong>{formatPriceArs(cart.subtotal)}</strong>
-                      {(iva105 > 0 || iva21 > 0) && (
-                        <span className="oc-cart-tax">
-                          (incluye
-                          {iva105 > 0 && <> {formatPriceArs(iva105)} IVA 10.5%</>}
-                          {iva105 > 0 && iva21 > 0 && ","}
-                          {iva21 > 0 && <> {formatPriceArs(iva21)} IVA 21%</>})
-                        </span>
-                      )}
-                    </td>
-                  </tr>
+                  <CheckoutEnvioTotalRows
+                    subtotal={cart.subtotal}
+                    iva105={iva105}
+                    iva21={iva21}
+                  />
                 </tfoot>
               </table>
 
