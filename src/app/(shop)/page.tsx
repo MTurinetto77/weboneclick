@@ -318,6 +318,31 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      <section className="oc-section oc-zagg-wrap">
+        <div className="container">
+          <div className="oc-zagg-banner">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="oc-zagg-logo" src="/oneclick/promos/zagg-logo.png" alt="ZAGG" />
+            <div className="oc-zagg-copy">
+              <h2>
+                Protección Premium
+                <br />
+                para tu nuevo iPhone 17
+              </h2>
+              <Link href="/marca/zagg" className="oc-btn oc-btn-red">
+                Ver Productos
+              </Link>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="oc-zagg-badge"
+              src="/oneclick/promos/zagg-badge.png"
+              alt="La Marca #1 del Mundo en Protección Móvil"
+            />
+          </div>
+        </div>
+      </section>
     </>
   );
 }

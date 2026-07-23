@@ -755,6 +755,81 @@ img { max-width: 100%; display: block; }
   }
 }
 
+.oc-zagg-wrap {
+  padding-top: 0;
+  padding-bottom: 2.5rem;
+}
+
+.oc-zagg-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  min-height: 190px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #1d1d1f url("/oneclick/promos/zagg-banner-bg.jpg") center / cover no-repeat;
+  padding: 1.5rem clamp(1.25rem, 4vw, 3rem);
+}
+
+.oc-zagg-logo {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.5rem;
+  width: 64px;
+  height: auto;
+  border-radius: 8px;
+}
+
+.oc-zagg-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-left: 40%;
+}
+
+.oc-zagg-copy h2 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.2vw, 1.8rem);
+  line-height: 1.2;
+  font-weight: 600;
+  color: #000;
+  letter-spacing: -0.01em;
+}
+
+.oc-zagg-badge {
+  flex-shrink: 0;
+  width: 84px;
+  height: auto;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .oc-zagg-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    background-image: none;
+    background-color: #1d1d1f;
+    min-height: unset;
+    padding: 5.75rem 1.5rem 1.75rem;
+  }
+
+  .oc-zagg-copy {
+    margin-left: 0;
+  }
+
+  .oc-zagg-copy h2 {
+    color: #fff;
+  }
+
+  .oc-zagg-badge {
+    display: none;
+  }
+}
+
 .oc-btn-red {
   background: var(--oc-red);
   color: #fff;
