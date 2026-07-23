@@ -4,6 +4,7 @@ import { resolveCart } from "@/lib/cart";
 import { getValorEnvioGratis } from "@/lib/parametros";
 import { MAIN_NAV } from "@/lib/nav";
 import { CartDrawer, type CartDrawerItem } from "@/components/cart-drawer";
+import { SearchOverlay } from "@/components/search-overlay";
 import { uploadPublicUrl } from "@/lib/utils";
 
 export async function SiteHeader() {
@@ -32,6 +33,8 @@ export async function SiteHeader() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/oneclick/logo.svg" alt="OneClick" />
         </Link>
+
+        <div className="oc-header-spacer" aria-hidden />
 
         <nav className="oc-pill-nav" aria-label="Principal">
           {MAIN_NAV.map((item) => (
@@ -75,15 +78,7 @@ export async function SiteHeader() {
           ))}
 
           <div className="oc-pill-icons">
-            <details className="oc-search-popover">
-              <summary className="oc-icon-btn oc-icon-btn-flat" aria-label="Buscar" title="Buscar">
-                <SearchIcon />
-              </summary>
-              <form className="oc-search-flyout" action="/shop" method="get">
-                <input type="search" name="q" placeholder="Buscar productos…" />
-                <button type="submit">Buscar</button>
-              </form>
-            </details>
+            <SearchOverlay />
 
             {email ? (
               <details className="user-menu">
@@ -298,21 +293,12 @@ export function SiteFooter() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function UserIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="7.5" r="4" stroke="currentColor" strokeWidth="1.8" />
       <path
-        d="M5 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5"
+        d="M5.5 21c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
