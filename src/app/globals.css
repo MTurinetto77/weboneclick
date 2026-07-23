@@ -1352,6 +1352,11 @@ img { max-width: 100%; display: block; }
   scroll-snap-stop: always;
 }
 
+.oc-destacados .oc-product-scroll,
+.oc-potencia .oc-product-scroll {
+  --oc-scroll-visible: 5;
+}
+
 .oc-product-scroll::-webkit-scrollbar {
   height: 3px;
 }

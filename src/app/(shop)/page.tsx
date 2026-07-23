@@ -298,7 +298,7 @@ export default async function HomePage() {
       </section>
 
       {potenciaProducts.items.length > 0 && (
-        <section className="oc-section">
+        <section className="oc-section oc-potencia">
           <div className="container">
             <div className="oc-section-head">
               <h2>Potenciá tu iPhone</h2>
