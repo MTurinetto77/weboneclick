@@ -289,10 +289,10 @@ export function SiteFooter() {
 
 function UserIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="7.5" r="4" stroke="currentColor" strokeWidth="1.8" />
       <path
-        d="M5 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5"
+        d="M5.5 21c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"

@@ -168,7 +168,7 @@ export function CartDrawer({ items, itemCount, subtotal, canCheckout }: Props) {
 
 function BagIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
         d="M6 8h12l-1 12H7L6 8z"
         stroke="currentColor"
