@@ -49,7 +49,6 @@ export type AddressDefaults = {
 type Props = {
   onlineNote?: ReactNode;
   addressDefaults?: AddressDefaults | null;
-  /** Subtotal del carrito para evaluar envío gratis */
   cartSubtotal: number;
 };
 
@@ -86,6 +85,148 @@ function emitQuote(detail: ShippingQuoteDetail) {
   window.dispatchEvent(new CustomEvent(SHIPPING_QUOTE_EVENT, { detail }));
 }
 
+function AddressFields({
+  prefix,
+  defaults,
+  localidad,
+  onLocalidadChange,
+  includeCodigoPostal = true,
+  provinciaDefault,
+}: {
+  prefix: string;
+  defaults?: AddressDefaults | null;
+  localidad?: string;
+  onLocalidadChange?: (v: string) => void;
+  includeCodigoPostal?: boolean;
+  provinciaDefault: string;
+}) {
+  const name = (field: string) => (prefix ? `${prefix}_${field}` : field);
+  const locControlled = onLocalidadChange != null;
+
+  return (
+    <>
+      <div className="oc-checkout-field">
+        <label>
+          Calle <abbr title="obligatorio">*</abbr>
+        </label>
+        <input name={name("calle")} required defaultValue={defaults?.calle ?? ""} />
+      </div>
+      <div className="oc-checkout-grid-2">
+        <div className="oc-checkout-field">
+          <label>
+            Número <abbr title="obligatorio">*</abbr>
+          </label>
+          <input name={name("numero")} required defaultValue={defaults?.numero ?? ""} />
+        </div>
+        <div className="oc-checkout-field">
+          <label>Piso</label>
+          <input name={name("piso")} defaultValue={defaults?.piso ?? ""} />
+        </div>
+        <div className="oc-checkout-field">
+          <label>Departamento</label>
+          <input name={name("departamento")} defaultValue={defaults?.departamento ?? ""} />
+        </div>
+        {includeCodigoPostal && (
+          <div className="oc-checkout-field">
+            <label>Código postal</label>
+            <input
+              name={name("codigo_postal")}
+              defaultValue={defaults?.codigo_postal ?? ""}
+            />
+          </div>
+        )}
+      </div>
+      <div className="oc-checkout-field">
+        <label>Barrio</label>
+        <input name={name("barrio")} defaultValue={defaults?.barrio ?? ""} />
+      </div>
+      <div className="oc-checkout-grid-2">
+        <div className="oc-checkout-field">
+          <label>
+            Localidad <abbr title="obligatorio">*</abbr>
+          </label>
+          {locControlled ? (
+            <input
+              name={name("localidad")}
+              required
+              value={localidad ?? ""}
+              onChange={(e) => onLocalidadChange?.(e.target.value)}
+            />
+          ) : (
+            <input
+              name={name("localidad")}
+              required
+              defaultValue={defaults?.localidad ?? ""}
+            />
+          )}
+        </div>
+        <div className="oc-checkout-field">
+          <label>
+            Provincia <abbr title="obligatorio">*</abbr>
+          </label>
+          <select name={name("provincia")} required defaultValue={provinciaDefault}>
+            <option value="" disabled>
+              Seleccioná una provincia
+            </option>
+            {PROVINCIAS_AR.map((provincia) => (
+              <option key={provincia} value={provincia}>
+                {provincia}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="oc-checkout-field">
+        <label>País</label>
+        <input name={name("pais")} defaultValue={defaults?.pais || "Argentina"} />
+      </div>
+      <div className="oc-checkout-field">
+        <label>Referencias</label>
+        <input
+          name={name("referencias")}
+          placeholder="Entre calles, portería, etc."
+          defaultValue={defaults?.referencias ?? ""}
+        />
+      </div>
+    </>
+  );
+}
+
+function CollapsiblePanel({
+  title,
+  open,
+  onToggle,
+  children,
+  collapsible,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+  collapsible: boolean;
+}) {
+  if (!collapsible) {
+    return (
+      <div className="oc-checkout-address-panel">
+        <h3>{title}</h3>
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`oc-checkout-address-panel is-collapsible${open ? " is-open" : ""}`}>
+      <button type="button" className="oc-checkout-panel-toggle" onClick={onToggle}>
+        <span>{title}</span>
+        <span className="oc-checkout-panel-caret" aria-hidden>
+          {open ? "−" : "+"}
+        </span>
+      </button>
+      {open && <div className="oc-checkout-panel-body">{children}</div>}
+    </div>
+  );
+}
+
 export function CheckoutDeliveryFields({
   onlineNote,
   addressDefaults,
@@ -96,9 +237,28 @@ export function CheckoutDeliveryFields({
   const [localidad, setLocalidad] = useState(addressDefaults?.localidad ?? "");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [message, setMessage] = useState("");
+  const [otraPersona, setOtraPersona] = useState(false);
+  const [mismaFacturacion, setMismaFacturacion] = useState(true);
+  const [openEntrega, setOpenEntrega] = useState(true);
+  const [openFacturacion, setOpenFacturacion] = useState(true);
   const provinciaDefault = matchProvincia(addressDefaults?.provincia);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const showEntrega = tipoEntrega === "envio";
+  const showFacturacionSeparada =
+    tipoEntrega === "retiro" || (tipoEntrega === "envio" && !mismaFacturacion);
+  const twoPanels = showEntrega && showFacturacionSeparada;
+
+  useEffect(() => {
+    if (twoPanels) {
+      setOpenEntrega(true);
+      setOpenFacturacion(false);
+    } else {
+      setOpenEntrega(true);
+      setOpenFacturacion(true);
+    }
+  }, [twoPanels]);
 
   const validateCp = useCallback(
     async (value: string, tipo: "envio" | "retiro") => {
@@ -200,7 +360,6 @@ export function CheckoutDeliveryFields({
 
   useEffect(() => {
     void validateCp(cp, tipoEntrega);
-    // Solo al montar / cambiar tipo o subtotal; el CP se valida con debounce al tipear
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipoEntrega, cartSubtotal]);
 
@@ -221,6 +380,7 @@ export function CheckoutDeliveryFields({
 
   function onTipoChange(next: "envio" | "retiro") {
     setTipoEntrega(next);
+    if (next === "envio") setMismaFacturacion(true);
   }
 
   return (
@@ -255,7 +415,11 @@ export function CheckoutDeliveryFields({
                 onBlur={() => void validateCp(cp, "envio")}
               />
               {status === "ok" && (
-                <span className="oc-checkout-cp-check" aria-label="Código postal válido" title="Código postal válido">
+                <span
+                  className="oc-checkout-cp-check"
+                  aria-label="Código postal válido"
+                  title="Código postal válido"
+                >
                   ✓
                 </span>
               )}
@@ -282,69 +446,91 @@ export function CheckoutDeliveryFields({
         </label>
       </fieldset>
 
+      <div className="oc-checkout-otra-persona">
+        <label className="oc-checkout-check">
+          <input
+            type="checkbox"
+            name="receptor_otra_persona"
+            value="1"
+            checked={otraPersona}
+            onChange={(e) => setOtraPersona(e.target.checked)}
+          />
+          <span>
+            <strong>¿Retira o recibe otra persona?</strong>{" "}
+            <span className="oc-checkout-optional">(opcional)</span>
+          </span>
+        </label>
+
+        {otraPersona && (
+          <div className="oc-checkout-grid-2 oc-checkout-otra-persona-fields">
+            <div className="oc-checkout-field">
+              <label>
+                Nombre y Apellido <abbr title="obligatorio">*</abbr>
+              </label>
+              <input name="receptor_nombre" required maxLength={200} />
+            </div>
+            <div className="oc-checkout-field">
+              <label>
+                DNI de la persona que retira/recibe <abbr title="obligatorio">*</abbr>
+              </label>
+              <input name="receptor_dni" required inputMode="numeric" maxLength={50} />
+            </div>
+          </div>
+        )}
+      </div>
+
       {tipoEntrega === "envio" && (
-        <div className="oc-checkout-address">
-          <h3>Dirección de entrega</h3>
-          <div className="oc-checkout-field">
-            <label>Calle *</label>
-            <input name="calle" required defaultValue={addressDefaults?.calle ?? ""} />
-          </div>
-          <div className="oc-checkout-grid-2">
-            <div className="oc-checkout-field">
-              <label>Número *</label>
-              <input name="numero" required defaultValue={addressDefaults?.numero ?? ""} />
-            </div>
-            <div className="oc-checkout-field">
-              <label>Piso</label>
-              <input name="piso" defaultValue={addressDefaults?.piso ?? ""} />
-            </div>
-            <div className="oc-checkout-field">
-              <label>Departamento</label>
-              <input name="departamento" defaultValue={addressDefaults?.departamento ?? ""} />
-            </div>
-          </div>
-          <div className="oc-checkout-field">
-            <label>Barrio</label>
-            <input name="barrio" defaultValue={addressDefaults?.barrio ?? ""} />
-          </div>
-          <div className="oc-checkout-grid-2">
-            <div className="oc-checkout-field">
-              <label>Localidad *</label>
-              <input
-                name="localidad"
-                required
-                value={localidad}
-                onChange={(e) => setLocalidad(e.target.value)}
-              />
-            </div>
-            <div className="oc-checkout-field">
-              <label>Provincia *</label>
-              <select name="provincia" required defaultValue={provinciaDefault}>
-                <option value="" disabled>
-                  Seleccioná una provincia
-                </option>
-                {PROVINCIAS_AR.map((provincia) => (
-                  <option key={provincia} value={provincia}>
-                    {provincia}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="oc-checkout-field">
-            <label>País</label>
-            <input name="pais" defaultValue={addressDefaults?.pais || "Argentina"} />
-          </div>
-          <div className="oc-checkout-field">
-            <label>Referencias</label>
+        <div className="oc-checkout-misma-facturacion">
+          <label className="oc-checkout-check">
             <input
-              name="referencias"
-              placeholder="Entre calles, portería, etc."
-              defaultValue={addressDefaults?.referencias ?? ""}
+              type="checkbox"
+              name="misma_direccion_facturacion"
+              value="1"
+              checked={mismaFacturacion}
+              onChange={(e) => setMismaFacturacion(e.target.checked)}
             />
-          </div>
-          {onlineNote}
+            <span>
+              <strong>Misma dirección de facturación</strong>
+            </span>
+          </label>
         </div>
+      )}
+
+      {showEntrega && (
+        <CollapsiblePanel
+          title="Dirección de entrega"
+          open={openEntrega}
+          onToggle={() => setOpenEntrega((v) => !v)}
+          collapsible={twoPanels}
+        >
+          <AddressFields
+            prefix=""
+            defaults={addressDefaults}
+            localidad={localidad}
+            onLocalidadChange={setLocalidad}
+            includeCodigoPostal={false}
+            provinciaDefault={provinciaDefault}
+          />
+          {onlineNote}
+        </CollapsiblePanel>
+      )}
+
+      {showFacturacionSeparada && (
+        <CollapsiblePanel
+          title="Dirección de facturación"
+          open={openFacturacion}
+          onToggle={() => setOpenFacturacion((v) => !v)}
+          collapsible={twoPanels}
+        >
+          <AddressFields
+            prefix="fact"
+            defaults={tipoEntrega === "retiro" ? addressDefaults : null}
+            includeCodigoPostal
+            provinciaDefault={
+              tipoEntrega === "retiro" ? provinciaDefault : ""
+            }
+          />
+        </CollapsiblePanel>
       )}
 
       {tipoEntrega === "retiro" && (

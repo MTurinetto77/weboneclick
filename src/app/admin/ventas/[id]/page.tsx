@@ -39,6 +39,7 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
       detalles: { orderBy: { item: "asc" }, include: { producto: true } },
       pagos: true,
       envios: { include: { direccion: true } },
+      direccion_facturacion: true,
     },
   });
   if (!venta) notFound();
@@ -46,6 +47,9 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
   const pago = venta.pagos[0];
   const envio = venta.envios[0];
   const dir = envio?.direccion;
+  const dirFact = venta.direccion_facturacion;
+  const mismaFact =
+    dirFact && dir && dirFact.id_direccion === dir.id_direccion;
 
   return (
     <div>
@@ -86,6 +90,12 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
             value={pago ? `${pago.tipo_pago} · ${pago.estado}` : null}
           />
           <Field label="Total" value={formatPrice(venta.total)} />
+          {venta.receptor_nombre && (
+            <Field
+              label="Retira/recibe"
+              value={`${venta.receptor_nombre}${venta.receptor_dni ? ` · DNI ${venta.receptor_dni}` : ""}`}
+            />
+          )}
         </div>
       </div>
 
@@ -126,6 +136,29 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
           <div className="detail-row">
             <Field label="Modalidad" value="Retiro en tienda" />
           </div>
+        </div>
+      )}
+
+      {dirFact && (
+        <div className="admin-card detail-section">
+          <h2>Dirección de facturación</h2>
+          {mismaFact ? (
+            <p className="muted" style={{ margin: 0 }}>
+              Misma que la dirección de envío.
+            </p>
+          ) : (
+            <div className="detail-row">
+              <Field label="Calle" value={`${dirFact.calle} ${dirFact.numero}`} />
+              <Field label="Piso" value={dirFact.piso} />
+              <Field label="Depto" value={dirFact.departamento} />
+              <Field label="Barrio" value={dirFact.barrio} />
+              <Field label="Localidad" value={dirFact.localidad} />
+              <Field label="Provincia" value={dirFact.provincia} />
+              <Field label="CP" value={dirFact.codigo_postal} />
+              <Field label="País" value={dirFact.pais} />
+              <Field label="Referencias" value={dirFact.referencias} />
+            </div>
+          )}
         </div>
       )}
 

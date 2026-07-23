@@ -369,6 +369,7 @@ model direccion {
   cliente                cliente  @relation("ClienteDirecciones", fields: [id_cliente], references: [id_cliente], onDelete: Cascade)
   cliente_como_principal cliente? @relation("DireccionPrincipal")
   envios                 envio[]
+  ventas_facturacion     venta[]  @relation("VentaFacturacion")
 }
 
 model venta {
@@ -381,11 +382,16 @@ model venta {
   descuento    Decimal  @default(0) @db.Decimal(12, 2)
   costo_envio  Decimal  @default(0) @db.Decimal(12, 2)
   total        Decimal  @db.Decimal(12, 2)
+  /// Si retira/recibe otra persona
+  receptor_nombre String? @db.VarChar(200)
+  receptor_dni    String? @db.VarChar(50)
+  id_direccion_facturacion Int?
 
   cliente  cliente         @relation(fields: [id_cliente], references: [id_cliente])
   detalles venta_detalle[]
   pagos    pago[]
   envios   envio[]
+  direccion_facturacion direccion? @relation("VentaFacturacion", fields: [id_direccion_facturacion], references: [id_direccion], onDelete: SetNull)
 }
 
 model venta_detalle {

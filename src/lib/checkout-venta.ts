@@ -54,6 +54,9 @@ export async function createPendingVenta(
   const responsabilidad_impositiva =
     responsabilidadRaw === "RI" ? "RI" : "CF";
   const tipo_entrega = field(fields, "tipo_entrega");
+  const otraPersona = field(fields, "receptor_otra_persona") === "1";
+  const receptor_nombre = otraPersona ? field(fields, "receptor_nombre") || null : null;
+  const receptor_dni = otraPersona ? field(fields, "receptor_dni") || null : null;
 
   if (checkoutMode !== "invitado" && sessionEmail) {
     mail = sessionEmail.toLowerCase();
@@ -65,6 +68,13 @@ export async function createPendingVenta(
   if (tipo_entrega !== "envio" && tipo_entrega !== "retiro") {
     throw new Error("Tipo de entrega inválido");
   }
+  if (otraPersona && (!receptor_nombre || !receptor_dni)) {
+    throw new Error("Completá nombre y DNI de quien retira/recibe");
+  }
+
+  const mismaFacturacion =
+    tipo_entrega === "envio" && field(fields, "misma_direccion_facturacion") === "1";
+
   if (tipo_entrega === "envio") {
     const calle = field(fields, "calle");
     const numero = field(fields, "numero");
@@ -72,10 +82,22 @@ export async function createPendingVenta(
     const provincia = field(fields, "provincia");
     const codigo_postal = field(fields, "codigo_postal");
     if (!calle || !numero || !localidad || !provincia) {
-      throw new Error("Calle, número, localidad y provincia son obligatorios");
+      throw new Error("Calle, número, localidad y provincia de entrega son obligatorios");
     }
     if (!codigo_postal) {
       throw new Error("Ingresá el código postal de entrega");
+    }
+  }
+
+  if (!mismaFacturacion) {
+    const calle = field(fields, "fact_calle");
+    const numero = field(fields, "fact_numero");
+    const localidad = field(fields, "fact_localidad");
+    const provincia = field(fields, "fact_provincia");
+    if (!calle || !numero || !localidad || !provincia) {
+      throw new Error(
+        "Calle, número, localidad y provincia de facturación son obligatorios",
+      );
     }
   }
 
@@ -150,6 +172,8 @@ export async function createPendingVenta(
     }
 
     let id_direccion: number | null = null;
+    let id_direccion_facturacion: number | null = null;
+
     if (tipo_entrega === "envio") {
       const direccion = await tx.direccion.create({
         data: {
@@ -175,6 +199,33 @@ export async function createPendingVenta(
       }
     }
 
+    if (mismaFacturacion && id_direccion != null) {
+      id_direccion_facturacion = id_direccion;
+    } else {
+      const fact = await tx.direccion.create({
+        data: {
+          id_cliente: cliente.id_cliente,
+          calle: field(fields, "fact_calle"),
+          numero: field(fields, "fact_numero"),
+          piso: field(fields, "fact_piso") || null,
+          departamento: field(fields, "fact_departamento") || null,
+          barrio: field(fields, "fact_barrio") || null,
+          localidad: field(fields, "fact_localidad"),
+          provincia: field(fields, "fact_provincia"),
+          pais: field(fields, "fact_pais") || "Argentina",
+          codigo_postal: field(fields, "fact_codigo_postal") || null,
+          referencias: field(fields, "fact_referencias") || null,
+        },
+      });
+      id_direccion_facturacion = fact.id_direccion;
+      if (!cliente.id_direccion_principal && tipo_entrega === "retiro") {
+        await tx.cliente.update({
+          where: { id_cliente: cliente.id_cliente },
+          data: { id_direccion_principal: id_direccion_facturacion },
+        });
+      }
+    }
+
     const venta = await tx.venta.create({
       data: {
         id_cliente: cliente.id_cliente,
@@ -184,6 +235,9 @@ export async function createPendingVenta(
         descuento,
         costo_envio,
         total,
+        receptor_nombre,
+        receptor_dni,
+        id_direccion_facturacion,
         detalles: {
           create: cart.items.map((item, index) => ({
             item: index + 1,
