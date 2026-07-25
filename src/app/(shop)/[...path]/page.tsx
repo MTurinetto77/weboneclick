@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
+import { PromoShopListing } from "@/components/promo-shop-listing";
 import { getActiveProducts, getCategoryBySlugPath } from "@/lib/products";
+import { getPromoBySlug } from "@/lib/promos";
 
 type Params = Promise<{ path: string[] }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -44,6 +46,14 @@ export default async function CategoryCatchAllPage({
   const sp = await searchParams;
 
   if (!path?.length || RESERVED.has(path[0])) notFound();
+
+  // Promociones: un solo segmento → /vacaciones-de-invierno
+  if (path.length === 1) {
+    const promo = await getPromoBySlug(path[0]);
+    if (promo) {
+      return <PromoShopListing promo={promo} searchParams={sp} />;
+    }
+  }
 
   const category = await getCategoryBySlugPath(path);
   if (!category) notFound();

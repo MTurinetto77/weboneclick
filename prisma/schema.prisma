@@ -211,6 +211,7 @@ model producto {
   etiquetas       etiqueta_producto[]
   grupos          grupo_producto_item[]
   wishlist_items  lista_deseos_item[]
+  promociones     promocion_producto[]
 }
 
 model almacen {
@@ -267,6 +268,41 @@ model categoria {
   productos       categoria_producto[]
   caracteristicas caracteristica_categoria[]
   familias        familia[]
+  promociones     promocion_categoria[]
+}
+
+model promocion {
+  id_promocion    Int     @id @default(autoincrement())
+  nombre          String  @db.VarChar(255)
+  subtitulo       String? @db.VarChar(255)
+  icono           String? @db.VarChar(500)
+  etiqueta_imagen String? @db.VarChar(500)
+  prioridad       Int     @default(0)
+  slug            String  @unique @db.VarChar(255)
+  activo          Boolean @default(true)
+
+  categorias promocion_categoria[]
+  productos promocion_producto[]
+}
+
+model promocion_categoria {
+  id_promocion Int
+  id_categoria Int
+
+  promocion promocion @relation(fields: [id_promocion], references: [id_promocion], onDelete: Cascade)
+  categoria categoria @relation(fields: [id_categoria], references: [id_categoria], onDelete: Cascade)
+
+  @@id([id_promocion, id_categoria])
+}
+
+model promocion_producto {
+  id_promocion Int
+  id_producto  Int
+
+  promocion promocion @relation(fields: [id_promocion], references: [id_promocion], onDelete: Cascade)
+  producto  producto  @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_promocion, id_producto])
 }
 
 model categoria_producto {

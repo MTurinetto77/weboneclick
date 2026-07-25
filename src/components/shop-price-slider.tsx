@@ -8,6 +8,7 @@ type Props = {
   priceMin: number;
   priceMax: number;
   query: ShopQuery;
+  basePath?: string;
 };
 
 function formatArsCompact(value: number): string {
@@ -21,7 +22,7 @@ function formatArsCompact(value: number): string {
 /**
  * Filtro de precio con doble deslizador (estilo WooCommerce / OneClick Store).
  */
-export function ShopPriceSlider({ priceMin, priceMax, query }: Props) {
+export function ShopPriceSlider({ priceMin, priceMax, query, basePath = "/shop" }: Props) {
   const router = useRouter();
   const floor = Math.max(0, Math.floor(priceMin));
   const ceil = Math.max(floor + 1, Math.ceil(priceMax));
@@ -51,13 +52,13 @@ export function ShopPriceSlider({ priceMin, priceMax, query }: Props) {
   function apply() {
     const nextMin = minVal <= floor ? undefined : String(minVal);
     const nextMax = maxVal >= ceil ? undefined : String(maxVal);
-    router.push(buildShopHref(query, { min: nextMin, max: nextMax }));
+    router.push(buildShopHref(query, { min: nextMin, max: nextMax }, basePath));
   }
 
   function clear() {
     setMinVal(floor);
     setMaxVal(ceil);
-    router.push(buildShopHref(query, { min: undefined, max: undefined }));
+    router.push(buildShopHref(query, { min: undefined, max: undefined }, basePath));
   }
 
   const isFiltered = minVal > floor || maxVal < ceil;

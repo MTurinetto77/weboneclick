@@ -9,18 +9,21 @@ export { buildShopHref };
 type Props = {
   facets: ShopFacets;
   query: ShopQuery;
+  /** Base path for filter links (default /shop; promo pages pass /{slug}) */
+  basePath?: string;
 };
 
-export function ShopSidebar({ facets, query }: Props) {
+export function ShopSidebar({ facets, query, basePath = "/shop" }: Props) {
   return (
     <aside className="oc-shop-sidebar">
       <ShopPriceSlider
         priceMin={facets.priceMin}
         priceMax={facets.priceMax}
         query={query}
+        basePath={basePath}
       />
-      <CategoryFilter categories={facets.categories} query={query} />
-      <BrandFilter brands={facets.brands} query={query} />
+      <CategoryFilter categories={facets.categories} query={query} basePath={basePath} />
+      <BrandFilter brands={facets.brands} query={query} basePath={basePath} />
     </aside>
   );
 }
@@ -28,20 +31,22 @@ export function ShopSidebar({ facets, query }: Props) {
 function CategoryFilter({
   categories,
   query,
+  basePath,
 }: {
   categories: ShopCategoryNode[];
   query: ShopQuery;
+  basePath: string;
 }) {
   return (
     <section className="oc-shop-facet">
       <h3>Categoría</h3>
       <ul className="oc-shop-cat-list">
         {categories.map((cat) => (
-          <CategoryItem key={cat.id_categoria} cat={cat} query={query} />
+          <CategoryItem key={cat.id_categoria} cat={cat} query={query} basePath={basePath} />
         ))}
       </ul>
       {query.cat && (
-        <Link className="oc-shop-clear" href={buildShopHref(query, { cat: undefined })}>
+        <Link className="oc-shop-clear" href={buildShopHref(query, { cat: undefined }, basePath)}>
           Quitar categoría
         </Link>
       )}
@@ -49,14 +54,22 @@ function CategoryFilter({
   );
 }
 
-function CategoryItem({ cat, query }: { cat: ShopCategoryNode; query: ShopQuery }) {
+function CategoryItem({
+  cat,
+  query,
+  basePath,
+}: {
+  cat: ShopCategoryNode;
+  query: ShopQuery;
+  basePath: string;
+}) {
   const active = query.cat === cat.slug;
   const childActive = cat.children.some((c) => c.slug === query.cat);
 
   return (
     <li className={active || childActive ? "is-open" : undefined}>
       <Link
-        href={buildShopHref(query, { cat: active ? undefined : cat.slug })}
+        href={buildShopHref(query, { cat: active ? undefined : cat.slug }, basePath)}
         className={active ? "is-active" : undefined}
       >
         <span>{cat.nombre}</span>
@@ -67,9 +80,13 @@ function CategoryItem({ cat, query }: { cat: ShopCategoryNode; query: ShopQuery 
           {cat.children.map((child) => (
             <li key={child.id_categoria}>
               <Link
-                href={buildShopHref(query, {
-                  cat: query.cat === child.slug ? undefined : child.slug,
-                })}
+                href={buildShopHref(
+                  query,
+                  {
+                    cat: query.cat === child.slug ? undefined : child.slug,
+                  },
+                  basePath
+                )}
                 className={query.cat === child.slug ? "is-active" : undefined}
               >
                 <span>{child.nombre}</span>
@@ -83,7 +100,15 @@ function CategoryItem({ cat, query }: { cat: ShopCategoryNode; query: ShopQuery 
   );
 }
 
-function BrandFilter({ brands, query }: { brands: ShopBrandFacet[]; query: ShopQuery }) {
+function BrandFilter({
+  brands,
+  query,
+  basePath,
+}: {
+  brands: ShopBrandFacet[];
+  query: ShopQuery;
+  basePath: string;
+}) {
   return (
     <section className="oc-shop-facet">
       <h3>Marca</h3>
@@ -93,9 +118,13 @@ function BrandFilter({ brands, query }: { brands: ShopBrandFacet[]; query: ShopQ
           return (
             <li key={brand.id_marca}>
               <Link
-                href={buildShopHref(query, {
-                  marca: active ? undefined : brand.slug,
-                })}
+                href={buildShopHref(
+                  query,
+                  {
+                    marca: active ? undefined : brand.slug,
+                  },
+                  basePath
+                )}
                 className={active ? "is-active" : undefined}
               >
                 <span>{brand.nombre}</span>
@@ -106,7 +135,10 @@ function BrandFilter({ brands, query }: { brands: ShopBrandFacet[]; query: ShopQ
         })}
       </ul>
       {query.marca && (
-        <Link className="oc-shop-clear" href={buildShopHref(query, { marca: undefined })}>
+        <Link
+          className="oc-shop-clear"
+          href={buildShopHref(query, { marca: undefined }, basePath)}
+        >
           Quitar marca
         </Link>
       )}

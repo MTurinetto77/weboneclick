@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/categorias", label: "Categorías" },
   { href: "/admin/marcas", label: "Marcas" },
   { href: "/admin/banners", label: "Banners" },
+  { href: "/admin/promociones", label: "Promociones" },
   { href: "/admin/tiendas", label: "Tiendas" },
   { href: "/admin/constancias", label: "Constancias fiscales" },
   { href: "/admin/exclusiones", label: "Exclusiones retenciones" },

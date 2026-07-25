@@ -12,6 +12,8 @@ export type ProductListItem = {
   /** true si hay filas de stock en DB (sincronizado); false = stock desconocido */
   stockTracked: boolean;
   cuotas_max: number | null;
+  /** Ruta de imagen de etiqueta de promo (esquina superior derecha de la card) */
+  promoBadge?: string | null;
 };
 
 /**
@@ -247,8 +249,19 @@ export async function resolveCategoryFilterIdsBySlug(
   return { id: cat.id_categoria, nombre: cat.nombre, slug: cat.slug };
 }
 
-/** Facetas del sidebar de /shop: categorías con conteo, marcas y rango de precios. */
-export async function getShopFacets(): Promise<ShopFacets> {
+/** Facetas del sidebar de /shop: categorías con conteo, marcas y rango de precios.
+ *  Si se pasa `ids`, los conteos y rangos se restringen a ese conjunto de productos. */
+export async function getShopFacets(options?: { ids?: number[] }): Promise<ShopFacets> {
+  const ids = options?.ids;
+  if (ids && ids.length === 0) {
+    return { categories: [], brands: [], priceMin: 0, priceMax: 0 };
+  }
+
+  const productWhere: Prisma.productoWhereInput = {
+    activo: true,
+    ...(ids ? { id_producto: { in: ids } } : {}),
+  };
+
   const [categories, brands, priceRows] = await Promise.all([
     prisma.categoria.findMany({
       select: {
@@ -257,7 +270,7 @@ export async function getShopFacets(): Promise<ShopFacets> {
         slug: true,
         id_cat_superior: true,
         productos: {
-          where: { producto: { activo: true } },
+          where: { producto: productWhere },
           select: { id_producto: true },
         },
       },
@@ -269,22 +282,36 @@ export async function getShopFacets(): Promise<ShopFacets> {
         id_marca: true,
         nombre: true,
         slug: true,
-        _count: { select: { productos: { where: { activo: true } } } },
+        _count: { select: { productos: { where: productWhere } } },
       },
       orderBy: { nombre: "asc" },
     }),
-    prisma.$queryRaw<{ min_p: Prisma.Decimal | null; max_p: Prisma.Decimal | null }[]>`
-      SELECT MIN(pp.precio) AS min_p, MAX(pp.precio) AS max_p
-      FROM precio_producto pp
-      INNER JOIN producto p ON p.id_producto = pp.id_producto
-      WHERE p.activo = 1
-        AND pp.fecha_desde = (
-          SELECT MAX(pp2.fecha_desde)
-          FROM precio_producto pp2
-          WHERE pp2.id_producto = pp.id_producto
-            AND pp2.fecha_desde <= CURDATE()
-        )
-    `,
+    ids
+      ? prisma.$queryRaw<{ min_p: Prisma.Decimal | null; max_p: Prisma.Decimal | null }[]>`
+          SELECT MIN(pp.precio) AS min_p, MAX(pp.precio) AS max_p
+          FROM precio_producto pp
+          INNER JOIN producto p ON p.id_producto = pp.id_producto
+          WHERE p.activo = 1
+            AND p.id_producto IN (${Prisma.join(ids)})
+            AND pp.fecha_desde = (
+              SELECT MAX(pp2.fecha_desde)
+              FROM precio_producto pp2
+              WHERE pp2.id_producto = pp.id_producto
+                AND pp2.fecha_desde <= CURDATE()
+            )
+        `
+      : prisma.$queryRaw<{ min_p: Prisma.Decimal | null; max_p: Prisma.Decimal | null }[]>`
+          SELECT MIN(pp.precio) AS min_p, MAX(pp.precio) AS max_p
+          FROM precio_producto pp
+          INNER JOIN producto p ON p.id_producto = pp.id_producto
+          WHERE p.activo = 1
+            AND pp.fecha_desde = (
+              SELECT MAX(pp2.fecha_desde)
+              FROM precio_producto pp2
+              WHERE pp2.id_producto = pp.id_producto
+                AND pp2.fecha_desde <= CURDATE()
+            )
+        `,
   ]);
 
   type Flat = {
@@ -428,16 +455,27 @@ export async function getActiveProducts(options?: {
   q?: string;
   categoriaId?: number;
   marcaId?: number;
+  /** Restringir a un conjunto de IDs (p.ej. productos de una promoción) */
+  ids?: number[];
   characteristicFilters?: AppliedCharacteristicFilter[];
   take?: number;
   skip?: number;
   order?: ShopOrder;
   minPrice?: number;
   maxPrice?: number;
+  /** Si false, no carga badges de promo (default true) */
+  withPromoBadges?: boolean;
 }): Promise<{ items: ProductListItem[]; total: number }> {
   const where: Prisma.productoWhereInput = {
     activo: true,
   };
+
+  if (options?.ids) {
+    if (options.ids.length === 0) {
+      return { items: [], total: 0 };
+    }
+    where.id_producto = { in: options.ids };
+  }
 
   if (options?.q) {
     where.titulo = { contains: options.q };
@@ -471,7 +509,10 @@ export async function getActiveProducts(options?: {
 
   const numericIds = await productIdsMatchingNumericFilters(filters, categoryIds);
   if (numericIds) {
-    where.id_producto = { in: numericIds.length ? numericIds : [-1] };
+    const intersect = options?.ids
+      ? numericIds.filter((id) => options.ids!.includes(id))
+      : numericIds;
+    where.id_producto = { in: intersect.length ? intersect : [-1] };
   }
 
   const take = options?.take ?? 24;
@@ -482,6 +523,16 @@ export async function getActiveProducts(options?: {
     order === "precio-desc" ||
     options?.minPrice != null ||
     options?.maxPrice != null;
+
+  async function attachBadges(items: ProductListItem[]): Promise<ProductListItem[]> {
+    if (options?.withPromoBadges === false || !items.length) return items;
+    const { getPromoBadges } = await import("@/lib/promos");
+    const badges = await getPromoBadges(items.map((i) => i.id_producto));
+    return items.map((item) => ({
+      ...item,
+      promoBadge: badges.get(item.id_producto) ?? null,
+    }));
+  }
 
   if (!needsPricePass) {
     const [rows, total] = await Promise.all([
@@ -526,7 +577,7 @@ export async function getActiveProducts(options?: {
       };
     });
 
-    return { items, total };
+    return { items: await attachBadges(items), total };
   }
 
   // Orden/filtro por precio: resolver IDs + precio actual, luego paginar
@@ -601,7 +652,7 @@ export async function getActiveProducts(options?: {
       };
     });
 
-  return { items, total };
+  return { items: await attachBadges(items), total };
 }
 
 export async function getProductById(id: number) {

@@ -8,7 +8,11 @@ export type ShopQuery = {
   page?: string;
 };
 
-export function buildShopHref(base: ShopQuery, patch: Partial<ShopQuery>): string {
+export function buildShopHref(
+  base: ShopQuery,
+  patch: Partial<ShopQuery>,
+  basePath = "/shop"
+): string {
   const next: ShopQuery = { ...base, ...patch };
   // Al cambiar filtro, volver a página 1 salvo que se pida page explícitamente
   if (!("page" in patch)) delete next.page;
@@ -19,5 +23,6 @@ export function buildShopHref(base: ShopQuery, patch: Partial<ShopQuery>): strin
     }
   }
   const qs = params.toString();
-  return qs ? `/shop?${qs}` : "/shop";
+  const path = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  return qs ? `${path}?${qs}` : path;
 }

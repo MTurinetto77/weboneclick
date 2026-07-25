@@ -3,8 +3,10 @@
 export type NavLink = {
   label: string;
   href: string;
-  /** Badge naranja encima del label (ej. "Nuevos") */
+  /** Badge naranja encima del label (ej. "Nuevos", "Promo!") */
   badge?: string;
+  /** Icono emoji o ruta de imagen a la derecha del label */
+  icon?: string;
   /** product = tipografía grande; link = secundario con flecha */
   variant?: "product" | "link";
 };
@@ -15,6 +17,8 @@ export type NavItem = {
   /** CTA del header del panel, ej. "Shop Apple Watch →" */
   shopLabel?: string;
   children?: NavLink[];
+  /** Si true, los children se cargan dinámicamente (p.ej. promociones) */
+  dynamicChildren?: "promociones";
 };
 
 export const MAIN_NAV: NavItem[] = [
@@ -160,15 +164,8 @@ export const MAIN_NAV: NavItem[] = [
     label: "Promociones",
     href: "/promo",
     shopLabel: "Shop Promo →",
-    children: [
-      { label: "Promo! Aguinaldo", href: "/promo-aginaldo", variant: "product" },
-      { label: "Descuentos! Mundial", href: "/promo/mundial", variant: "product" },
-      { label: "Ofertas BOMBA", href: "/etiqueta/ofertas-bomba", variant: "product" },
-      { label: "Ahorra en Outlet", href: "/outlet", variant: "link" },
-      { label: "Hasta 24 cuotas →", href: "/etiqueta/hasta-24-cuotas", variant: "link" },
-      { label: "Hasta 18 cuotas →", href: "/etiqueta/hasta-18-cuotas", variant: "link" },
-      { label: "Hasta 12 cuotas →", href: "/etiqueta/hasta-12-cuotas", variant: "link" },
-    ],
+    dynamicChildren: "promociones",
+    children: [],
   },
   { label: "Servicio Técnico", href: "/servicio-tecnico" },
   { label: "Empresas", href: "/empresas" },

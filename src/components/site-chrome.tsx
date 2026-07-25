@@ -2,16 +2,18 @@ import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { resolveCart } from "@/lib/cart";
 import { getValorEnvioGratis } from "@/lib/parametros";
-import { MAIN_NAV } from "@/lib/nav";
+import { MAIN_NAV, type NavItem, type NavLink } from "@/lib/nav";
+import { getActivePromosNav, isPromoIconImage } from "@/lib/promos";
 import { CartDrawer, type CartDrawerItem } from "@/components/cart-drawer";
 import { SearchOverlay } from "@/components/search-overlay";
 import { uploadPublicUrl } from "@/lib/utils";
 
 export async function SiteHeader() {
-  const [cart, session, valorEnvioGratis] = await Promise.all([
+  const [cart, session, valorEnvioGratis, promos] = await Promise.all([
     resolveCart(),
     auth(),
     getValorEnvioGratis(),
+    getActivePromosNav(),
   ]);
   const email = session?.user?.email;
   const isAdmin = session?.user?.role === "admin";
@@ -26,6 +28,18 @@ export async function SiteHeader() {
     disponible: i.disponible,
   }));
 
+  const nav: NavItem[] = MAIN_NAV.map((item) => {
+    if (item.dynamicChildren !== "promociones") return item;
+    const children: NavLink[] = promos.map((p) => ({
+      label: p.nombre,
+      href: `/${p.slug}`,
+      badge: p.subtitulo ?? undefined,
+      icon: p.icono ?? undefined,
+      variant: "product" as const,
+    }));
+    return { ...item, children };
+  });
+
   return (
     <header className="oc-header-float">
       <div className="oc-header-float-inner">
@@ -37,7 +51,7 @@ export async function SiteHeader() {
         <div className="oc-header-spacer" aria-hidden />
 
         <nav className="oc-pill-nav" aria-label="Principal">
-          {MAIN_NAV.map((item) => (
+          {nav.map((item) => (
             <div key={item.href + item.label} className="oc-pill-item">
               <Link href={item.href}>
                 {item.label}
@@ -67,7 +81,24 @@ export async function SiteHeader() {
                           }
                         >
                           {c.badge ? <span className="oc-pill-badge">{c.badge}</span> : null}
-                          <span className="oc-pill-panel-label">{c.label}</span>
+                          <span className="oc-pill-panel-row">
+                            <span className="oc-pill-panel-label">{c.label}</span>
+                            {c.icon ? (
+                              isPromoIconImage(c.icon) ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={uploadPublicUrl(c.icon)}
+                                  alt=""
+                                  className="oc-pill-panel-icon-img"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <span className="oc-pill-panel-icon" aria-hidden>
+                                  {c.icon}
+                                </span>
+                              )
+                            ) : null}
+                          </span>
                         </Link>
                       );
                     })}

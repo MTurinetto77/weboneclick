@@ -192,6 +192,79 @@ async function main() {
     });
   }
 
+  // Promociones del menú (asociaciones categorías/productos se configuran en admin)
+  const promocionesSeed = [
+    {
+      nombre: "Vacaciones de Invierno",
+      subtitulo: "Promo!",
+      icono: "❄️",
+      slug: "vacaciones-de-invierno",
+      prioridad: 10,
+    },
+    {
+      nombre: "BOMBA",
+      subtitulo: "Ofertas",
+      icono: "💣",
+      slug: "ofertas-bomba",
+      prioridad: 20,
+    },
+    {
+      nombre: "Ofertas Apple",
+      subtitulo: "Más beneficios!",
+      icono: "",
+      slug: "ofertas-apple",
+      prioridad: 30,
+    },
+    {
+      nombre: "Outlet",
+      subtitulo: "Ahorra en",
+      icono: null,
+      slug: "outlet-promo",
+      prioridad: 40,
+    },
+    {
+      nombre: "Hasta 24 cuotas",
+      subtitulo: "Nuevo!",
+      icono: null,
+      slug: "hasta-24-cuotas",
+      prioridad: 50,
+    },
+    {
+      nombre: "Hasta 18 cuotas",
+      subtitulo: "Nuevo!",
+      icono: null,
+      slug: "hasta-18-cuotas",
+      prioridad: 60,
+    },
+    {
+      nombre: "Hasta 12 cuotas",
+      subtitulo: "Nuevo!",
+      icono: null,
+      slug: "hasta-12-cuotas",
+      prioridad: 70,
+    },
+  ];
+  for (const p of promocionesSeed) {
+    await prisma.promocion.upsert({
+      where: { slug: p.slug },
+      create: {
+        nombre: p.nombre,
+        subtitulo: p.subtitulo,
+        icono: p.icono,
+        slug: p.slug,
+        prioridad: p.prioridad,
+        activo: true,
+      },
+      update: {
+        nombre: p.nombre,
+        subtitulo: p.subtitulo,
+        icono: p.icono,
+        prioridad: p.prioridad,
+        activo: true,
+      },
+    });
+  }
+
   // Grupos ejemplo
   await prisma.grupo_producto.upsert({
     where: { slug: "AirPods-Pro-3" },

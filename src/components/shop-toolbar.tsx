@@ -15,9 +15,10 @@ type Props = {
   from: number;
   to: number;
   total: number;
+  basePath?: string;
 };
 
-export function ShopToolbar({ query, from, to, total }: Props) {
+export function ShopToolbar({ query, from, to, total, basePath = "/shop" }: Props) {
   const router = useRouter();
   const orden = query.orden || "ultimos";
 
@@ -36,7 +37,7 @@ export function ShopToolbar({ query, from, to, total }: Props) {
           id="oc-shop-orden"
           value={orden}
           onChange={(e) => {
-            router.push(buildShopHref(query, { orden: e.target.value }));
+            router.push(buildShopHref(query, { orden: e.target.value }, basePath));
           }}
         >
           {ORDER_OPTIONS.map((opt) => (

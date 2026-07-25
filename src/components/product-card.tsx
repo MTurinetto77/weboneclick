@@ -19,6 +19,15 @@ export function ProductCard({ product }: { product: ProductListItem }) {
             alt={product.titulo}
           />
         </Link>
+        {product.promoBadge ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={uploadPublicUrl(product.promoBadge)}
+            alt=""
+            className="oc-product-card-promo-badge"
+            aria-hidden
+          />
+        ) : null}
         <Link
           href="/lista-deseos"
           className="oc-product-card-wishlist"
