@@ -1,19 +1,30 @@
 import Link from "next/link";
+import {
+  HomeHeroBanner,
+  HomePieBanner,
+  HomeSecundarioBanner,
+  HomeTripleBanners,
+} from "@/components/home-banners";
 import { ProductCard } from "@/components/product-card";
-import { getActiveProducts } from "@/lib/products";
+import { getActiveBanners, getActiveProducts } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
 
 export default async function HomePage() {
-  const [jbl, fundasCat] = await Promise.all([
-    prisma.marca.findFirst({
-      where: { slug: "jbl" },
-      select: { id_marca: true },
-    }),
-    prisma.categoria.findFirst({
-      where: { slug: "accesorios-fundas-y-cobertores" },
-      select: { id_categoria: true },
-    }),
-  ]);
+  const [jbl, fundasCat, heroBanners, secundarioBanners, tripleBanners, pieBanners] =
+    await Promise.all([
+      prisma.marca.findFirst({
+        where: { slug: "jbl" },
+        select: { id_marca: true },
+      }),
+      prisma.categoria.findFirst({
+        where: { slug: "accesorios-fundas-y-cobertores" },
+        select: { id_categoria: true },
+      }),
+      getActiveBanners("hero"),
+      getActiveBanners("secundario"),
+      getActiveBanners("triple"),
+      getActiveBanners("pie"),
+    ]);
 
   const [destacados, jblProducts, potenciaProducts] = await Promise.all([
     getActiveProducts({ take: 8 }),
@@ -55,32 +66,7 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Hero full-bleed estilo oneclickstore */}
-      <section className="oc-hero-live">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="oc-hero-live-bg" src="/oneclick/hero-mac.jpg" alt="" />
-        <div className="oc-hero-live-shade" />
-        <div className="container oc-hero-live-grid">
-          <div className="oc-hero-live-copy">
-            <span className="oc-pill-orange">LLEGÓ TU AGUINALDO</span>
-            <h1>
-              Eso que venías mirando,
-              <br />
-              ahora sí.
-            </h1>
-            <p className="oc-hero-sub">MacBook Neo al mejor precio del mercado</p>
-            <div className="oc-price-box">
-              <span className="oc-price-box-label">Desde</span>
-              <strong>$ 1.739.999</strong>
-              <span className="oc-price-box-cuotas">Hasta 12 cuotas sin interés</span>
-            </div>
-            <Link href="/mac/macbook-neo" className="oc-hero-cta-link">
-              Conocé los productos →
-            </Link>
-            <p className="oc-hero-foot">Hasta 18 cuotas sin interés · Hasta 50% de descuento</p>
-          </div>
-        </div>
-      </section>
+      <HomeHeroBanner banner={heroBanners[0]} />
 
       {/* Barra utilitaria oscura debajo del hero */}
       <section className="oc-utility-bar">
@@ -126,33 +112,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Franja mundial — un poco más ancha y baja */}
-      <section className="oc-mundial-wrap">
-        <div className="oc-mundial">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="oc-mundial-bg"
-            src="/oneclick/scraped/home-08.webp"
-            alt=""
-          />
-          <div className="oc-mundial-shade" aria-hidden />
-          <div className="oc-mundial-inner">
-            <div className="oc-mundial-copy">
-              <div className="oc-mundial-stars" aria-hidden>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/oneclick/mundial-stars.png" alt="" />
-              </div>
-              <h2>¡El mundial ya está acá!</h2>
-            </div>
-            <div className="oc-mundial-aside">
-              <p>Disfrutalo con precios especiales</p>
-              <Link href="/promo/mundial" className="oc-btn oc-btn-red oc-mundial-cta">
-                Ver productos
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomeSecundarioBanner banner={secundarioBanners[0]} />
 
       <section className="oc-section oc-destacados">
         <div className="container">
@@ -181,80 +141,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="oc-section oc-promo-rows">
-        <div className="container">
-          <div className="oc-promo-grid">
-            <article className="oc-promo-card oc-promo-dark">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="oc-promo-brand"
-                src="/oneclick/promos/mophie-logo.png"
-                alt="mophie"
-              />
-              <div className="oc-promo-copy">
-                <h3>Tu nuevo iPhone viene con regalo.</h3>
-                <p>
-                  Con la compra de cualquier iPhone, llevate de regalo un
-                  cargador Mophie de 30W.
-                </p>
-                <Link href="/iphone" className="oc-btn oc-btn-red">
-                  ¡Comprar ahora!
-                </Link>
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="oc-promo-media"
-                src="/oneclick/promos/media-iphone-mophie.webp"
-                alt="iPhone naranja con cargador Mophie 30W"
-              />
-            </article>
-            <article className="oc-promo-card oc-promo-light">
-              <div className="oc-promo-copy">
-                <h3>¿Buscás experiencia personalizada?</h3>
-                <p>
-                  Hablá con nuestros asesores y encontrá la compra perfecta
-                  para vos.
-                </p>
-                <a
-                  href="https://wa.me/5491100000000"
-                  className="oc-btn oc-btn-red oc-btn-wa"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
-                    <path
-                      fill="currentColor"
-                      d="M12.04 2C6.58 2 2.15 6.4 2.15 11.84c0 1.96.52 3.88 1.5 5.57L2 22l4.75-1.55a9.9 9.9 0 0 0 5.29 1.51h.01c5.46 0 9.89-4.4 9.89-9.84C21.94 6.4 17.5 2 12.04 2zm5.76 14.15c-.24.68-1.4 1.25-1.93 1.33-.5.08-1.12.11-1.81-.11-.42-.14-.95-.31-1.64-.6-2.89-1.25-4.77-4.16-4.92-4.35-.14-.19-1.2-1.6-1.2-3.05 0-1.45.76-2.16 1.03-2.45.27-.29.59-.36.79-.36h.57c.18 0 .42-.07.66.5.24.58.82 2 .89 2.15.07.15.12.32.02.52-.1.19-.15.32-.3.49-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.29.76 1.25 1.63 2.03 1.12 1 2.07 1.31 2.36 1.46.29.15.46.12.63-.07.17-.19.73-.85.93-1.14.2-.29.39-.24.66-.14.27.1 1.71.8 2 .95.29.15.49.22.56.34.07.12.07.7-.17 1.38z"
-                    />
-                  </svg>
-                  Contactate
-                </a>
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="oc-promo-media oc-promo-media-cover"
-                src="/oneclick/promos/media-experiencia.webp"
-                alt="Asesoramiento personalizado en tienda"
-              />
-            </article>
-            <article className="oc-promo-card oc-promo-light">
-              <div className="oc-promo-copy">
-                <h3>¿Tenés un problema con tu iPhone 17?</h3>
-                <p>Servicio Técnico Autorizado</p>
-                <Link href="/servicio-tecnico" className="oc-btn oc-btn-red">
-                  Contactate
-                </Link>
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="oc-promo-media oc-promo-media-phones"
-                src="/oneclick/promos/media-servicio.webp"
-                alt="iPhone 17 cámara"
-              />
-            </article>
-          </div>
-        </div>
-      </section>
+      <HomeTripleBanners banners={tripleBanners} />
 
       {jblProducts.items.length > 0 && (
         <section className="oc-section">
@@ -319,30 +206,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      <section className="oc-section oc-zagg-wrap">
-        <div className="container">
-          <div className="oc-zagg-banner">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="oc-zagg-logo" src="/oneclick/promos/zagg-logo.png" alt="ZAGG" />
-            <div className="oc-zagg-copy">
-              <h2>
-                Protección Premium
-                <br />
-                para tu nuevo iPhone 17
-              </h2>
-              <Link href="/marca/zagg" className="oc-btn oc-btn-red">
-                Ver Productos
-              </Link>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className="oc-zagg-badge"
-              src="/oneclick/promos/zagg-badge.png"
-              alt="La Marca #1 del Mundo en Protección Móvil"
-            />
-          </div>
-        </div>
-      </section>
+      <HomePieBanner banner={pieBanners[0]} />
     </>
   );
 }

@@ -119,6 +119,10 @@ model banner {
   vigencia_desde  DateTime
   vigencia_hasta  DateTime?
   activo          Boolean   @default(true)
+  /// HTML del contenido (texto, botón, etc.) inyectado en la home
+  html            String?   @db.Text
+  /// Clases CSS extra del contenedor (ej. oc-promo-dark / oc-promo-light)
+  clase_css       String?   @db.VarChar(100)
 }
 
 /// Constancias fiscales / bancarias descargables en /fiscal (editables desde admin)

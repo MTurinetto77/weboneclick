@@ -101,10 +101,12 @@ El **panel admin** solo admite `tipo_usuario = admin` y `activo = true`. El seed
 ## Estructura principal
 
 - `src/app/(shop)/` — Home, catálogo, producto, marcas, carrito, checkout, tiendas, institucionales
-- `src/app/admin/` — Panel (productos, categorías, banners, marcas, tiendas, sync Odoo, ventas)
+- `src/app/admin/` — Panel (productos, categorías, banners, **promociones**, marcas, tiendas, sync Odoo, ventas)
 - `src/lib/odoo.ts` / `odoo-sync.ts` — Cliente y sync
 - `src/lib/pricing.ts` — Contado (−10%) y sin impuestos (/1.105)
-- `src/lib/nav.ts` — Mega-menú estilo OneClick
+- `src/lib/nav.ts` — Mega-menú estilo OneClick (Promociones dinámicas desde DB)
+- `src/lib/promos.ts` — Queries y badges de promociones de menú
+- `src/lib/banners.ts` — Ubicaciones y URLs de banners de home
 - `prisma/schema.prisma` — Modelo de datos
 - `public/oneclick/` — Logo, hero, promos y banners de home
 - `db/oneclickstore.sql` — Backup de la base
@@ -112,6 +114,8 @@ El **panel admin** solo admite `tipo_usuario = admin` y `activo = true`. El seed
 ## Documentación
 
 - [docs/ESTADO-PROYECTO.md](docs/ESTADO-PROYECTO.md) — estado actual, home, sync y dónde tocar
+- [docs/PROMOCIONES.md](docs/PROMOCIONES.md) — promociones dinámicas del menú (schema, admin, listado, badges)
+- [docs/BANNERS.md](docs/BANNERS.md) — banners de home (hero, secundario, triple, pie; HTML + admin)
 - [docs/ETAPA-2-CARRITO.md](docs/ETAPA-2-CARRITO.md) — carrito, checkout, ventas
 - [docs/FUTUROS-CAMBIOS.md](docs/FUTUROS-CAMBIOS.md) — guía para seguir desarrollando
 - [DER.txt](DER.txt) — modelo de datos

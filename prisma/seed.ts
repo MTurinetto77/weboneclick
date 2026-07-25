@@ -156,23 +156,144 @@ async function main() {
     data: { activo: false },
   });
 
-  // Banner home
+  // Banners de la home (hero, secundario, triple×3, pie)
   const now = new Date();
-  const existingHero = await prisma.banner.findFirst({ where: { ubicacion: "hero" } });
-  if (!existingHero) {
-    await prisma.banner.create({
-      data: {
-        titulo: "Llegó tu aguinaldo — MacBook Neo al mejor precio",
-        imagen_desktop: "/oneclick/hero.webp",
-        imagen_mobile: "/oneclick/hero.webp",
-        link: "/shop",
-        ubicacion: "hero",
-        orden: 1,
-        vigencia_desde: now,
-        vigencia_hasta: null,
-        activo: true,
-      },
+  const homeBanners: Array<{
+    titulo: string;
+    imagen_desktop: string;
+    imagen_mobile?: string | null;
+    link?: string | null;
+    ubicacion: string;
+    orden: number;
+    html: string;
+    clase_css?: string | null;
+  }> = [
+    {
+      titulo: "Llegó tu aguinaldo — MacBook Neo al mejor precio",
+      imagen_desktop: "/oneclick/hero-mac.jpg",
+      imagen_mobile: null,
+      link: "/mac/macbook-neo",
+      ubicacion: "hero",
+      orden: 1,
+      html: `<div class="oc-hero-live-copy">
+  <span class="oc-pill-orange">LLEGÓ TU AGUINALDO</span>
+  <h1>Eso que venías mirando,<br />ahora sí.</h1>
+  <p class="oc-hero-sub">MacBook Neo al mejor precio del mercado</p>
+  <div class="oc-price-box">
+    <span class="oc-price-box-label">Desde</span>
+    <strong>$ 1.739.999</strong>
+    <span class="oc-price-box-cuotas">Hasta 12 cuotas sin interés</span>
+  </div>
+  <a href="/mac/macbook-neo" class="oc-hero-cta-link">Conocé los productos →</a>
+  <p class="oc-hero-foot">Hasta 18 cuotas sin interés · Hasta 50% de descuento</p>
+</div>`,
+    },
+    {
+      titulo: "¡El mundial ya está acá!",
+      imagen_desktop: "/oneclick/scraped/home-08.webp",
+      link: "/promo/mundial",
+      ubicacion: "secundario",
+      orden: 1,
+      html: `<div class="oc-mundial-copy">
+  <div class="oc-mundial-stars" aria-hidden="true">
+    <img src="/oneclick/mundial-stars.png" alt="" />
+  </div>
+  <h2>¡El mundial ya está acá!</h2>
+</div>
+<div class="oc-mundial-aside">
+  <p>Disfrutalo con precios especiales</p>
+  <a href="/promo/mundial" class="oc-btn oc-btn-red oc-mundial-cta">Ver productos</a>
+</div>`,
+    },
+    {
+      titulo: "Tu nuevo iPhone viene con regalo (Mophie)",
+      imagen_desktop: "/oneclick/promos/media-iphone-mophie.webp",
+      link: "/iphone",
+      ubicacion: "triple",
+      orden: 1,
+      clase_css: "oc-promo-dark",
+      html: `<img class="oc-promo-brand" src="/oneclick/promos/mophie-logo.png" alt="mophie" />
+<div class="oc-promo-copy">
+  <h3>Tu nuevo iPhone viene con regalo.</h3>
+  <p>Con la compra de cualquier iPhone, llevate de regalo un cargador Mophie de 30W.</p>
+  <a href="/iphone" class="oc-btn oc-btn-red">¡Comprar ahora!</a>
+</div>
+<img class="oc-promo-media" src="/oneclick/promos/media-iphone-mophie.webp" alt="iPhone naranja con cargador Mophie 30W" />`,
+    },
+    {
+      titulo: "¿Buscás experiencia personalizada?",
+      imagen_desktop: "/oneclick/promos/media-experiencia.webp",
+      link: "https://wa.me/5491100000000",
+      ubicacion: "triple",
+      orden: 2,
+      clase_css: "oc-promo-light",
+      html: `<div class="oc-promo-copy">
+  <h3>¿Buscás experiencia personalizada?</h3>
+  <p>Hablá con nuestros asesores y encontrá la compra perfecta para vos.</p>
+  <a href="https://wa.me/5491100000000" class="oc-btn oc-btn-red oc-btn-wa" target="_blank" rel="noreferrer">
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="16" height="16">
+      <path fill="currentColor" d="M12.04 2C6.58 2 2.15 6.4 2.15 11.84c0 1.96.52 3.88 1.5 5.57L2 22l4.75-1.55a9.9 9.9 0 0 0 5.29 1.51h.01c5.46 0 9.89-4.4 9.89-9.84C21.94 6.4 17.5 2 12.04 2zm5.76 14.15c-.24.68-1.4 1.25-1.93 1.33-.5.08-1.12.11-1.81-.11-.42-.14-.95-.31-1.64-.6-2.89-1.25-4.77-4.16-4.92-4.35-.14-.19-1.2-1.6-1.2-3.05 0-1.45.76-2.16 1.03-2.45.27-.29.59-.36.79-.36h.57c.18 0 .42-.07.66.5.24.58.82 2 .89 2.15.07.15.12.32.02.52-.1.19-.15.32-.3.49-.15.17-.31.38-.44.51-.15.15-.3.31-.13.6.17.29.76 1.25 1.63 2.03 1.12 1 2.07 1.31 2.36 1.46.29.15.46.12.63-.07.17-.19.73-.85.93-1.14.2-.29.39-.24.66-.14.27.1 1.71.8 2 .95.29.15.49.22.56.34.07.12.07.7-.17 1.38z"/>
+    </svg>
+    Contactate
+  </a>
+</div>
+<img class="oc-promo-media oc-promo-media-cover" src="/oneclick/promos/media-experiencia.webp" alt="Asesoramiento personalizado en tienda" />`,
+    },
+    {
+      titulo: "¿Tenés un problema con tu iPhone 17?",
+      imagen_desktop: "/oneclick/promos/media-servicio.webp",
+      link: "/servicio-tecnico",
+      ubicacion: "triple",
+      orden: 3,
+      clase_css: "oc-promo-light",
+      html: `<div class="oc-promo-copy">
+  <h3>¿Tenés un problema con tu iPhone 17?</h3>
+  <p>Servicio Técnico Autorizado</p>
+  <a href="/servicio-tecnico" class="oc-btn oc-btn-red">Contactate</a>
+</div>
+<img class="oc-promo-media oc-promo-media-phones" src="/oneclick/promos/media-servicio.webp" alt="iPhone 17 cámara" />`,
+    },
+    {
+      titulo: "Protección Premium para tu nuevo iPhone 17",
+      imagen_desktop: "/oneclick/promos/zagg-banner-bg.jpg",
+      link: "/marca/zagg",
+      ubicacion: "pie",
+      orden: 1,
+      html: `<img class="oc-zagg-logo" src="/oneclick/promos/zagg-logo.png" alt="ZAGG" />
+<div class="oc-zagg-copy">
+  <h2>Protección Premium<br />para tu nuevo iPhone 17</h2>
+  <a href="/marca/zagg" class="oc-btn oc-btn-red">Ver Productos</a>
+</div>
+<img class="oc-zagg-badge" src="/oneclick/promos/zagg-badge.png" alt="La Marca #1 del Mundo en Protección Móvil" />`,
+    },
+  ];
+
+  for (const b of homeBanners) {
+    const existing = await prisma.banner.findFirst({
+      where: { ubicacion: b.ubicacion, orden: b.orden },
     });
+    const data = {
+      titulo: b.titulo,
+      imagen_desktop: b.imagen_desktop,
+      imagen_mobile: b.imagen_mobile ?? null,
+      link: b.link ?? null,
+      ubicacion: b.ubicacion,
+      orden: b.orden,
+      vigencia_desde: now,
+      vigencia_hasta: null,
+      activo: true,
+      html: b.html,
+      clase_css: b.clase_css ?? null,
+    };
+    if (!existing) {
+      await prisma.banner.create({ data });
+    } else if (!existing.html) {
+      // Actualizar registros viejos (sin HTML) con el contenido seed
+      await prisma.banner.update({
+        where: { id_banner: existing.id_banner },
+        data,
+      });
+    }
   }
 
   // Etiquetas web propias (además de Odoo)

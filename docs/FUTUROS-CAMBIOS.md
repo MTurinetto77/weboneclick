@@ -50,15 +50,19 @@ Ver detalle completo en [ETAPA-2-CARRITO.md](./ETAPA-2-CARRITO.md).
 
 ### Reglas de producto ya establecidas en admin
 
-1. **Listado vs alta**: listados con búsqueda/paginación; alta en `/nuevo` (productos, usuarios).
-2. **Edición**: página aparte `/[id]` (productos, categorías, características, usuarios).
-3. **Tablas** para asociaciones (categorías en producto, características en categoría).
+1. **Listado vs alta**: listados con búsqueda/paginación; alta en `/nuevo` (productos, usuarios, **promociones**, **banners**).
+2. **Edición**: página aparte `/[id]` (productos, categorías, características, usuarios, promociones, banners).
+3. **Tablas** para asociaciones (categorías en producto, características en categoría, categorías/productos en promoción).
 4. **Borrado condicionado**:
    - Característica: no eliminar si tiene `producto_caracteristica`.
    - Almacén: no eliminar si tiene filas en `stock`.
 5. **Baja lógica** de productos: campo `activo` (no hard delete en catálogo público).
 
 Al agregar CRUDs nuevos, seguir el mismo patrón.
+
+**OneClick — promociones de menú:** ver [PROMOCIONES.md](./PROMOCIONES.md) (schema, menú dinámico, listado con filtros, badges, admin).
+
+**OneClick — banners de home:** ver [BANNERS.md](./BANNERS.md) (ubicaciones hero/secundario/triple/pie, HTML + imagen, admin, seed).
 
 ---
 

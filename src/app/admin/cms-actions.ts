@@ -9,42 +9,6 @@ async function guard() {
   await requireAdmin();
 }
 
-export async function createBanner(formData: FormData) {
-  await guard();
-  const titulo = String(formData.get("titulo") || "").trim();
-  const imagen_desktop = String(formData.get("imagen_desktop") || "").trim();
-  const imagen_mobile = String(formData.get("imagen_mobile") || "").trim() || null;
-  const link = String(formData.get("link") || "").trim() || null;
-  const ubicacion = String(formData.get("ubicacion") || "hero").trim();
-  const orden = Number(formData.get("orden") || 0);
-  const vigencia_desde = new Date(String(formData.get("vigencia_desde")));
-  const hastaRaw = String(formData.get("vigencia_hasta") || "");
-  const vigencia_hasta = hastaRaw ? new Date(hastaRaw) : null;
-
-  await prisma.banner.create({
-    data: {
-      titulo,
-      imagen_desktop,
-      imagen_mobile,
-      link,
-      ubicacion,
-      orden,
-      vigencia_desde,
-      vigencia_hasta,
-      activo: true,
-    },
-  });
-  revalidatePath("/admin/banners");
-  revalidatePath("/");
-}
-
-export async function deleteBanner(id_banner: number) {
-  await guard();
-  await prisma.banner.delete({ where: { id_banner } });
-  revalidatePath("/admin/banners");
-  revalidatePath("/");
-}
-
 export async function createTienda(formData: FormData) {
   await guard();
   const nombre = String(formData.get("nombre") || "").trim();

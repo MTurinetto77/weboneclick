@@ -2,7 +2,7 @@
 
 Documento de handoff para continuar el clon de [oneclickstore.com](https://www.oneclickstore.com/) sobre la base Next.js (ex Aukan Aire Libre).
 
-**Última actualización:** 2026-07-18  
+**Última actualización:** 2026-07-25  
 **App:** `web/` (`web-oneclick` · Next.js 16 · React 19 · Prisma 6 · MariaDB)  
 **Sitio de referencia:** https://www.oneclickstore.com/ (WooCommerce / WoodMart)  
 **Mapa de rutas live:** [`Mapa.txt`](Mapa.txt) (~872 rutas)
@@ -68,7 +68,8 @@ Seed: [`web/prisma/seed.ts`](web/prisma/seed.ts)
 ### Extensiones OneClick
 - Producto/categoría: `slug`, `odoo_id`; producto: `id_marca`, `cuotas_max`
 - `almacen.id_tienda`
-- Nuevas: `marca`, `etiqueta` + `etiqueta_producto`, `familia`, `grupo_producto` + items, `beneficio` + `tarjeta_adherida` + M2M, `banner` (con `vigencia_desde` / `vigencia_hasta`), `tienda`, `lista_deseos` + items
+- Nuevas: `marca`, `etiqueta` + `etiqueta_producto`, `familia`, `grupo_producto` + items, `beneficio` + `tarjeta_adherida` + M2M, `banner` (vigencia + `html` + `clase_css`; ver [BANNERS.md](./BANNERS.md)), `tienda`, `lista_deseos` + items
+- **Promociones de menú:** `promocion` + `promocion_categoria` + `promocion_producto` (ver [PROMOCIONES.md](./PROMOCIONES.md))
 
 ---
 
@@ -104,9 +105,10 @@ web/src/
     admin/           # CRUD + sync
   components/        # site-chrome, product-card, …
   lib/
-    products.ts      # queries listado / categoría por path
+    products.ts      # queries listado / categoría por path / facetas shop
+    promos.ts        # promociones de menú (nav, slug, badges)
     pricing.ts       # contado −10%, sin impuestos /1.105
-    nav.ts           # mega-menú hardcodeado como live
+    nav.ts           # mega-menú (Promociones = dynamicChildren desde DB)
     odoo*.ts
   app/globals.css    # tokens OneClick + layout home (prefijo .oc-*)
 ```
@@ -121,6 +123,9 @@ web/src/
 2. Fallback: último segmento  
 3. Fallback: `slugs.join("-")` (ej. `/accesorios/fundas-y-cobertores` → `accesorios-fundas-y-cobertores`)
 
+### Promociones de menú
+Doc completa: [**PROMOCIONES.md**](./PROMOCIONES.md). Resumen: tabla `promocion` alimenta el submenu; `/{slug}` lista productos con filtros tipo shop; badge opcional en cards; CRUD en `/admin/promociones`.
+
 ### Redirects útiles
 `/mi-cuenta` → `/cuenta`, `/finalizar-compra` → `/checkout`, `/catalogo` → `/shop`
 
@@ -129,27 +134,29 @@ web/src/
 ## 7. Home — orden de secciones (estado actual)
 
 Archivo: [`web/src/app/(shop)/page.tsx`](web/src/app/(shop)/page.tsx)  
-Estilos: [`web/src/app/globals.css`](web/src/app/globals.css) (clases `.oc-*`)
+Estilos: [`web/src/app/globals.css`](web/src/app/globals.css) (clases `.oc-*`)  
+**Banners administrables (detalle):** [BANNERS.md](./BANNERS.md)
 
 | # | Sección | Notas / assets |
 |---|---------|----------------|
-| 1 | **Hero** | Copy izquierda + Mac (`/oneclick/hero-mac.jpg`); no usar screenshot live con texto horneado |
-| 2 | Barra utilidad oscura | Bajo el hero |
-| 3 | Strip Mundial | Dentro de `.container` (no full-bleed) |
+| 1 | **Hero** | Desde DB (`ubicacion=hero`). Render: `HomeHeroBanner`. Seed: `/oneclick/hero-mac.jpg` + HTML `.oc-hero-live-copy` |
+| 2 | Barra utilidad oscura | Hardcode en `page.tsx` |
+| 3 | Strip secundario (Mundial) | Desde DB (`ubicacion=secundario`). Render: `HomeSecundarioBanner` |
 | 4 | **Destacados** | Título izq. + selector Apple/JBL/Accesorios centrado (`grid 1fr auto 1fr`) |
-| 5 | **3 promo cards** | Antes de JBL. Altura fija ~**200px**. Imágenes en `public/oneclick/promos/` |
+| 5 | **Triple promo cards** | Desde DB (`ubicacion=triple`, orden 1–3). Render: `HomeTripleBanners`. Clases `oc-promo-dark` / `oc-promo-light` |
 | 6 | **¡Llevá la fiesta…!** | Productos marca JBL |
-| 7 | **Trío categorías** | Audio / Mochilas / Fundas → `public/oneclick/banners/*-full.jpg` |
+| 7 | **Trío categorías** | Audio / Mochilas / Fundas → aún hardcode + `public/oneclick/banners/*-full.jpg` |
 | 8 | **Potenciá tu iPhone** | Fundas cat. `accesorios-fundas-y-cobertores` filtradas `q: "iPhone 17"` (take 6) + botón `+` |
+| 9 | **Banner pie (ZAGG)** | Desde DB (`ubicacion=pie`). Render: `HomePieBanner` |
 
-### Promo cards (detalle)
+### Triple cards (seed)
 1. Negro: iPhone + Mophie → `media-iphone-mophie.webp`, `mophie-logo.png`  
 2. Blanco: asesores → `media-experiencia.webp` + CTA WhatsApp  
 3. Blanco: servicio → `media-servicio.webp`  
 
-Clases: `.oc-promo-grid`, `.oc-promo-card`, `.oc-btn-red`
+Clases: `.oc-promo-grid`, `.oc-promo-card`, `.oc-btn-red` — el HTML vive en `banner.html`.
 
-### Trío banners
+### Trío categorías (aún estático)
 Clases: `.oc-category-banner-grid`, `.oc-category-banner`  
 Links: `/audio`, `/accesorios/bolsos-y-mochilas`, `/accesorios/fundas-y-cobertores`
 
@@ -173,9 +180,11 @@ Scripts de apoyo (Playwright / sharp):
 
 ## 9. Admin
 
-- CRUD: productos, categorías, características, marcas, banners (vigencia), tiendas, beneficios, usuarios, ventas  
+- CRUD: productos, categorías, características, marcas, **banners** (home: hero/secundario/triple/pie), tiendas, **promociones** (menú), beneficios, usuarios, ventas  
 - Sync Odoo desde UI  
 - Login NextAuth
+- Promociones: listado + `/nuevo` + `/[id]` — detalle en [PROMOCIONES.md](./PROMOCIONES.md)
+- Banners: listado + `/nuevo` + `/[id]` — detalle en [BANNERS.md](./BANNERS.md)
 
 ---
 
@@ -197,7 +206,7 @@ Scripts de apoyo (Playwright / sharp):
 2. **Turbopack** en esta máquina: OOM en home; usar webpack.  
 3. Listados de producto: query **liviana** (sin `descripcion` HTML completa) para memoria.  
 4. Precios Odoo: upsert con `$executeRaw` por DATE.  
-5. Nav hardcodeada en `nav.ts` (no solo DB) para pegar al menú live.  
+5. Nav: Mac/iPhone/… hardcodeados en `nav.ts`; **Promociones** dinámicas desde DB (`dynamicChildren`) — ver [PROMOCIONES.md](./PROMOCIONES.md).  
 6. Scrapes Playwright al live a veces timeoutean en `networkidle`; preferir `domcontentloaded` + scroll.  
 7. WhatsApp: teléfono por env; default placeholder si falta.
 
@@ -206,10 +215,10 @@ Scripts de apoyo (Playwright / sharp):
 ## 12. Pendiente / próximos cambios (sugerido)
 
 - [ ] Sync completo con imágenes + stock y revisar cards “Potenciá” / Destacados  
-- [ ] Afinar home vs live (hero, tipografías, espaciados)  
-- [ ] Resto de bloques home si el live agrega más secciones bajo “Potenciá” (ej. protección Zagg / banner iPhone 17)  
+- [ ] Afinar home vs live (tipografías, espaciados; copy de banners desde admin)  
+- [ ] Gestionar también el trío Audio/Mochilas/Fundas desde admin (hoy hardcode)  
 - [ ] Checkout / cuenta / wishlist a nivel producción  
-- [ ] Banners gestionables desde admin en lugar de paths hardcodeados en `page.tsx`  
+- [x] Banners hero / secundario / triple / pie gestionables desde admin ([BANNERS.md](./BANNERS.md))  
 - [ ] Tests visuales (`compare-home.mjs`) en CI opcional  
 - [ ] Deploy + DNS / env prod
 
@@ -220,9 +229,11 @@ Scripts de apoyo (Playwright / sharp):
 | Pedido típico | Archivos |
 |---------------|----------|
 | Cambiar home / secciones | `src/app/(shop)/page.tsx`, `globals.css` |
-| Promo cards / banners | `page.tsx` + `public/oneclick/promos|banners/` |
+| **Banners home (hero/secundario/triple/pie)** | Ver [BANNERS.md](./BANNERS.md) — `home-banners.tsx`, `admin/banners`, `lib/banners.ts` |
+| Trío categorías Audio/Mochilas/Fundas | `page.tsx` + `public/oneclick/banners/` (aún estático) |
+| **Promociones del menú** | Ver [PROMOCIONES.md](./PROMOCIONES.md) — `promos.ts`, `site-chrome`, `admin/promociones`, catch-all |
 | Precios / cuotas / contado | `src/lib/pricing.ts`, `product-card.tsx` |
-| Menú | `src/lib/nav.ts`, `site-chrome.tsx` |
+| Menú (resto de categorías) | `src/lib/nav.ts`, `site-chrome.tsx` |
 | Listados / categorías | `src/lib/products.ts`, `(shop)/[...path]/page.tsx` |
 | Sync / Odoo | `src/lib/odoo-sync.ts`, `scripts/sync-odoo.ts` |
 | Schema / tablas | `prisma/schema.prisma`, `prisma/seed.ts` |

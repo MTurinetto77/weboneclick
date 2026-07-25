@@ -1,56 +1,101 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
+import { bannerImageUrl } from "@/lib/banners";
 import { prisma } from "@/lib/prisma";
-import { createBanner, deleteBanner } from "@/app/admin/cms-actions";
+
+function fmtFecha(d: Date | null) {
+  if (!d) return "—";
+  return d.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default async function AdminBannersPage() {
   await requireAdmin();
-  const banners = await prisma.banner.findMany({ orderBy: [{ ubicacion: "asc" }, { orden: "asc" }] });
+  const banners = await prisma.banner.findMany({
+    orderBy: [{ ubicacion: "asc" }, { orden: "asc" }, { id_banner: "asc" }],
+  });
+
+  const now = new Date();
+  const isVigente = (b: (typeof banners)[number]) =>
+    b.activo && b.vigencia_desde <= now && (!b.vigencia_hasta || b.vigencia_hasta >= now);
 
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Banners</h1>
-      <p className="muted">Imágenes dinámicas con vigencia desde / hasta.</p>
-
-      <form action={createBanner} className="admin-card" style={{ display: "grid", gap: "0.6rem", marginBottom: "1.5rem" }}>
-        <h3 style={{ margin: 0 }}>Nuevo banner</h3>
-        <input name="titulo" placeholder="Título" required />
-        <input name="imagen_desktop" placeholder="URL imagen desktop" required />
-        <input name="imagen_mobile" placeholder="URL imagen mobile (opcional)" />
-        <input name="link" placeholder="Link (ej. /shop)" />
-        <input name="ubicacion" placeholder="Ubicación (hero, bloque-home…)" defaultValue="hero" required />
-        <input name="orden" type="number" defaultValue={0} />
-        <label>
-          Vigencia desde
-          <input name="vigencia_desde" type="datetime-local" required />
-        </label>
-        <label>
-          Vigencia hasta
-          <input name="vigencia_hasta" type="datetime-local" />
-        </label>
-        <button type="submit" className="btn btn-primary">
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          alignItems: "center",
+          marginBottom: "0.85rem",
+        }}
+      >
+        <div style={{ flex: "1 1 auto" }}>
+          <h1 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Banners</h1>
+          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+            Imágenes dinámicas con vigencia desde / hasta. Orden menor = primero.
+          </p>
+        </div>
+        <Link href="/admin/banners/nuevo" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
           Crear
-        </button>
-      </form>
-
-      <div style={{ display: "grid", gap: "0.75rem" }}>
-        {banners.map((b) => (
-          <div key={b.id_banner} className="admin-card" style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
-            <div>
-              <strong>{b.titulo}</strong>
-              <div className="muted" style={{ fontSize: "0.85rem" }}>
-                {b.ubicacion} · orden {b.orden} · {b.activo ? "activo" : "inactivo"}
-                <br />
-                {b.vigencia_desde.toISOString()} → {b.vigencia_hasta?.toISOString() ?? "sin fin"}
-              </div>
-            </div>
-            <form action={deleteBanner.bind(null, b.id_banner)}>
-              <button type="submit" className="btn btn-ghost">
-                Eliminar
-              </button>
-            </form>
-          </div>
-        ))}
+        </Link>
       </div>
+
+      <table className="table table-compact">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Imagen</th>
+            <th>Título</th>
+            <th>Ubicación</th>
+            <th>Orden</th>
+            <th>Link</th>
+            <th>Desde</th>
+            <th>Hasta</th>
+            <th>Activo</th>
+            <th>Vigente</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {banners.map((b) => (
+            <tr key={b.id_banner}>
+              <td>{b.id_banner}</td>
+              <td>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={bannerImageUrl(b.imagen_desktop)}
+                  alt={b.titulo}
+                  style={{ width: 90, height: 34, objectFit: "cover", borderRadius: 4, display: "block" }}
+                />
+              </td>
+              <td>{b.titulo}</td>
+              <td>{b.ubicacion}</td>
+              <td>{b.orden}</td>
+              <td>{b.link ? <Link href={b.link}>{b.link}</Link> : "—"}</td>
+              <td>{fmtFecha(b.vigencia_desde)}</td>
+              <td>{fmtFecha(b.vigencia_hasta)}</td>
+              <td>{b.activo ? "Sí" : "No"}</td>
+              <td>{isVigente(b) ? "Sí" : <span className="muted">No</span>}</td>
+              <td>
+                <Link href={`/admin/banners/${b.id_banner}`}>Editar</Link>
+              </td>
+            </tr>
+          ))}
+          {!banners.length && (
+            <tr>
+              <td colSpan={11} className="muted">
+                No hay banners cargados.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
