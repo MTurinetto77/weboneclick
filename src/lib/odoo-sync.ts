@@ -419,10 +419,12 @@ async function replaceGalleryImages(
   return saved;
 }
 
-/** Productos que se muestran hoy en la home (destacados + JBL + Potenciá). */
+/** Productos que se muestran hoy en la home (destacados Apple/JBL/Accesorios + JBL + Potenciá). */
 export async function getHomeVisibleProductIds(): Promise<number[]> {
-  const [jbl, fundasCat] = await Promise.all([
+  const [apple, jbl, accesoriosCat, fundasCat] = await Promise.all([
+    prisma.marca.findFirst({ where: { slug: "apple" }, select: { id_marca: true } }),
     prisma.marca.findFirst({ where: { slug: "jbl" }, select: { id_marca: true } }),
+    prisma.categoria.findFirst({ where: { slug: "accesorios" }, select: { id_categoria: true } }),
     prisma.categoria.findFirst({
       where: { slug: "accesorios-fundas-y-cobertores" },
       select: { id_categoria: true },
@@ -430,11 +432,13 @@ export async function getHomeVisibleProductIds(): Promise<number[]> {
   ]);
 
   const { getActiveProducts } = await import("@/lib/products");
-  const [destacados, jblProducts, potencia] = await Promise.all([
-    getActiveProducts({ take: 8 }),
-    jbl
-      ? getActiveProducts({ marcaId: jbl.id_marca, take: 5 })
-      : Promise.resolve({ items: [] as { id_producto: number }[] }),
+  const empty = { items: [] as { id_producto: number }[] };
+  const [destacadosApple, destacadosJbl, destacadosAccesorios, potencia] = await Promise.all([
+    apple ? getActiveProducts({ marcaId: apple.id_marca, take: 8 }) : Promise.resolve(empty),
+    jbl ? getActiveProducts({ marcaId: jbl.id_marca, take: 8 }) : Promise.resolve(empty),
+    accesoriosCat
+      ? getActiveProducts({ categoriaId: accesoriosCat.id_categoria, take: 8 })
+      : Promise.resolve(empty),
     fundasCat
       ? getActiveProducts({
           categoriaId: fundasCat.id_categoria,
@@ -445,7 +449,12 @@ export async function getHomeVisibleProductIds(): Promise<number[]> {
   ]);
 
   const ids = new Set<number>();
-  for (const p of [...destacados.items, ...jblProducts.items, ...potencia.items]) {
+  for (const p of [
+    ...destacadosApple.items,
+    ...destacadosJbl.items,
+    ...destacadosAccesorios.items,
+    ...potencia.items,
+  ]) {
     ids.add(p.id_producto);
   }
   return [...ids];

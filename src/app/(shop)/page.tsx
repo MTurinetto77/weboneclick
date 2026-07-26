@@ -5,16 +5,28 @@ import {
   HomeSecundarioBanner,
   HomeTripleBanners,
 } from "@/components/home-banners";
+import { HomeDestacados } from "@/components/home-destacados";
 import { ProductCard } from "@/components/product-card";
 import { getActiveBanners, getActiveProducts } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
 
+type ProductPage = Awaited<ReturnType<typeof getActiveProducts>>;
+const emptyProducts: ProductPage = { items: [], total: 0 };
+
 export default async function HomePage() {
-  const [jbl, fundasCat, heroBanners, secundarioBanners, tripleBanners, pieBanners] =
+  const [apple, jbl, accesoriosCat, fundasCat, heroBanners, secundarioBanners, tripleBanners, pieBanners] =
     await Promise.all([
+      prisma.marca.findFirst({
+        where: { slug: "apple" },
+        select: { id_marca: true },
+      }),
       prisma.marca.findFirst({
         where: { slug: "jbl" },
         select: { id_marca: true },
+      }),
+      prisma.categoria.findFirst({
+        where: { slug: "accesorios" },
+        select: { id_categoria: true },
       }),
       prisma.categoria.findFirst({
         where: { slug: "accesorios-fundas-y-cobertores" },
@@ -26,22 +38,27 @@ export default async function HomePage() {
       getActiveBanners("pie"),
     ]);
 
-  const [destacados, jblProducts, potenciaProducts] = await Promise.all([
-    getActiveProducts({ take: 8 }),
-    jbl
-      ? getActiveProducts({ marcaId: jbl.id_marca, take: 5 })
-      : Promise.resolve({
-          items: [] as Awaited<ReturnType<typeof getActiveProducts>>["items"],
-          total: 0,
-        }),
-    fundasCat
-      ? getActiveProducts({
-          categoriaId: fundasCat.id_categoria,
-          q: "iPhone 17",
-          take: 6,
-        })
-      : getActiveProducts({ q: "Funda", take: 6 }),
-  ]);
+  const [destacadosApple, destacadosJbl, destacadosAccesorios, potenciaProducts] =
+    await Promise.all([
+      apple
+        ? getActiveProducts({ marcaId: apple.id_marca, take: 8 })
+        : Promise.resolve(emptyProducts),
+      jbl
+        ? getActiveProducts({ marcaId: jbl.id_marca, take: 8 })
+        : Promise.resolve(emptyProducts),
+      accesoriosCat
+        ? getActiveProducts({ categoriaId: accesoriosCat.id_categoria, take: 8 })
+        : Promise.resolve(emptyProducts),
+      fundasCat
+        ? getActiveProducts({
+            categoriaId: fundasCat.id_categoria,
+            q: "iPhone 17",
+            take: 6,
+          })
+        : getActiveProducts({ q: "Funda", take: 6 }),
+    ]);
+
+  const jblProducts = destacadosJbl.items.slice(0, 5);
 
   const categoryBanners = [
     {
@@ -114,36 +131,17 @@ export default async function HomePage() {
 
       <HomeSecundarioBanner banner={secundarioBanners[0]} />
 
-      <section className="oc-section oc-destacados">
-        <div className="container">
-          <div className="oc-destacados-head">
-            <h2>Destacados</h2>
-            <div className="oc-seg" role="tablist" aria-label="Categorías destacadas">
-              <span className="oc-seg-item is-active" role="tab" aria-selected="true">
-                Apple
-              </span>
-              <Link href="/marca/jbl" className="oc-seg-item" role="tab" aria-selected="false">
-                JBL
-              </Link>
-              <Link href="/accesorios" className="oc-seg-item" role="tab" aria-selected="false">
-                Accesorios
-              </Link>
-            </div>
-          </div>
-          <div className="oc-product-grid oc-product-scroll">
-            {destacados.items.map((p) => (
-              <ProductCard key={p.id_producto} product={p} />
-            ))}
-          </div>
-          {!destacados.items.length && (
-            <p className="muted">Todavía no hay productos sincronizados.</p>
-          )}
-        </div>
-      </section>
+      <HomeDestacados
+        products={{
+          apple: destacadosApple.items,
+          jbl: destacadosJbl.items,
+          accesorios: destacadosAccesorios.items,
+        }}
+      />
 
       <HomeTripleBanners banners={tripleBanners} />
 
-      {jblProducts.items.length > 0 && (
+      {jblProducts.length > 0 && (
         <section className="oc-section">
           <div className="container">
             <div className="oc-section-head">
@@ -157,7 +155,7 @@ export default async function HomePage() {
               </Link>
             </div>
             <div className="oc-product-grid oc-product-grid-5">
-              {jblProducts.items.map((p) => (
+              {jblProducts.map((p) => (
                 <ProductCard key={p.id_producto} product={p} />
               ))}
             </div>
