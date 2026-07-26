@@ -31,6 +31,40 @@ export function resolveStockAvailability(stocks: { cantidad: unknown }[]) {
   };
 }
 
+/** Sucursales visibles en el PDP (mismas etiquetas que el sitio actual). */
+export const PDP_STORE_LOCATIONS: { name: string; match: RegExp[] }[] = [
+  { name: "Alto Rosario", match: [/alto\s*rosario/i] },
+  { name: "Palermo Soho", match: [/palermo/i] },
+  { name: "Rosario Centro", match: [/rosario\s*centro/i] },
+  {
+    name: "Envío a Domicilio",
+    match: [/env[ií]o\s*a\s*domicilio/i, /\(WEB\)/i],
+  },
+  { name: "Solar Shopping", match: [/\bsolar\b/i] },
+  { name: "DOT Baires Shopping", match: [/\bdot\b/i] },
+  { name: "Cordoba Shopping", match: [/c[oó]rdoba/i] },
+];
+
+export type StoreAvailabilityItem = {
+  name: string;
+  available: boolean;
+};
+
+/** Disponibilidad por sucursal a partir del stock desglosado por almacén. */
+export function resolveStoreAvailability(
+  stocks: { cantidad: unknown; almacen?: { descripcion: string } | null }[]
+): StoreAvailabilityItem[] {
+  return PDP_STORE_LOCATIONS.map((loc) => {
+    const qty = stocks
+      .filter((s) => {
+        const desc = s.almacen?.descripcion ?? "";
+        return loc.match.some((re) => re.test(desc));
+      })
+      .reduce((acc, s) => acc + Number(s.cantidad || 0), 0);
+    return { name: loc.name, available: qty > 0 };
+  });
+}
+
 export type CharacteristicFilterDef = {
   id_caracteristica: number;
   nombre: string;

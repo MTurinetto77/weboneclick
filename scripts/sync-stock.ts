@@ -4,7 +4,7 @@ import { prisma } from "../src/lib/prisma";
 
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
-  console.log("Sincronizando stock consolidado desde Odoo (qty_available)...", { dryRun });
+  console.log("Sincronizando stock por almacén desde Odoo (stock.quant)...", { dryRun });
 
   const stats = await runStockSync({ dryRun });
   console.log(JSON.stringify(stats, null, 2));
@@ -13,9 +13,13 @@ async function main() {
     const stockRows = await prisma.stock.count();
     const withPositive = await prisma.stock.count({ where: { cantidad: { gt: 0 } } });
     const sample = await prisma.stock.findMany({
-      take: 5,
+      take: 8,
+      where: { cantidad: { gt: 0 } },
       orderBy: { cantidad: "desc" },
-      include: { producto: { select: { slug: true, titulo: true } } },
+      include: {
+        producto: { select: { slug: true, titulo: true } },
+        almacen: { select: { descripcion: true } },
+      },
     });
     console.log(
       JSON.stringify(
@@ -24,6 +28,7 @@ async function main() {
           withPositive,
           sample: sample.map((s) => ({
             slug: s.producto.slug,
+            almacen: s.almacen.descripcion,
             cantidad: Number(s.cantidad),
             titulo: s.producto.titulo,
           })),

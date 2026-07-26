@@ -2,10 +2,20 @@ import { createHash } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
-import { executeKw, m2oId, searchCount, searchRead, type OdooMany2One } from "@/lib/odoo";
+import {
+  executeKw,
+  m2oId,
+  readGroup,
+  searchCount,
+  searchRead,
+  type OdooMany2One,
+} from "@/lib/odoo";
 import { slugify } from "@/lib/slug";
 
 const PAGE = 200;
+
+/** Odoo warehouse ids de sucursales mostradas en el PDP (siempre se persisten, aunque qty=0). */
+const PDP_WAREHOUSE_ODOO_IDS = new Set([1, 7, 8, 9, 10, 11, 15]); // AR, ROS, PS, DOT, CS, SO, WEB
 
 export type SyncStats = {
   categorias: { created: number; updated: number };
@@ -49,6 +59,10 @@ type OdooProduct = {
   default_code: string | false;
   list_price: number;
   description_sale: string | false;
+  /** UI es_AR: "Descripción para comercio electrónico" */
+  description_ecommerce?: string | false;
+  /** UI es_AR: "Descripción para el sitio web" — HTML largo del PDP */
+  website_description?: string | false;
   categ_id: OdooMany2One;
   product_tmpl_id: OdooMany2One;
   product_brand_id?: OdooMany2One;
@@ -91,6 +105,15 @@ async function ensureUniqueSlug(
   let i = 2;
   while (await exists(`${withSuffix}-${i}`)) i += 1;
   return `${withSuffix}-${i}`;
+}
+
+/** HTML de descripción eCommerce desde Odoo → `producto.descripcion`. */
+function pickEcommerceDescription(row: OdooProduct, fallbackTitle: string): string {
+  const candidates = [row.description_ecommerce, row.website_description, row.description_sale];
+  for (const value of candidates) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return fallbackTitle;
 }
 
 async function paginateAll<T extends Record<string, unknown>>(
@@ -447,6 +470,8 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
     "default_code",
     "list_price",
     "description_sale",
+    "description_ecommerce",
+    "website_description",
     "categ_id",
     "product_tmpl_id",
     "product_brand_id",
@@ -480,8 +505,7 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
   for (const row of rows) {
     try {
       const titulo = (row.display_name || row.name || "").trim() || `Producto ${row.id}`;
-      const descripcion =
-        (typeof row.description_sale === "string" && row.description_sale) || titulo;
+      const descripcion = pickEcommerceDescription(row, titulo);
       const sku = typeof row.default_code === "string" ? row.default_code : null;
       const id_marca = brandByOdoo.get(m2oId(row.product_brand_id) ?? -1) ?? null;
       const existing = await prisma.producto.findUnique({ where: { odoo_id: row.id } });
@@ -603,8 +627,9 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
 }
 
 /**
- * Llena `stock` con la suma total disponible en Odoo (`qty_available` de product.product).
- * Se guarda en un único almacén consolidado por producto (WEB / Ecommerce).
+ * Llena `stock` desde `stock.quant` agrupado por almacén (warehouse_id).
+ * Persiste filas por depósito con cantidad disponible (quantity − reserved).
+ * Las sucursales del PDP se escriben siempre (aunque en 0) para poder mostrar cruz roja.
  */
 export async function syncStock(stats: SyncStats) {
   const productos = await prisma.producto.findMany({
@@ -616,69 +641,102 @@ export async function syncStock(stats: SyncStats) {
     return;
   }
 
-  const idAlmacen = await getOrCreateStockAlmacen();
+  const almacenes = await prisma.almacen.findMany({
+    where: { odoo_id: { not: null } },
+    select: { id_almacen: true, odoo_id: true },
+  });
+  const almacenByOdoo = new Map(
+    almacenes
+      .filter((a): a is { id_almacen: number; odoo_id: number } => a.odoo_id != null)
+      .map((a) => [a.odoo_id, a.id_almacen])
+  );
+  if (!almacenByOdoo.size) {
+    stats.errors.push("stock: no hay almacenes con odoo_id; corré sync de almacenes primero");
+    return;
+  }
+
   const productoByOdoo = new Map(productos.map((p) => [p.odoo_id!, p.id_producto]));
   const odooIds = [...productoByOdoo.keys()];
 
-  for (let i = 0; i < odooIds.length; i += 100) {
-    const chunk = odooIds.slice(i, i + 100);
+  /** productLocalId → (almacenLocalId → qty) */
+  const byProduct = new Map<number, Map<number, number>>();
+  for (const p of productos) byProduct.set(p.id_producto, new Map());
+
+  for (let i = 0; i < odooIds.length; i += 80) {
+    const chunk = odooIds.slice(i, i + 80);
     try {
-      const rows = await executeKw<
-        { id: number; qty_available: number; free_qty?: number; virtual_available?: number }[]
-      >("product.product", "read", [chunk], {
-        fields: ["id", "qty_available", "free_qty", "virtual_available"],
-      });
+      const groups = await readGroup(
+        "stock.quant",
+        [
+          ["product_id", "in", chunk],
+          ["location_id.usage", "=", "internal"],
+          ["warehouse_id", "!=", false],
+        ],
+        ["quantity:sum", "reserved_quantity:sum", "product_id", "warehouse_id"],
+        ["product_id", "warehouse_id"]
+      );
 
-      for (const row of rows) {
-        const id_producto = productoByOdoo.get(row.id);
-        if (!id_producto) continue;
+      for (const row of groups) {
+        const productOdoo = m2oId(row.product_id as OdooMany2One | false);
+        const warehouseOdoo = m2oId(row.warehouse_id as OdooMany2One | false);
+        if (!productOdoo || !warehouseOdoo) continue;
 
-        // qty_available = stock físico en ubicaciones internas (suma Odoo)
-        const cantidad = Number(
-          row.qty_available ?? row.free_qty ?? row.virtual_available ?? 0
-        );
+        const id_producto = productoByOdoo.get(productOdoo);
+        const id_almacen = almacenByOdoo.get(warehouseOdoo);
+        if (!id_producto || !id_almacen) continue;
 
-        if (stats.dryRun) {
-          stats.stock.upserted += 1;
-          continue;
-        }
-
-        // Una sola fila = total consolidado (reemplaza desglose previo por depósito)
-        await prisma.stock.deleteMany({ where: { id_producto } });
-        await prisma.stock.create({
-          data: {
-            id_producto,
-            id_almacen: idAlmacen,
-            cantidad: Number.isFinite(cantidad) ? cantidad : 0,
-          },
-        });
-        stats.stock.upserted += 1;
+        const quantity = Number(row.quantity ?? 0);
+        const reserved = Number(row.reserved_quantity ?? 0);
+        const available = Math.max(0, quantity - reserved);
+        const map = byProduct.get(id_producto)!;
+        map.set(id_almacen, (map.get(id_almacen) ?? 0) + available);
       }
     } catch (e) {
       stats.errors.push(`stock chunk ${i}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
-}
 
-/** Almacén donde se guarda el total web consolidado. */
-async function getOrCreateStockAlmacen(): Promise<number> {
-  const preferred = await prisma.almacen.findFirst({
-    where: {
-      OR: [
-        { descripcion: { contains: "Ecommerce" } },
-        { descripcion: { contains: "Envío a domicilio" } },
-        { descripcion: { contains: "WEB" } },
-        { descripcion: { contains: "consolidado" } },
-      ],
-    },
-    orderBy: { id_almacen: "asc" },
-  });
-  if (preferred) return preferred.id_almacen;
+  // Asegurar filas 0 para sucursales PDP aunque no haya quants
+  for (const p of productos) {
+    const map = byProduct.get(p.id_producto)!;
+    for (const odooWh of PDP_WAREHOUSE_ODOO_IDS) {
+      const id_almacen = almacenByOdoo.get(odooWh);
+      if (id_almacen != null && !map.has(id_almacen)) map.set(id_almacen, 0);
+    }
+  }
 
-  const created = await prisma.almacen.create({
-    data: { descripcion: "Stock consolidado (web)" },
-  });
-  return created.id_almacen;
+  if (stats.dryRun) {
+    stats.stock.upserted = productos.length;
+    return;
+  }
+
+  for (const p of productos) {
+    const map = byProduct.get(p.id_producto)!;
+    try {
+      await prisma.stock.deleteMany({ where: { id_producto: p.id_producto } });
+      const data = [...map.entries()].map(([id_almacen, cantidad]) => ({
+        id_producto: p.id_producto,
+        id_almacen,
+        cantidad,
+      }));
+      if (data.length) {
+        await prisma.stock.createMany({ data });
+      } else {
+        // Sin almacenes mapeados: marcar trackeado en 0 vía primer almacén conocido
+        const fallback = [...almacenByOdoo.values()][0];
+        if (fallback != null) {
+          await prisma.stock.create({
+            data: { id_producto: p.id_producto, id_almacen: fallback, cantidad: 0 },
+          });
+        }
+      }
+      stats.stock.upserted += 1;
+    } catch (e) {
+      stats.errors.push(
+        `stock producto ${p.id_producto}: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+  }
 }
 
 export async function runFullSync(options?: {
@@ -696,7 +754,7 @@ export async function runFullSync(options?: {
   return stats;
 }
 
-/** Solo sincroniza stock (qty_available) desde Odoo. */
+/** Solo sincroniza stock por almacén desde Odoo (`stock.quant`). */
 export async function runStockSync(options?: { dryRun?: boolean }): Promise<SyncStats> {
   const stats = emptyStats(Boolean(options?.dryRun));
   await syncStock(stats);

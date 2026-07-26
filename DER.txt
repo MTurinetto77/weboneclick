@@ -24,5 +24,6 @@ Sync Odoo:
 - product.brand → marca
 - product.tag → etiqueta
 - product.product (x_studio_publicado_web=true) → producto
+  - website_description / description_ecommerce → producto.descripcion
 - sk.product.price.by.company (company_id=1) → precio_producto
 - stock.quant → stock

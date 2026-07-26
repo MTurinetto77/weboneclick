@@ -3,41 +3,52 @@ import Link from "next/link";
 import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductReserveForm } from "@/components/product-reserve-form";
-import { getActiveProducts, getProductBySlug } from "@/lib/products";
+import { ProductStoreAvailability } from "@/components/product-store-availability";
+import {
+  getActiveProducts,
+  getProductBySlug,
+  resolveStoreAvailability,
+} from "@/lib/products";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
 import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
 
 type Params = Promise<{ slug: string }>;
 
-const STORE_AVAILABILITY = [
-  "Palermo Soho",
-  "Solar Shopping",
-  "Rosario Centro",
-  "Cordoba Shopping",
-  "Envío a Domicilio",
-  "Alto Rosario",
-  "DOT Baires Shopping",
-];
-
 function DeliveryBlock() {
   return (
     <div className="oc-pdp-delivery">
-      <span className="oc-pdp-delivery-icon" aria-hidden>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M3 7h11v10H3V7zm11 3h4l3 3v4h-2.5a2 2 0 11-4 0H12"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinejoin="round"
-          />
-          <circle cx="7" cy="17" r="2" stroke="currentColor" strokeWidth="1.6" />
-        </svg>
-      </span>
-      <div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="oc-pdp-delivery-icon"
+        src="/delivery-24hs.svg"
+        alt=""
+        width={40}
+        height={40}
+        aria-hidden
+      />
+      <div className="oc-pdp-delivery-text">
         <strong>Entrega dentro de las 24hs en AMBA</strong>
         <p>Recibilo en 24hs comprando antes de las 12hs</p>
       </div>
     </div>
+  );
+}
+
+function WishlistLink() {
+  return (
+    <Link href="/lista-deseos" className="oc-pdp-wishlist">
+      <span className="oc-pdp-wishlist-icon" aria-hidden>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 20.5s-7.5-4.6-9.8-9.2C.6 7.8 2.3 4.5 5.7 4c2-.3 4 .6 5.1 2.3l1.2 1.8 1.2-1.8C14.3 4.6 16.3 3.7 18.3 4c3.4.5 5.1 3.8 3.5 7.3-2.3 4.6-9.8 9.2-9.8 9.2z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+      Añadir a lista de deseos
+    </Link>
   );
 }
 
@@ -51,18 +62,32 @@ function BankPromoBlock({
   return (
     <div className="oc-pdp-bank">
       <h4>Promociones Bancarias</h4>
-      <p className="oc-pdp-bank-title">{cuotas} cuotas sin interés</p>
-      <p className="muted">
-        Con todas las tarjetas y bancos
-        {cuotaMonto != null ? ` — Cuotas de ${formatPriceArs(cuotaMonto)}` : null}
-      </p>
-      <ul className="oc-pdp-bank-cards" aria-label="Tarjetas">
-        <li>Mastercard</li>
-        <li>VISA</li>
-      </ul>
-      <Link href="/ocbeneficios" className="oc-pdp-bank-link">
-        Ver promociones bancarias →
-      </Link>
+      <div className="oc-pdp-bank-row">
+        <div className="oc-pdp-bank-info">
+          <p className="oc-pdp-bank-title">{cuotas} cuotas sin interés</p>
+          <p className="oc-pdp-bank-sub">
+            Con todas las tarjetas y bancos
+            {cuotaMonto != null ? ` - Cuotas de ${formatPriceArs(cuotaMonto)}` : null}
+          </p>
+        </div>
+        <div className="oc-pdp-bank-pay">
+          <ul className="oc-pdp-bank-cards" aria-label="Tarjetas">
+            <li>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/payment/mastercard.jpg" alt="Mastercard" width={56} height={36} />
+            </li>
+            <li>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/payment/visa.jpg" alt="VISA" width={56} height={36} />
+            </li>
+          </ul>
+          <div className="oc-pdp-bank-mp">
+            <span>Pagando con:</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/payment/mercadopago.png" alt="Mercado Pago" width={72} height={19} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -79,6 +104,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const cuotas = product.cuotas_max ?? 12;
   const sinImp = precioSinImpuestos(product.precio);
   const inStock = product.inStock;
+  const storeAvailability = resolveStoreAvailability(product.stocks);
   const cuotaMonto =
     product.precio != null && cuotas > 0 ? Number(product.precio) / cuotas : null;
   const waReserve = whatsappUrl(product.titulo, product.id_producto, "reserva");
@@ -155,31 +181,18 @@ export default async function ProductoPage({ params }: { params: Params }) {
 
               <ProductAddToCart idProducto={product.id_producto} maxQty={maxQty} />
 
-              <Link href="/lista-deseos" className="oc-pdp-wishlist">
-                Añadir a lista de deseos
-              </Link>
+              <WishlistLink />
 
               <DeliveryBlock />
               <BankPromoBlock cuotas={cuotas} cuotaMonto={cuotaMonto} />
 
-              <div className="oc-pdp-stores">
-                <h4>Disponibilidad en tiendas</h4>
-                <ul>
-                  {STORE_AVAILABILITY.map((name) => (
-                    <li key={name}>
-                      <strong>{name}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ProductStoreAvailability items={storeAvailability} />
             </>
           ) : (
             <>
               <p className="oc-pdp-oos-label">Sin existencias</p>
               <ProductReserveForm productTitle={product.titulo} productSku={product.sku} />
-              <Link href="/lista-deseos" className="oc-pdp-wishlist">
-                Añadir a lista de deseos
-              </Link>
+              <WishlistLink />
 
               <div className="oc-pdp-reserve-now">
                 <h3>Reservá ahora</h3>

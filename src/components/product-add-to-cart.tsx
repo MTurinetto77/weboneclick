@@ -16,7 +16,9 @@ export function ProductAddToCart({ idProducto, maxQty = 99 }: Props) {
   return (
     <div className="oc-pdp-cart-form">
       <div className="oc-pdp-qty">
-        <label htmlFor={`qty-${idProducto}`}>Cantidad</label>
+        <label className="sr-only" htmlFor={`qty-${idProducto}`}>
+          Cantidad
+        </label>
         <div className="oc-pdp-qty-controls">
           <button
             type="button"
@@ -48,7 +50,7 @@ export function ProductAddToCart({ idProducto, maxQty = 99 }: Props) {
       </div>
       <button
         type="button"
-        className="oc-btn oc-btn-primary oc-pdp-add-btn"
+        className="oc-btn oc-btn-dark oc-pdp-add-btn"
         disabled={pending}
         onClick={() => add(idProducto, qty)}
       >
