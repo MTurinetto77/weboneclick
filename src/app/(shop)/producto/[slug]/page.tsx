@@ -2,15 +2,17 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
+import { ProductGallery } from "@/components/product-gallery";
 import { ProductReserveForm } from "@/components/product-reserve-form";
 import { ProductStoreAvailability } from "@/components/product-store-availability";
 import {
   getActiveProducts,
   getProductBySlug,
   resolveStoreAvailability,
+  sortProductImageLinks,
 } from "@/lib/products";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
-import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
+import { whatsappUrl } from "@/lib/utils";
 
 type Params = Promise<{ slug: string }>;
 
@@ -97,10 +99,13 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const imagenes = product.archivos
-    .map((a) => a.archivo.link)
-    .filter(Boolean) as string[];
-  const mainImage = imagenes[0];
+  const imagenes = sortProductImageLinks(
+    product.archivos.map((a) => ({
+      link: a.archivo.link,
+      tipo: a.archivo.tipo,
+      id_archivo: a.archivo.id_archivo,
+    }))
+  );
   const cuotas = product.cuotas_max ?? 12;
   const sinImp = precioSinImpuestos(product.precio);
   const inStock = product.inStock;
@@ -142,23 +147,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
       </div>
 
       <div className="oc-product-detail">
-        <div className={`oc-gallery${inStock ? "" : " oc-gallery-oos"}`}>
-          {!inStock && <span className="oc-pdp-badge-oos">Sin Stock</span>}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={mainImage ? uploadPublicUrl(mainImage) : "/placeholder-product.svg"}
-            alt={product.titulo}
-            className="oc-gallery-main"
-          />
-          {imagenes.length > 1 && (
-            <div className="oc-gallery-thumbs">
-              {imagenes.slice(0, 4).map((src) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={src} src={uploadPublicUrl(src)} alt="" />
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductGallery images={imagenes} alt={product.titulo} outOfStock={!inStock} />
 
         <div className="oc-pdp-buybox">
           {product.marca && (

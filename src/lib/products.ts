@@ -31,6 +31,30 @@ export function resolveStockAvailability(stocks: { cantidad: unknown }[]) {
   };
 }
 
+/** Ordena imágenes del PDP: principal de Odoo primero, luego galería. */
+export function sortProductImageLinks(
+  archivos: { link: string | null; tipo: string; id_archivo: number }[]
+): string[] {
+  const sorted = [...archivos]
+    .filter((a): a is { link: string; tipo: string; id_archivo: number } => Boolean(a.link))
+    .sort((a, b) => {
+      const pa = a.tipo === "imagen_principal" ? 0 : 1;
+      const pb = b.tipo === "imagen_principal" ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return a.id_archivo - b.id_archivo;
+    })
+    .map((a) => a.link);
+
+  // Evitar duplicar la principal si Odoo la repite en product.image
+  const seen = new Set<string>();
+  return sorted.filter((link) => {
+    const key = link.split("/").pop() ?? link;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Sucursales visibles en el PDP (mismas etiquetas que el sitio actual). */
 export const PDP_STORE_LOCATIONS: { name: string; match: RegExp[] }[] = [
   { name: "Alto Rosario", match: [/alto\s*rosario/i] },
@@ -583,6 +607,7 @@ export async function getActiveProducts(options?: {
             select: { fecha_desde: true, precio: true },
           },
           archivos: {
+            where: { archivo: { tipo: "imagen_principal" } },
             take: 1,
             select: { archivo: { select: { link: true } } },
           },
@@ -661,6 +686,7 @@ export async function getActiveProducts(options?: {
         select: { fecha_desde: true, precio: true },
       },
       archivos: {
+        where: { archivo: { tipo: "imagen_principal" } },
         take: 1,
         select: { archivo: { select: { link: true } } },
       },

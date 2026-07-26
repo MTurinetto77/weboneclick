@@ -1755,47 +1755,160 @@ img { max-width: 100%; display: block; }
 
 .oc-gallery {
   position: relative;
-  background: #fff;
-  border-radius: 16px;
-  padding: 2rem;
   display: grid;
-  place-items: center;
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  align-items: stretch;
   min-height: 360px;
-  align-content: center;
+  background: transparent;
+  padding: 0;
 }
 
-.oc-gallery-main {
-  max-width: 100%;
-  height: auto;
-  display: block;
+.oc-gallery.has-thumbs {
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
-.oc-gallery img {
-  max-width: 100%;
-  height: auto;
-  display: block;
+.oc-gallery-thumbs-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.oc-gallery-thumb-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: #9a9a9a;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.oc-gallery-thumb-nav:hover {
+  color: #1d1d1f;
 }
 
 .oc-gallery-thumbs {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.5rem;
-  justify-content: center;
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
   width: 100%;
+  padding: 0.1rem 0;
 }
 
-.oc-gallery-thumbs img {
+.oc-gallery-thumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.oc-gallery-thumb {
+  display: block;
   width: 64px;
   height: 64px;
-  object-fit: contain;
-  border: 1px solid var(--oc-border);
+  padding: 0.3rem;
+  border: 1px solid #e8e8e8;
   border-radius: 10px;
   background: #fff;
-  padding: 0.25rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease;
 }
 
-.oc-gallery-oos {
+.oc-gallery-thumb.is-active,
+.oc-gallery-thumb:hover {
+  border-color: #1d1d1f;
+}
+
+.oc-gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.oc-gallery-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem 2.5rem 2.75rem;
+  min-height: 360px;
+}
+
+.oc-gallery-main {
+  max-width: 100%;
+  max-height: 460px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.oc-gallery-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: #b0b0b0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.oc-gallery-arrow:hover {
+  color: #1d1d1f;
+}
+
+.oc-gallery-arrow--prev {
+  left: 0.35rem;
+}
+
+.oc-gallery-arrow--next {
+  right: 0.35rem;
+}
+
+.oc-gallery-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.85rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.oc-gallery-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid #9a9a9a;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.oc-gallery-dot.is-active {
+  background: #9a9a9a;
+  border-color: #9a9a9a;
+}
+
+.oc-gallery-oos .oc-gallery-stage {
   background: #f7f7f8;
 }
 
@@ -1803,15 +1916,50 @@ img { max-width: 100%; display: block; }
   position: absolute;
   top: 1rem;
   left: 1rem;
-  z-index: 2;
+  z-index: 3;
   background: #1d1d1f;
   color: #fff;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 0.4rem 0.65rem;
+  padding: 0.35rem 0.65rem;
   border-radius: 6px;
+}
+
+@media (max-width: 900px) {
+  .oc-gallery.has-thumbs {
+    grid-template-columns: 1fr;
+  }
+
+  .oc-gallery-thumbs-col {
+    order: 2;
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .oc-gallery-thumb-nav {
+    display: none;
+  }
+
+  .oc-gallery-thumbs {
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
+    padding-bottom: 0.15rem;
+  }
+
+  .oc-gallery-stage {
+    order: 1;
+    padding: 1.5rem 2rem 2.5rem;
+    min-height: 280px;
+  }
+
+  .oc-gallery-main {
+    max-height: 340px;
+  }
 }
 
 .oc-pdp-buybox h1 {

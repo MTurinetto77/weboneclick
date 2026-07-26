@@ -17,7 +17,11 @@ export default async function GrupoPage({ params }: { params: Params }) {
           producto: {
             include: {
               precios: true,
-              archivos: { include: { archivo: true }, take: 1 },
+              archivos: {
+                where: { archivo: { tipo: "imagen_principal" } },
+                include: { archivo: true },
+                take: 1,
+              },
               stocks: true,
             },
           },

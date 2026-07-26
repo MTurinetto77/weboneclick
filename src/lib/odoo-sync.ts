@@ -70,6 +70,7 @@ type OdooProduct = {
   image_1920?: string | false;
   x_studio_publicado_web?: boolean;
   qty_available?: number;
+  product_template_image_ids?: number[];
 };
 
 type OdooCompanyPrice = {
@@ -114,6 +115,21 @@ function pickEcommerceDescription(row: OdooProduct, fallbackTitle: string): stri
     if (typeof value === "string" && value.trim()) return value.trim();
   }
   return fallbackTitle;
+}
+
+/** Título de producto sin SKU (`name` de Odoo; no `display_name`). */
+function pickProductTitle(row: {
+  id: number;
+  name?: string | false;
+  display_name?: string | false;
+}): string {
+  const raw =
+    (typeof row.name === "string" && row.name.trim()) ||
+    (typeof row.display_name === "string" && row.display_name.trim()) ||
+    "";
+  // Por si algún registro trae el prefijo [SKU] en name
+  const withoutSku = raw.replace(/^\[[^\]]+\]\s*/, "").trim();
+  return withoutSku || `Producto ${row.id}`;
 }
 
 async function paginateAll<T extends Record<string, unknown>>(
@@ -295,7 +311,7 @@ export async function syncEtiquetas(stats: SyncStats) {
 }
 
 async function saveProductImage(
-  odooId: number,
+  folderKey: string | number,
   base64: string,
   titulo: string
 ): Promise<string | null> {
@@ -303,14 +319,14 @@ async function saveProductImage(
     const buf = Buffer.from(base64, "base64");
     const hash = createHash("md5").update(buf).digest("hex").slice(0, 10);
     const uploadsDir = process.env.UPLOADS_DIR || "uploads";
-    const relDir = path.join("productos", String(odooId));
+    const relDir = path.join("productos", String(folderKey));
     const absDir = path.join(process.cwd(), uploadsDir, relDir);
     await mkdir(absDir, { recursive: true });
     const filename = `${hash}.jpg`;
     await writeFile(path.join(absDir, filename), buf);
     return path.posix.join(relDir.replace(/\\/g, "/"), filename);
   } catch (e) {
-    console.error(`image save failed for product ${odooId} (${titulo}):`, e);
+    console.error(`image save failed for product ${folderKey} (${titulo}):`, e);
     return null;
   }
 }
@@ -347,6 +363,60 @@ async function upsertProductImage(
     });
   }
   return true;
+}
+
+/** Reemplaza imágenes de galería (`product.image`) manteniendo la principal. */
+async function replaceGalleryImages(
+  id_producto: number,
+  odooProductId: number,
+  imageIds: number[],
+  titulo: string
+): Promise<number> {
+  const existing = await prisma.archivo_producto.findMany({
+    where: { id_producto, archivo: { tipo: "imagen_galeria" } },
+    select: { id_archivo: true },
+  });
+  if (existing.length) {
+    const ids = existing.map((e) => e.id_archivo);
+    await prisma.archivo_producto.deleteMany({
+      where: { id_producto, id_archivo: { in: ids } },
+    });
+    await prisma.archivo.deleteMany({ where: { id_archivo: { in: ids } } });
+  }
+
+  if (!imageIds.length) return 0;
+
+  const rows = await executeKw<
+    { id: number; name?: string; image_1920?: string | false; sequence?: number }[]
+  >("product.image", "read", [imageIds], {
+    fields: ["id", "name", "image_1920", "sequence"],
+  });
+
+  // Preservar orden de imageIds / sequence
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  let saved = 0;
+  for (const imageId of imageIds) {
+    const row = byId.get(imageId);
+    if (!row || typeof row.image_1920 !== "string" || row.image_1920.length < 100) continue;
+    const link = await saveProductImage(
+      `${odooProductId}-g${imageId}`,
+      row.image_1920,
+      typeof row.name === "string" ? row.name : titulo
+    );
+    if (!link) continue;
+    const archivo = await prisma.archivo.create({
+      data: {
+        link,
+        tipo: "imagen_galeria",
+        descripcion: typeof row.name === "string" ? row.name : `${titulo} (${saved + 1})`,
+      },
+    });
+    await prisma.archivo_producto.create({
+      data: { id_archivo: archivo.id_archivo, id_producto },
+    });
+    saved += 1;
+  }
+  return saved;
 }
 
 /** Productos que se muestran hoy en la home (destacados + JBL + Potenciá). */
@@ -427,10 +497,7 @@ export async function syncImagesForProducts(options?: {
   for (const row of rows) {
     const local = byOdoo.get(row.id);
     if (!local) continue;
-    const titulo =
-      (typeof row.display_name === "string" && row.display_name) ||
-      (typeof row.name === "string" && row.name) ||
-      local.titulo;
+    const titulo = pickProductTitle(row);
 
     if (typeof row.image_1920 !== "string" || row.image_1920.length < 100) {
       result.skipped += 1;
@@ -478,7 +545,9 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
     "product_tag_ids",
     "x_studio_publicado_web",
   ];
-  if (!options?.skipImages) fields.push("image_1920");
+  if (!options?.skipImages) {
+    fields.push("image_1920", "product_template_image_ids");
+  }
 
   const rows = await paginateAll<OdooProduct>("product.product", domain, fields);
   const publishedOdooIds = new Set(rows.map((r) => r.id));
@@ -504,7 +573,7 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
 
   for (const row of rows) {
     try {
-      const titulo = (row.display_name || row.name || "").trim() || `Producto ${row.id}`;
+      const titulo = pickProductTitle(row);
       const descripcion = pickEcommerceDescription(row, titulo);
       const sku = typeof row.default_code === "string" ? row.default_code : null;
       const id_marca = brandByOdoo.get(m2oId(row.product_brand_id) ?? -1) ?? null;
@@ -598,10 +667,23 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
         }
       }
 
-      // Image
-      if (!options?.skipImages && typeof row.image_1920 === "string" && row.image_1920.length > 100) {
-        const ok = await upsertProductImage(id_producto, row.id, row.image_1920, titulo);
-        if (ok) stats.productos.images += 1;
+      // Image principal (Odoo image_1920) + galería (product.image)
+      if (!options?.skipImages) {
+        if (typeof row.image_1920 === "string" && row.image_1920.length > 100) {
+          const ok = await upsertProductImage(id_producto, row.id, row.image_1920, titulo);
+          if (ok) stats.productos.images += 1;
+        }
+        const galleryIds = Array.isArray(row.product_template_image_ids)
+          ? row.product_template_image_ids.filter((id): id is number => typeof id === "number")
+          : [];
+        try {
+          const n = await replaceGalleryImages(id_producto, row.id, galleryIds, titulo);
+          stats.productos.images += n;
+        } catch (e) {
+          stats.errors.push(
+            `galeria producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`
+          );
+        }
       }
     } catch (e) {
       stats.errors.push(`producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`);
@@ -759,4 +841,66 @@ export async function runStockSync(options?: { dryRun?: boolean }): Promise<Sync
   const stats = emptyStats(Boolean(options?.dryRun));
   await syncStock(stats);
   return stats;
+}
+
+/** Sincroniza imagen principal + galería para un conjunto de odoo_id de product.product. */
+export async function syncProductImagesForOdooIds(
+  odooIds: number[],
+  options?: { dryRun?: boolean }
+): Promise<{ images: number; errors: string[] }> {
+  const result = { images: 0, errors: [] as string[] };
+  if (!odooIds.length) return result;
+
+  const locals = await prisma.producto.findMany({
+    where: { odoo_id: { in: odooIds } },
+    select: { id_producto: true, odoo_id: true },
+  });
+  const localByOdoo = new Map(locals.map((p) => [p.odoo_id!, p.id_producto]));
+
+  for (let i = 0; i < odooIds.length; i += 20) {
+    const chunk = odooIds.slice(i, i + 20);
+    try {
+      const rows = await executeKw<
+        {
+          id: number;
+          name: string;
+          image_1920?: string | false;
+          product_template_image_ids?: number[];
+        }[]
+      >("product.product", "read", [chunk], {
+        fields: ["id", "name", "image_1920", "product_template_image_ids"],
+      });
+
+      for (const row of rows) {
+        const id_producto = localByOdoo.get(row.id);
+        if (!id_producto) continue;
+        const titulo = pickProductTitle(row);
+
+        if (options?.dryRun) {
+          result.images += 1;
+          continue;
+        }
+
+        try {
+          if (typeof row.image_1920 === "string" && row.image_1920.length > 100) {
+            if (await upsertProductImage(id_producto, row.id, row.image_1920, titulo)) {
+              result.images += 1;
+            }
+          }
+          const galleryIds = Array.isArray(row.product_template_image_ids)
+            ? row.product_template_image_ids.filter((id): id is number => typeof id === "number")
+            : [];
+          result.images += await replaceGalleryImages(id_producto, row.id, galleryIds, titulo);
+        } catch (e) {
+          result.errors.push(
+            `producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`
+          );
+        }
+      }
+    } catch (e) {
+      result.errors.push(`chunk ${i}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  return result;
 }

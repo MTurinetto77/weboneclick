@@ -25,5 +25,7 @@ Sync Odoo:
 - product.tag → etiqueta
 - product.product (x_studio_publicado_web=true) → producto
   - website_description / description_ecommerce → producto.descripcion
+  - image_1920 → archivo imagen_principal
+  - product.image (product_template_image_ids) → archivo imagen_galeria
 - sk.product.price.by.company (company_id=1) → precio_producto
 - stock.quant → stock

@@ -16,7 +16,15 @@ export default async function EtiquetaPage({ params }: { params: Params }) {
       activo: true,
       etiquetas: { some: { id_etiqueta: etiqueta.id_etiqueta } },
     },
-    include: { precios: true, archivos: { include: { archivo: true }, take: 1 }, stocks: true },
+    include: {
+      precios: true,
+      archivos: {
+        where: { archivo: { tipo: "imagen_principal" } },
+        include: { archivo: true },
+        take: 1,
+      },
+      stocks: true,
+    },
     orderBy: { id_producto: "desc" },
     take: 48,
   });
