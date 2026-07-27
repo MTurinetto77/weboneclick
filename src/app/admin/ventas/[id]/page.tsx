@@ -40,6 +40,7 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
       pagos: true,
       envios: { include: { direccion: true } },
       direccion_facturacion: true,
+      cupon: true,
     },
   });
   if (!venta) notFound();
@@ -192,6 +193,12 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
         <div className="detail-row" style={{ justifyContent: "flex-end", marginTop: "0.75rem" }}>
           <Field label="Subtotal" value={formatPrice(venta.subtotal)} />
           <Field label="Descuento" value={formatPrice(venta.descuento)} />
+          {venta.cupon ? (
+            <Field
+              label="Cupón"
+              value={`${venta.cupon.codigo} (−${formatPrice(venta.cupon.monto)})`}
+            />
+          ) : null}
           <Field label="Envío" value={formatPrice(venta.costo_envio)} />
           <Field label="Total" value={formatPrice(venta.total)} />
         </div>

@@ -366,7 +366,8 @@ model usuario {
   fecha_hora_registro DateTime @default(now())
   activo              Boolean  @default(true)
 
-  cliente cliente?
+  cliente            cliente?
+  cupones_creados    cupones_descuento[] @relation("CuponCreacion")
 }
 
 model cliente {
@@ -426,12 +427,37 @@ model venta {
   receptor_nombre String? @db.VarChar(200)
   receptor_dni    String? @db.VarChar(50)
   id_direccion_facturacion Int?
+  id_cupon                 Int? @unique
 
   cliente  cliente         @relation(fields: [id_cliente], references: [id_cliente])
   detalles venta_detalle[]
   pagos    pago[]
   envios   envio[]
   direccion_facturacion direccion? @relation("VentaFacturacion", fields: [id_direccion_facturacion], references: [id_direccion], onDelete: SetNull)
+  cupon    cupones_descuento? @relation(fields: [id_cupon], references: [id_cupon], onDelete: SetNull)
+}
+
+/// Cupones de descuento de monto fijo (emitidos desde admin)
+model cupones_descuento {
+  id_cupon            Int       @id @default(autoincrement())
+  codigo              String    @unique @db.VarChar(60)
+  monto               Decimal   @db.Decimal(12, 2)
+  fecha_vigencia      DateTime
+  /// emitido | consumido
+  estado              String    @db.VarChar(20)
+  grupo               String?   @db.VarChar(100)
+  fecha_creacion      DateTime  @default(now())
+  id_usuario_creacion Int
+  fecha_consumido     DateTime?
+  /// Venta que lo consumió (denormalizado; el FK formal está en venta.id_cupon)
+  id_venta            Int?
+
+  usuario_creacion usuario @relation("CuponCreacion", fields: [id_usuario_creacion], references: [id_usuario])
+  venta            venta?
+
+  @@index([grupo])
+  @@index([estado])
+  @@index([id_venta])
 }
 
 model venta_detalle {

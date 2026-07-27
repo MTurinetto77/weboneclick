@@ -1,5 +1,6 @@
 import type { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import { deductStock } from "@/lib/cart";
+import { releaseCuponForVenta } from "@/lib/cupones";
 import { prisma } from "@/lib/prisma";
 
 export type MpSyncResult = "approved" | "pending" | "rejected" | "ignored";
@@ -77,6 +78,7 @@ export async function applyMercadoPagoPayment(
       where: { id_venta: idVenta },
       data: { estado: "cancelada" },
     });
+    await releaseCuponForVenta(idVenta);
   }
   return rejected ? "rejected" : "pending";
 }

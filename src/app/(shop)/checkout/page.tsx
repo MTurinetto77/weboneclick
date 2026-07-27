@@ -7,6 +7,7 @@ import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { computeTotals } from "@/lib/checkout-venta";
 import { ivaIncluded, resolveCart } from "@/lib/cart";
+import { resolveAppliedCupon } from "@/lib/cupones";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
@@ -53,7 +54,13 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const mailLocked = isAuthenticated;
   const mercadoPagoConfigured = isMercadoPagoConfigured();
   const mpPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() || null;
-  const totalContado = computeTotals(cart, "mercado_pago").total;
+  const cupon = await resolveAppliedCupon();
+  const cuponMonto = cupon?.monto ?? 0;
+  const totalsContado = computeTotals(cart, "mercado_pago", cuponMonto);
+  const totalsTarjeta = computeTotals(cart, "tarjeta", cuponMonto);
+  const totalContado = totalsContado.total;
+  const totalTarjeta = totalsTarjeta.total;
+  const descuentoCupon = totalsTarjeta.descuentoCupon;
 
   const addressDefaults =
     cliente?.direccion_principal ?? cliente?.direcciones[0] ?? null;
@@ -199,18 +206,27 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                     <th>Subtotal</th>
                     <td>{formatPriceArs(cart.subtotal)}</td>
                   </tr>
+                  {descuentoCupon > 0 && (
+                    <tr>
+                      <th>Cupón {cupon?.codigo}</th>
+                      <td>−{formatPriceArs(descuentoCupon)}</td>
+                    </tr>
+                  )}
                   <CheckoutEnvioTotalRows
-                    subtotal={cart.subtotal}
+                    subtotal={totalTarjeta}
                     iva105={iva105}
                     iva21={iva21}
                   />
                 </tfoot>
               </table>
 
-              <CheckoutCoupon />
+              <CheckoutCoupon
+                appliedCodigo={cupon?.codigo}
+                appliedMonto={descuentoCupon > 0 ? descuentoCupon : null}
+              />
 
               <CheckoutPaymentOptions
-                totalTarjeta={cart.subtotal}
+                totalTarjeta={totalTarjeta}
                 totalContado={totalContado}
                 mpConfigured={mercadoPagoConfigured}
                 publicKey={mpPublicKey}

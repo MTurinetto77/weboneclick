@@ -1,4 +1,11 @@
 import { deductStock, resolveCart, type ResolvedCart } from "@/lib/cart";
+import {
+  CUPON_ESTADO_CONSUMIDO,
+  CUPON_ESTADO_EMITIDO,
+  clearCuponCookie,
+  resolveAppliedCupon,
+  type ValidCupon,
+} from "@/lib/cupones";
 import { resolveCostoEnvio } from "@/lib/envio-costo";
 import { CONTADO_DISCOUNT } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
@@ -101,10 +108,14 @@ export async function createPendingVenta(
     }
   }
 
-  const { subtotal, descuento, total: totalProductos, itemsCobro } = computeTotals(
-    cart,
-    tipo_pago,
-  );
+  const cupon = await resolveAppliedCupon();
+  const {
+    subtotal,
+    descuento,
+    total: totalProductos,
+    itemsCobro,
+    descuentoCupon,
+  } = computeTotals(cart, tipo_pago, cupon?.monto ?? 0);
 
   let costo_envio = 0;
   if (tipo_entrega === "envio") {
@@ -136,7 +147,6 @@ export async function createPendingVenta(
       if (item.precio == null) {
         throw new Error(`Sin precio: ${item.titulo}`);
       }
-      // Solo bloquear si el stock ya está sincronizado y no alcanza
       if (tracked && stockTotal < item.cantidad) {
         throw new Error(`Stock insuficiente: ${item.titulo}`);
       }
@@ -226,6 +236,24 @@ export async function createPendingVenta(
       }
     }
 
+    let id_cupon: number | null = null;
+    if (cupon && descuentoCupon > 0) {
+      const consumed = await tx.cupones_descuento.updateMany({
+        where: {
+          id_cupon: cupon.id_cupon,
+          estado: CUPON_ESTADO_EMITIDO,
+        },
+        data: {
+          estado: CUPON_ESTADO_CONSUMIDO,
+          fecha_consumido: new Date(),
+        },
+      });
+      if (consumed.count === 0) {
+        throw new Error("El cupón ya fue utilizado");
+      }
+      id_cupon = cupon.id_cupon;
+    }
+
     const venta = await tx.venta.create({
       data: {
         id_cliente: cliente.id_cliente,
@@ -238,6 +266,7 @@ export async function createPendingVenta(
         receptor_nombre,
         receptor_dni,
         id_direccion_facturacion,
+        id_cupon,
         detalles: {
           create: cart.items.map((item, index) => ({
             item: index + 1,
@@ -260,6 +289,13 @@ export async function createPendingVenta(
       },
     });
 
+    if (id_cupon != null) {
+      await tx.cupones_descuento.update({
+        where: { id_cupon },
+        data: { id_venta: venta.id_venta },
+      });
+    }
+
     if (tipo_entrega === "envio" && id_direccion != null) {
       await tx.envio.create({
         data: {
@@ -275,16 +311,23 @@ export async function createPendingVenta(
     return venta.id_venta;
   });
 
+  await clearCuponCookie();
+
   return { id_venta, subtotal, descuento, total, nombre, apellido, mail, itemsCobro };
 }
 
 /**
  * Totales según medio de pago: la opción "mercado_pago" (contado) aplica 10% de
- * descuento por ítem para que la preferencia de MP sume exactamente el total.
+ * descuento por ítem; luego un cupón de monto fijo se descuenta del subtotal de
+ * productos (no del envío) y se redistribuye en unit_price para MP.
  */
-export function computeTotals(cart: ResolvedCart, tipo_pago: TipoPagoCheckout) {
+export function computeTotals(
+  cart: ResolvedCart,
+  tipo_pago: TipoPagoCheckout,
+  cuponMonto = 0,
+) {
   const subtotal = cart.subtotal;
-  const itemsCobro = cart.items.map((item) => ({
+  const itemsBase = cart.items.map((item) => ({
     id_producto: item.id_producto,
     titulo: item.titulo,
     cantidad: item.cantidad,
@@ -293,10 +336,79 @@ export function computeTotals(cart: ResolvedCart, tipo_pago: TipoPagoCheckout) {
         ? round2(item.precio! * (1 - CONTADO_DISCOUNT))
         : item.precio!,
   }));
-  const total = round2(
-    itemsCobro.reduce((acc, i) => acc + i.unit_price * i.cantidad, 0)
+
+  const totalAntesCupon = round2(
+    itemsBase.reduce((acc, i) => acc + i.unit_price * i.cantidad, 0),
   );
-  return { subtotal, descuento: round2(subtotal - total), total, itemsCobro };
+  const descuentoContado = round2(subtotal - totalAntesCupon);
+  const descuentoCupon = round2(
+    Math.min(Math.max(0, cuponMonto), totalAntesCupon),
+  );
+
+  const itemsCobro = applyFixedDiscountToItems(itemsBase, descuentoCupon);
+  const total = round2(
+    itemsCobro.reduce((acc, i) => acc + i.unit_price * i.cantidad, 0),
+  );
+  const descuento = round2(descuentoContado + descuentoCupon);
+
+  return {
+    subtotal,
+    descuento,
+    descuentoContado,
+    descuentoCupon,
+    total,
+    itemsCobro,
+  };
 }
 
+/** Redistribuye un descuento fijo en unit_price para que la suma cuadre al centavo. */
+function applyFixedDiscountToItems(
+  items: {
+    id_producto: number;
+    titulo: string;
+    cantidad: number;
+    unit_price: number;
+  }[],
+  discount: number,
+) {
+  if (discount <= 0 || items.length === 0) return items;
+
+  const subtotal = items.reduce((acc, i) => acc + i.unit_price * i.cantidad, 0);
+  if (subtotal <= 0) return items;
+
+  const result = items.map((item) => {
+    const line = item.unit_price * item.cantidad;
+    const share = (line / subtotal) * discount;
+    const newLine = Math.max(0, line - share);
+    const unit_price =
+      item.cantidad > 0 ? round2(newLine / item.cantidad) : 0;
+    return { ...item, unit_price };
+  });
+
+  const sum = round2(
+    result.reduce((acc, i) => acc + i.unit_price * i.cantidad, 0),
+  );
+  const target = round2(subtotal - discount);
+  const diff = round2(target - sum);
+  if (Math.abs(diff) >= 0.01) {
+    let idx = 0;
+    let maxLine = -1;
+    for (let i = 0; i < result.length; i++) {
+      const line = result[i]!.unit_price * result[i]!.cantidad;
+      if (line > maxLine) {
+        maxLine = line;
+        idx = i;
+      }
+    }
+    const item = result[idx]!;
+    if (item.cantidad > 0) {
+      const newLine = Math.max(0, item.unit_price * item.cantidad + diff);
+      item.unit_price = round2(newLine / item.cantidad);
+    }
+  }
+
+  return result;
+}
+
+export type { ValidCupon };
 export { deductStock };

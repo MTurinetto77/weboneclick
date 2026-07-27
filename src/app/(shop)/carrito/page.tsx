@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ivaIncluded, resolveCart } from "@/lib/cart";
+import { computeTotals } from "@/lib/checkout-venta";
+import { resolveAppliedCupon } from "@/lib/cupones";
 import { getValorEnvioGratis } from "@/lib/parametros";
 import { formatPriceArs } from "@/lib/pricing";
 import { uploadPublicUrl } from "@/lib/utils";
@@ -12,10 +14,17 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Carrito" };
 
 export default async function CarritoPage() {
-  const [cart, valorEnvioGratis] = await Promise.all([
+  const [cart, valorEnvioGratis, cupon] = await Promise.all([
     resolveCart(),
     getValorEnvioGratis(),
+    resolveAppliedCupon(),
   ]);
+  const cuponMonto = cupon?.monto ?? 0;
+  const { descuentoCupon, total: totalConCupon } = computeTotals(
+    cart,
+    "tarjeta",
+    cuponMonto,
+  );
 
   const remainingForFreeShip = Math.max(0, valorEnvioGratis - cart.subtotal);
   const freeShipProgress = Math.min(
@@ -172,7 +181,10 @@ export default async function CarritoPage() {
                   </table>
                 </div>
 
-                <CartCouponForm />
+                <CartCouponForm
+                  appliedCodigo={cupon?.codigo}
+                  appliedMonto={descuentoCupon > 0 ? descuentoCupon : null}
+                />
               </div>
 
               <aside className="oc-cart-totals">
@@ -182,10 +194,16 @@ export default async function CarritoPage() {
                     <dt>Subtotal</dt>
                     <dd>{formatPriceArs(cart.subtotal)}</dd>
                   </div>
+                  {descuentoCupon > 0 && (
+                    <div>
+                      <dt>Cupón {cupon?.codigo}</dt>
+                      <dd>−{formatPriceArs(descuentoCupon)}</dd>
+                    </div>
+                  )}
                   <div className="oc-cart-totals-total">
                     <dt>Total</dt>
                     <dd>
-                      <strong>{formatPriceArs(cart.subtotal)}</strong>
+                      <strong>{formatPriceArs(totalConCupon)}</strong>
                       {(iva105 > 0 || iva21 > 0) && (
                         <span className="oc-cart-tax">
                           (incluye

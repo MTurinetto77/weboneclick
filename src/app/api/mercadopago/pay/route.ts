@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { clearCartCookie } from "@/lib/cart";
 import { createPendingVenta } from "@/lib/checkout-venta";
+import { releaseCuponForVenta } from "@/lib/cupones";
 import { mercadoPagoPayment, publicSiteUrl } from "@/lib/mercadopago";
 import { applyMercadoPagoPayment } from "@/lib/mp-payment-sync";
 import { prisma } from "@/lib/prisma";
@@ -99,10 +100,11 @@ export async function POST(req: NextRequest) {
       redirect: `/checkout/confirmacion/${venta.id_venta}?mp=${mp}`,
     });
   } catch (error) {
-    // El pago no se concretó: cancelar la venta pendiente recién creada
+    // El pago no se concretó: cancelar la venta pendiente y liberar el cupón
     await prisma.venta
       .update({ where: { id_venta: venta.id_venta }, data: { estado: "cancelada" } })
       .catch(() => undefined);
+    await releaseCuponForVenta(venta.id_venta).catch(() => undefined);
     const message =
       error instanceof Error ? error.message : "No pudimos procesar el pago";
     return NextResponse.json({ error: message }, { status: 402 });

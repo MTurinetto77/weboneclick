@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { clearCartCookie } from "@/lib/cart";
 import { createPendingVenta } from "@/lib/checkout-venta";
+import { clearCuponCookie, releaseCuponForVenta } from "@/lib/cupones";
 import { mercadoPagoPreference, publicSiteUrl } from "@/lib/mercadopago";
 import { prisma } from "@/lib/prisma";
 
@@ -38,34 +39,47 @@ export async function confirmarVenta(formData: FormData) {
     ? `${siteUrl}/api/mercadopago/webhook`
     : undefined;
 
-  const preference = await mercadoPagoPreference().create({
-    body: {
-      items: venta.itemsCobro.map((item) => ({
-        id: String(item.id_producto),
-        title: item.titulo,
-        quantity: item.cantidad,
-        unit_price: item.unit_price,
-        currency_id: "ARS",
-      })),
-      payer: {
-        name: venta.nombre,
-        surname: venta.apellido,
-        email: venta.mail,
+  let preference;
+  try {
+    preference = await mercadoPagoPreference().create({
+      body: {
+        items: venta.itemsCobro.map((item) => ({
+          id: String(item.id_producto),
+          title: item.titulo,
+          quantity: item.cantidad,
+          unit_price: item.unit_price,
+          currency_id: "ARS",
+        })),
+        payer: {
+          name: venta.nombre,
+          surname: venta.apellido,
+          email: venta.mail,
+        },
+        external_reference: String(venta.id_venta),
+        metadata: { id_venta: venta.id_venta },
+        back_urls: {
+          success: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=success`,
+          pending: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=pending`,
+          failure: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=failure`,
+        },
+        auto_return: "approved",
+        notification_url: notificationUrl,
+        statement_descriptor: "ONECLICK",
       },
-      external_reference: String(venta.id_venta),
-      metadata: { id_venta: venta.id_venta },
-      back_urls: {
-        success: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=success`,
-        pending: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=pending`,
-        failure: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=failure`,
-      },
-      auto_return: "approved",
-      notification_url: notificationUrl,
-      statement_descriptor: "ONECLICK",
-    },
-  });
+    });
+  } catch (error) {
+    await prisma.venta
+      .update({ where: { id_venta: venta.id_venta }, data: { estado: "cancelada" } })
+      .catch(() => undefined);
+    await releaseCuponForVenta(venta.id_venta).catch(() => undefined);
+    throw error;
+  }
 
   if (!preference.init_point) {
+    await prisma.venta
+      .update({ where: { id_venta: venta.id_venta }, data: { estado: "cancelada" } })
+      .catch(() => undefined);
+    await releaseCuponForVenta(venta.id_venta).catch(() => undefined);
     throw new Error("Mercado Pago no devolvió una URL de pago");
   }
 
@@ -75,6 +89,7 @@ export async function confirmarVenta(formData: FormData) {
   });
 
   await clearCartCookie();
+  await clearCuponCookie();
   revalidatePath("/carrito");
   redirect(preference.init_point);
 }
