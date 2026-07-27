@@ -15,9 +15,11 @@ export async function upsertParametroAction(formData: FormData) {
   const nombre = String(formData.get("nombre") || "").trim();
   const tipo = String(formData.get("tipo") || "string").trim() || "string";
   const valor = String(formData.get("valor") ?? "").trim();
+  const grupo_parametros =
+    String(formData.get("grupo_parametros") || "").trim() || null;
   if (!nombre) throw new Error("Nombre de parámetro requerido");
 
-  await upsertParametro({ nombre, tipo, valor });
+  await upsertParametro({ nombre, tipo, valor, grupo_parametros });
   revalidate();
 }
 
@@ -25,15 +27,11 @@ export async function updateParametroAction(id_parametro: number, formData: Form
   await requireAdmin();
   const tipo = String(formData.get("tipo") || "string").trim() || "string";
   const valor = String(formData.get("valor") ?? "").trim();
+  const grupo_parametros =
+    String(formData.get("grupo_parametros") || "").trim() || null;
   await prisma.parametro.update({
     where: { id_parametro },
-    data: { tipo, valor },
+    data: { tipo, valor, grupo_parametros },
   });
-  revalidate();
-}
-
-export async function deleteParametroAction(id_parametro: number) {
-  await requireAdmin();
-  await prisma.parametro.delete({ where: { id_parametro } }).catch(() => null);
   revalidate();
 }

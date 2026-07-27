@@ -12,9 +12,18 @@ import {
   type CpEnvioRow,
   type ProveedorEnvio,
 } from "@/lib/envio-import";
+import {
+  FASTRACK_ZONAS_PRECIO,
+  GRUPO_ENVIOS,
+  PARAM_SMARTPOST_PRECIO,
+  getFastrackPreciosPorZona,
+  paramFastrackPrecioZona,
+  parseParamNumber,
+} from "@/lib/parametros";
 
 function revalidateEnvios() {
   revalidatePath("/admin/envios");
+  revalidatePath("/admin/parametros");
 }
 
 async function replaceProveedorRows(proveedor: ProveedorEnvio, rows: CpEnvioRow[]) {
@@ -32,6 +41,7 @@ async function replaceProveedorRows(proveedor: ProveedorEnvio, rows: CpEnvioRow[
           localidad: r.localidad.slice(0, 255),
           dias_entrega: r.dias_entrega,
           precio: new Prisma.Decimal(r.precio),
+          zona: r.zona ?? null,
         })),
       });
     }
@@ -56,8 +66,9 @@ export async function importFastrack(formData: FormData) {
   const buffer = await readUpload(formData);
   const zonasRaw = String(formData.get("zonas_excluir") ?? "1");
   const zonasExcluir = parseZonasExcluir(zonasRaw, [1]);
+  const preciosPorZona = await getFastrackPreciosPorZona();
 
-  const rows = parseFastrackWorkbook(buffer, { zonasExcluir, precio: 0 });
+  const rows = parseFastrackWorkbook(buffer, { zonasExcluir, preciosPorZona });
   if (!rows.length) {
     throw new Error("No se importaron filas. Revisá el archivo o las zonas excluidas.");
   }
@@ -81,6 +92,80 @@ export async function importSmartpost(formData: FormData) {
   await replaceProveedorRows("smartpost", rows);
   revalidateEnvios();
   redirect(`/admin/envios?ok=smartpost&count=${rows.length}`);
+}
+
+/**
+ * Guarda precios de envío (grupo envios) y recalcula codigo_postal_envio.
+ * FastTrack: por zona. SmartPost: precio único del parámetro.
+ */
+export async function updatePreciosEnvioAction(formData: FormData) {
+  await requireAdmin();
+
+  const smartpostRaw = String(formData.get("smartpost_precio") || "").trim();
+  const smartpostPrecio = parseParamNumber(smartpostRaw);
+  if (smartpostPrecio == null || smartpostPrecio < 0) {
+    throw new Error("Precio SmartPost inválido");
+  }
+
+  const preciosZona: Record<number, number> = {};
+  for (const zona of FASTRACK_ZONAS_PRECIO) {
+    const raw = String(formData.get(`fastrack_zona_${zona}`) || "").trim();
+    const n = parseParamNumber(raw);
+    if (n == null || n < 0) {
+      throw new Error(`Precio FastTrack zona ${zona} inválido`);
+    }
+    preciosZona[zona] = n;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.parametro.upsert({
+      where: { nombre: PARAM_SMARTPOST_PRECIO },
+      create: {
+        nombre: PARAM_SMARTPOST_PRECIO,
+        tipo: "number",
+        valor: String(smartpostPrecio),
+        grupo_parametros: GRUPO_ENVIOS,
+      },
+      update: {
+        tipo: "number",
+        valor: String(smartpostPrecio),
+        grupo_parametros: GRUPO_ENVIOS,
+      },
+    });
+
+    for (const zona of FASTRACK_ZONAS_PRECIO) {
+      const nombre = paramFastrackPrecioZona(zona);
+      await tx.parametro.upsert({
+        where: { nombre },
+        create: {
+          nombre,
+          tipo: "number",
+          valor: String(preciosZona[zona]),
+          grupo_parametros: GRUPO_ENVIOS,
+        },
+        update: {
+          tipo: "number",
+          valor: String(preciosZona[zona]),
+          grupo_parametros: GRUPO_ENVIOS,
+        },
+      });
+    }
+
+    await tx.codigo_postal_envio.updateMany({
+      where: { proveedor: "smartpost" },
+      data: { precio: new Prisma.Decimal(smartpostPrecio) },
+    });
+
+    for (const zona of FASTRACK_ZONAS_PRECIO) {
+      await tx.codigo_postal_envio.updateMany({
+        where: { proveedor: "fastrack", zona },
+        data: { precio: new Prisma.Decimal(preciosZona[zona]) },
+      });
+    }
+  });
+
+  revalidateEnvios();
+  redirect("/admin/envios?precios=ok");
 }
 
 export async function deleteCpEnvioAction(id_cp_envio: number) {

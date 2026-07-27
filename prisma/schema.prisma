@@ -475,13 +475,17 @@ model envio {
 
 /// Parámetros genéricos de configuración (nombre / tipo / valor)
 model parametro {
-  id_parametro Int      @id @default(autoincrement())
-  nombre       String   @unique @db.VarChar(100)
+  id_parametro     Int      @id @default(autoincrement())
+  nombre           String   @unique @db.VarChar(100)
   /// string | number | boolean | json
-  tipo         String   @db.VarChar(30)
-  valor        String   @db.Text
-  fecha_alta   DateTime @default(now())
-  fecha_modif  DateTime @updatedAt
+  tipo             String   @db.VarChar(30)
+  valor            String   @db.Text
+  /// Agrupación lógica (ej. envios)
+  grupo_parametros String?  @db.VarChar(50)
+  fecha_alta       DateTime @default(now())
+  fecha_modif      DateTime @updatedAt
+
+  @@index([grupo_parametros])
 }
 
 /// Códigos postales habilitados para entrega por proveedor logístico
@@ -493,10 +497,13 @@ model codigo_postal_envio {
   localidad     String   @db.VarChar(255)
   dias_entrega  Int
   precio        Decimal  @db.Decimal(12, 2)
+  /// Zona tarifaria (FastTrack); null en SmartPost
+  zona          Int?
   fecha_alta    DateTime @default(now())
   fecha_modif   DateTime @updatedAt
 
   @@unique([proveedor, codigo_postal])
   @@index([codigo_postal])
   @@index([proveedor])
+  @@index([proveedor, zona])
 }

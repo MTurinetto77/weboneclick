@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { formatPriceArs } from "@/lib/pricing";
+import { getParametrosEnvioPrecios } from "@/lib/parametros";
+import { PreciosEnvioModal } from "@/components/admin-precios-envio-modal";
 import {
   clearProveedorAction,
   deleteCpEnvioAction,
@@ -36,7 +38,7 @@ export default async function AdminEnviosPage({
     ...(cpFilter ? { codigo_postal: { contains: cpFilter } } : {}),
   };
 
-  const [total, items, counts] = await Promise.all([
+  const [total, items, counts, preciosParams] = await Promise.all([
     prisma.codigo_postal_envio.count({ where }),
     prisma.codigo_postal_envio.findMany({
       where,
@@ -48,6 +50,7 @@ export default async function AdminEnviosPage({
       by: ["proveedor"],
       _count: { _all: true },
     }),
+    getParametrosEnvioPrecios(),
   ]);
 
   const countByProv = Object.fromEntries(
@@ -59,16 +62,31 @@ export default async function AdminEnviosPage({
   const countImported = sp(q.count);
   const cleared = sp(q.cleared);
   const excluidas = sp(q.excluidas);
+  const preciosOk = sp(q.precios) === "ok";
 
   return (
     <div>
-      <h1 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Envíos</h1>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.75rem",
+          alignItems: "center",
+          marginBottom: "0.35rem",
+        }}
+      >
+        <h1 style={{ margin: 0, flex: "1 1 auto" }}>Envíos</h1>
+        <PreciosEnvioModal
+          smartpostPrecio={preciosParams.smartpost}
+          preciosZona={preciosParams.zonas}
+        />
+      </div>
       <p className="muted" style={{ marginTop: 0, marginBottom: "0.85rem", fontSize: "0.85rem" }}>
-        Códigos postales por proveedor. FastTrack: precio 0. SmartPost: precio desde Excel
-        (Costo).
+        Códigos postales por proveedor. FastTrack: precio por zona. SmartPost: precio del
+        parámetro (también editable desde Actualizar precios).
       </p>
 
-      {(ok || cleared) && (
+      {(ok || cleared || preciosOk) && (
         <p
           className="admin-card"
           style={{
@@ -95,6 +113,7 @@ export default async function AdminEnviosPage({
               Se eliminaron los CPs de <strong>{cleared}</strong>.
             </>
           )}
+          {preciosOk && <>Precios de envío actualizados en parámetros y tabla de CPs.</>}
         </p>
       )}
 
@@ -140,7 +159,7 @@ export default async function AdminEnviosPage({
             Importar
           </button>
           <span className="muted" style={{ fontSize: "0.75rem" }}>
-            {countByProv.fastrack ?? 0} CPs · precio 0
+            {countByProv.fastrack ?? 0} CPs · precio por zona
           </span>
         </form>
 
@@ -168,7 +187,7 @@ export default async function AdminEnviosPage({
             Importar
           </button>
           <span className="muted" style={{ fontSize: "0.75rem" }}>
-            {countByProv.smartpost ?? 0} CPs · precio del Excel
+            {countByProv.smartpost ?? 0} CPs · precio del Excel / parámetro
           </span>
         </form>
       </div>
@@ -234,6 +253,7 @@ export default async function AdminEnviosPage({
               <th>Proveedor</th>
               <th>CP</th>
               <th>Localidad</th>
+              <th>Zona</th>
               <th>Días</th>
               <th>Precio</th>
               <th></th>
@@ -245,6 +265,7 @@ export default async function AdminEnviosPage({
                 <td>{row.proveedor}</td>
                 <td>{row.codigo_postal}</td>
                 <td>{row.localidad}</td>
+                <td>{row.zona ?? "—"}</td>
                 <td>{row.dias_entrega}</td>
                 <td>{formatPriceArs(Number(row.precio))}</td>
                 <td>
@@ -262,7 +283,7 @@ export default async function AdminEnviosPage({
             ))}
             {!items.length && (
               <tr>
-                <td colSpan={6} className="muted">
+                <td colSpan={7} className="muted">
                   No hay códigos postales cargados.
                 </td>
               </tr>

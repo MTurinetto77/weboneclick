@@ -8,6 +8,7 @@ export type CpEnvioRow = {
   localidad: string;
   dias_entrega: number;
   precio: number;
+  zona?: number | null;
 };
 
 function normalizeCp(raw: unknown): string | null {
@@ -53,14 +54,16 @@ function readWorkbook(buffer: Buffer): XLSX.WorkBook {
 /**
  * Fast track.xlsx — hoja "Zonas STD"
  * Headers: cp | localidad | provincia | tiempo_entrega | Dias | zona
- * Precio no viene en el archivo → default 0.
+ * Precio por zona desde parámetros fastrack_precio_zona_N.
  * Se excluyen zonas indicadas (por defecto zona 1).
  */
 export function parseFastrackWorkbook(
   buffer: Buffer,
-  opts: { zonasExcluir: Set<number>; precio?: number },
+  opts: {
+    zonasExcluir: Set<number>;
+    preciosPorZona: Record<number, number>;
+  },
 ): CpEnvioRow[] {
-  const precio = opts.precio ?? 0;
   const wb = readWorkbook(buffer);
   const sheetName = wb.SheetNames.find((n) => /zona/i.test(n)) ?? wb.SheetNames[0];
   if (!sheetName) throw new Error("El Excel de FastTrack no tiene hojas");
@@ -110,6 +113,12 @@ export function parseFastrackWorkbook(
     const dias = cellNum(row[colDias]);
     const dias_entrega = dias != null && dias > 0 ? Math.round(dias) : 1;
 
+    const zonaKey = zona != null ? Math.round(zona) : null;
+    const precio =
+      zonaKey != null && opts.preciosPorZona[zonaKey] != null
+        ? opts.preciosPorZona[zonaKey]
+        : 0;
+
     if (seen.has(cp)) continue;
     seen.add(cp);
 
@@ -119,6 +128,7 @@ export function parseFastrackWorkbook(
       localidad,
       dias_entrega,
       precio,
+      zona: zonaKey,
     });
   }
 
@@ -172,6 +182,7 @@ export function parseSmartpostWorkbook(
       localidad: cellStr(obj[locKey]) || "—",
       dias_entrega: diasEntrega,
       precio: precio != null && precio >= 0 ? precio : 0,
+      zona: null,
     });
   }
 

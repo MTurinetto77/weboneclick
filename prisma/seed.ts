@@ -434,8 +434,9 @@ async function main() {
       nombre: "smartpost_precio_envio",
       tipo: "number",
       valor: "4380.44",
+      grupo_parametros: "envios",
     },
-    update: {},
+    update: { grupo_parametros: "envios" },
   });
   await prisma.parametro.upsert({
     where: { nombre: "valor_para_envio_gratis" },
@@ -443,9 +444,27 @@ async function main() {
       nombre: "valor_para_envio_gratis",
       tipo: "number",
       valor: "200000",
+      grupo_parametros: "envios",
     },
-    update: {},
+    update: { grupo_parametros: "envios" },
   });
+
+  const fastrackZonas: Record<number, string> = {
+    2: "13779.77",
+    3: "18516.84",
+    4: "21407.82",
+    5: "22057.67",
+    6: "24267.15",
+    7: "26755.14",
+  };
+  for (const [zona, valor] of Object.entries(fastrackZonas)) {
+    const nombre = `fastrack_precio_zona_${zona}`;
+    await prisma.parametro.upsert({
+      where: { nombre },
+      create: { nombre, tipo: "number", valor, grupo_parametros: "envios" },
+      update: { valor, grupo_parametros: "envios" },
+    });
+  }
 }
 
 main()
