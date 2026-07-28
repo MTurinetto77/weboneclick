@@ -71,7 +71,7 @@ sequenceDiagram
 | [`odoo-sync.ts`](../src/lib/odoo-sync.ts) | Sync de catálogo (incluye `id_tienda` y `es_envio_domicilio`) |
 | [`mp-payment-sync.ts`](../src/lib/mp-payment-sync.ts) | Idempotencia del pago + trigger Odoo |
 | [`checkout-venta.ts`](../src/lib/checkout-venta.ts) | Validaciones checkout (tienda, stock local + Odoo) |
-| [`test-checkout-odoo.ts`](../scripts/test-checkout-odoo.ts) | Prueba E2E sin Mercado Pago |
+| [`test-checkout-odoo.ts`](../scripts/test-checkout-odoo.ts) | Prueba E2E sin Mercado Pago (`--envio`, `--cupon`, `--regalo`) |
 
 ---
 
@@ -261,14 +261,20 @@ npm run test:checkout-odoo -- --envio --cupon 5000
 # Solo cupón (retiro), monto custom
 npm run test:checkout-odoo -- --cupon 3000
 
+# Regalo por monto (línea producto price_unit=0 en la sale.order)
+npm run test:checkout-odoo -- --regalo
+npm run test:checkout-odoo -- --envio --regalo
+
 # Reintentar sync de una venta ya pagada
 npm run test:checkout-odoo -- --venta-id 8
 ```
 
 El script:
-1. Crea cliente + venta + detalle + pago pendiente (+ envío / cupón según flags).
+1. Crea cliente + venta + detalle + pago pendiente (+ envío / cupón / **regalo $0** según flags).
 2. Llama `applyMercadoPagoPayment` con un payment mock (`TEST-MP-...`) y `syncOdoo: false`.
 3. Ejecuta `syncVentaToOdoo` de forma síncrona y muestra refs Odoo + líneas de la orden.
+
+Detalle de regalos: [REGALOS.md](./REGALOS.md).
 
 Pruebas exitosas (2026-07-28, instancia training):
 
@@ -277,6 +283,7 @@ Pruebas exitosas (2026-07-28, instancia training):
 | #4 | retiro Córdoba (WH 10) | `OCWN-4` | `RE-X 0001-00121925` | |
 | #7 | envío WH 14 | `OCWN-7` | `RE-X 0001-00121926` | |
 | #8 | envío + cupón $5000 | `OCWN-8` | `RE-X 0001-00121927` | Total Odoo = MP \$33587.77; línea `Cupón TESTCUP…` |
+| #12 | retiro + **regalo** $0 | `OCWN-12` | `RE-X 0001-00121929` | Línea `[409912186] … (Regalo)` con `price_unit=0`; total match |
 
 ---
 
@@ -309,8 +316,10 @@ Estados visibles:
    ```bash
    npm run test:checkout-odoo
    npm run test:checkout-odoo -- --envio
+   npm run test:checkout-odoo -- --regalo
    ```
 7. Documentar en este archivo si cambia un contrato (nombre orden, memo, tipo pedido, etc.).
+8. ¿Línea de regalo? → ver [REGALOS.md](./REGALOS.md); no filtrar `price_unit=0` ni usarla en el ajuste de redondeo.
 
 ---
 

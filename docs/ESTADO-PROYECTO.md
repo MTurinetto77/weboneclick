@@ -209,7 +209,7 @@ Scripts de apoyo (Playwright / sharp):
 
 ## 9. Admin
 
-- CRUD: productos, categorías, características, marcas, **banners** (home: hero/secundario/triple/pie), tiendas, **promociones** (menú), beneficios, usuarios, ventas  
+- CRUD: productos, categorías, características, marcas, **banners** (home: hero/secundario/triple/pie), tiendas, **promociones** (menú), **regalos** (umbral + SKUs), beneficios, usuarios, ventas  
 - Sync Odoo desde UI  
 - Login NextAuth
 - Promociones: listado + `/nuevo` + `/[id]` — detalle en [PROMOCIONES.md](./PROMOCIONES.md)
@@ -261,6 +261,7 @@ Scripts de apoyo (Playwright / sharp):
 | **Banners home (hero/secundario/triple/pie)** | Ver [BANNERS.md](./BANNERS.md) — `home-banners.tsx`, `admin/banners`, `lib/banners.ts` |
 | Trío categorías Audio/Mochilas/Fundas | `page.tsx` + `public/oneclick/banners/` (aún estático) |
 | **Promociones del menú** | Ver [PROMOCIONES.md](./PROMOCIONES.md) — `promos.ts`, `site-chrome`, `admin/promociones`, catch-all |
+| **Regalos por monto** | Ver [REGALOS.md](./REGALOS.md) — checkout selector, línea $0 Odoo, `admin/regalos` |
 | Precios / cuotas / contado | `src/lib/pricing.ts`, `product-card.tsx` |
 | Menú (resto de categorías) | `src/lib/nav.ts`, `site-chrome.tsx` |
 | Listados / categorías | `src/lib/products.ts`, `(shop)/[...path]/page.tsx` |

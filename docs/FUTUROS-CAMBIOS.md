@@ -64,6 +64,8 @@ Al agregar CRUDs nuevos, seguir el mismo patrón.
 
 **OneClick — banners de home:** ver [BANNERS.md](./BANNERS.md) (ubicaciones hero/secundario/triple/pie, HTML + imagen, admin, seed).
 
+**OneClick — regalos por monto:** ver [REGALOS.md](./REGALOS.md) (regla por umbral, selector checkout, línea $0 en venta/Odoo, admin).
+
 ---
 
 ## 3. Mapa de carpetas relevantes

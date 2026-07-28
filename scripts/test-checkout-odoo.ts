@@ -5,6 +5,8 @@
  *   npm run test:checkout-odoo -- --envio
  *   npm run test:checkout-odoo -- --envio --cupon
  *   npm run test:checkout-odoo -- --cupon 5000
+ *   npm run test:checkout-odoo -- --regalo
+ *   npm run test:checkout-odoo -- --envio --regalo
  *   npm run test:checkout-odoo -- --venta-id 123
  */
 import "dotenv/config";
@@ -105,16 +107,94 @@ async function findProductForRetiro() {
   };
 }
 
+async function findGiftProduct(opts: {
+  warehouseOdooId: number;
+  excludeProductId: number;
+}) {
+  const rows = await prisma.stock.findMany({
+    where: {
+      cantidad: { gt: 0 },
+      id_producto: { not: opts.excludeProductId },
+      producto: { activo: true, odoo_id: { not: null } },
+      almacen: { odoo_id: opts.warehouseOdooId },
+    },
+    include: {
+      producto: { select: { id_producto: true, odoo_id: true, titulo: true, sku: true } },
+    },
+    orderBy: { cantidad: "desc" },
+    take: 30,
+  });
+
+  const row = rows.find((r) => r.producto.odoo_id != null);
+  if (!row?.producto.odoo_id) {
+    throw new Error(
+      `No hay segundo producto (regalo) con stock/odoo_id en almacén Odoo ${opts.warehouseOdooId}`,
+    );
+  }
+
+  return {
+    id_producto: row.producto.id_producto,
+    odoo_id: row.producto.odoo_id,
+    titulo: row.producto.titulo,
+    sku: row.producto.sku,
+  };
+}
+
+/** Asegura una regla regalo activa que aplique al subtotal con el SKU dado. */
+async function ensureRegaloRule(opts: {
+  montoMinimo: number;
+  idProductoRegalo: number;
+  adminUserId: number;
+}) {
+  const now = new Date();
+  let regalo = await prisma.regalo.findFirst({
+    where: {
+      activo: true,
+      monto_minimo: { lte: opts.montoMinimo },
+      vigencia_desde: { lte: now },
+      OR: [{ vigencia_hasta: null }, { vigencia_hasta: { gte: now } }],
+      productos: { some: { id_producto: opts.idProductoRegalo } },
+    },
+    orderBy: { monto_minimo: "desc" },
+  });
+
+  if (!regalo) {
+    regalo = await prisma.regalo.create({
+      data: {
+        nombre: "Test Odoo — Regalo automático",
+        monto_minimo: Math.min(opts.montoMinimo, 1),
+        vigencia_desde: now,
+        vigencia_hasta: null,
+        activo: true,
+        id_usuario_creacion: opts.adminUserId,
+        productos: {
+          create: { id_producto: opts.idProductoRegalo },
+        },
+      },
+    });
+  }
+
+  return regalo;
+}
+
 async function createTestVenta(options: {
   tipo: "retiro" | "envio";
   cuponMonto: number;
+  withRegalo: boolean;
 }) {
-  const { tipo, cuponMonto } = options;
+  const { tipo, cuponMonto, withRegalo } = options;
   const stamp = Date.now();
   const pick =
     tipo === "envio"
       ? await findProductForWarehouse(await getShippingWarehouseOdooId())
       : await findProductForRetiro();
+
+  const gift = withRegalo
+    ? await findGiftProduct({
+        warehouseOdooId: pick.warehouseOdooId,
+        excludeProductId: pick.id_producto,
+      })
+    : null;
 
   // Simula pago "mercado_pago" (contado −10%) + cupón de monto fijo sobre productos
   const subtotal = pick.precio;
@@ -128,17 +208,27 @@ async function createTestVenta(options: {
   const costo_envio = tipo === "envio" ? 4380.44 : 0;
   const total = round2(precioCobrado + costo_envio);
 
-  const mail = `test.cupon.${stamp}@oneclick.local`;
+  const mail = `test.regalo.${stamp}@oneclick.local`;
   const dni = String(20_000_000 + (stamp % 10_000_000));
   const codigoCupon = `TESTCUP${stamp.toString().slice(-8)}`;
 
-  const venta = await prisma.$transaction(async (tx) => {
-    const admin = await tx.usuario.findFirst({
-      where: { tipo_usuario: "admin" },
-      select: { id_usuario: true },
-    });
-    if (!admin) throw new Error("No hay usuario admin para emitir el cupón");
+  const admin = await prisma.usuario.findFirst({
+    where: { tipo_usuario: "admin" },
+    select: { id_usuario: true },
+  });
+  if (!admin) throw new Error("No hay usuario admin para emitir el cupón/regalo");
 
+  let regaloRuleId: number | null = null;
+  if (gift) {
+    const rule = await ensureRegaloRule({
+      montoMinimo: subtotal,
+      idProductoRegalo: gift.id_producto,
+      adminUserId: admin.id_usuario,
+    });
+    regaloRuleId = rule.id_regalo;
+  }
+
+  const venta = await prisma.$transaction(async (tx) => {
     let id_cupon: number | null = null;
     if (descuentoCupon > 0) {
       const cupon = await tx.cupones_descuento.create({
@@ -158,7 +248,7 @@ async function createTestVenta(options: {
     const cliente = await tx.cliente.create({
       data: {
         nombre: "Marina",
-        apellido: "Cupon",
+        apellido: gift ? "Regalo" : "Cupon",
         mail,
         tipo_documento: "DNI",
         numero_documento: dni,
@@ -179,7 +269,7 @@ async function createTestVenta(options: {
         provincia: "Santa Fe",
         pais: "Argentina",
         codigo_postal: "2000",
-        referencias: tipo === "envio" ? "Timbre Cupon Test" : null,
+        referencias: tipo === "envio" ? "Timbre Regalo Test" : null,
       },
     });
 
@@ -213,7 +303,7 @@ async function createTestVenta(options: {
         id_cupon,
         receptor_nombre: tipo === "envio" ? "Pedro Receptor" : null,
         receptor_dni: tipo === "envio" ? "27888999" : null,
-        idempotency_key: `test-odoo-${tipo}-cupon-${stamp}`,
+        idempotency_key: `test-odoo-${tipo}-regalo-${stamp}`,
         odoo_sync_estado: "pendiente",
       },
     });
@@ -249,6 +339,21 @@ async function createTestVenta(options: {
       },
     });
 
+    if (gift) {
+      await tx.venta_detalle.create({
+        data: {
+          id_venta: v.id_venta,
+          item: 2,
+          id_producto: gift.id_producto,
+          nombre_producto: `${gift.titulo} (Regalo)`,
+          cantidad: 1,
+          precio_unitario: 0,
+          precio_cobrado: 0,
+          subtotal: 0,
+        },
+      });
+    }
+
     await tx.pago.create({
       data: {
         id_venta: v.id_venta,
@@ -271,6 +376,16 @@ async function createTestVenta(options: {
     precio_lista: pick.precio,
     precio_contado: precioContado,
     cupon: descuentoCupon > 0 ? { codigo: codigoCupon, monto: descuentoCupon } : null,
+    regalo: gift
+      ? {
+          id_regalo: regaloRuleId,
+          id_producto: gift.id_producto,
+          sku: gift.sku,
+          titulo: gift.titulo,
+          odoo_product_id: gift.odoo_id,
+          precio: 0,
+        }
+      : null,
     precio_cobrado: precioCobrado,
     costo_envio,
     total_mp: total,
@@ -284,13 +399,14 @@ async function main() {
   const tipo: "retiro" | "envio" = hasFlag("--envio") ? "envio" : "retiro";
   const cuponRaw = argValue("--cupon");
   const withCupon = hasFlag("--cupon");
+  const withRegalo = hasFlag("--regalo");
   const cuponMonto = withCupon
     ? Number(cuponRaw && !cuponRaw.startsWith("--") ? cuponRaw : 5000)
     : 0;
 
   const idVenta = ventaArg
     ? Number(ventaArg)
-    : await createTestVenta({ tipo, cuponMonto });
+    : await createTestVenta({ tipo, cuponMonto, withRegalo });
 
   const venta = await prisma.venta.findUnique({
     where: { id_venta: idVenta },
@@ -383,6 +499,28 @@ async function main() {
         2
       )
     );
+
+    if (withRegalo || hasFlag("--regalo") || lines.some((l) => String(l.name).includes("(Regalo)"))) {
+      const giftLines = lines.filter(
+        (l) =>
+          Number(l.price_unit) <= 0.009 &&
+          Array.isArray(l.product_id) &&
+          (String(l.name).includes("(Regalo)") || Number(l.price_total) <= 0.009),
+      );
+      console.log("\nVerificación regalo Odoo:", {
+        gift_lines_found: giftLines.length,
+        ok: giftLines.length >= 1,
+        gift_lines: giftLines.map((l) => ({
+          name: l.name,
+          product: Array.isArray(l.product_id) ? l.product_id[1] : null,
+          price_unit: l.price_unit,
+        })),
+      });
+      if (giftLines.length < 1 && (withRegalo || hasFlag("--regalo"))) {
+        console.error("FAIL: no se encontró línea de regalo con price_unit=0 en Odoo");
+        process.exitCode = 1;
+      }
+    }
   }
 
   if (odooResult !== "ok") process.exitCode = 1;

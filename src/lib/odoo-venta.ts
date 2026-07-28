@@ -402,12 +402,12 @@ async function createOdooSaleOrder(
 
     const gross = Number(det.precio_cobrado ?? det.precio_unitario);
     const isGift = gross <= 0.009;
-    const taxes = isGift
-      ? []
-      : pickSaleTaxes(
-          productTaxMap.get(odooId)?.taxes_id ?? [],
-          taxRateMap
-        );
+    // Misma selección de IVA que productos pagos: si tax_id queda en false,
+    // Odoo aplica los taxes del producto y puede fallar por IVA duplicado.
+    const taxes = pickSaleTaxes(
+      productTaxMap.get(odooId)?.taxes_id ?? [],
+      taxRateMap
+    );
     const taxRate = taxes.reduce(
       (acc, tid) => acc + (taxRateMap.get(tid)?.amount ?? 0) / 100,
       0
