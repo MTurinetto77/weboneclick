@@ -33,6 +33,7 @@ async function loadVentaForOdoo(id_venta: number) {
       envios: { include: { direccion: true } },
       direccion_facturacion: true,
       tienda_retiro: true,
+      cupon: true,
     },
   });
 }
@@ -390,6 +391,11 @@ async function createOdooSaleOrder(
 
   const orderLines: [number, number, Record<string, unknown>][] = [];
 
+  /**
+   * Odoo sale.order.line solo tiene `discount` (%), no monto fijo.
+   * El cupón se aplica en el precio cobrado (price_unit) y una línea
+   * de referencia a $0 con el código (sin impuestos).
+   */
   for (const det of venta.detalles) {
     const odooId = det.producto.odoo_id;
     if (!odooId) throw new Error(`Producto sin odoo_id: ${det.nombre_producto}`);
@@ -414,6 +420,20 @@ async function createOdooSaleOrder(
         price_unit: grossToNet(gross, taxRate),
         discount: 0,
         tax_id: taxes.length ? [[6, 0, taxes]] : false,
+      },
+    ]);
+  }
+
+  if (venta.cupon && Number(venta.cupon.monto) > 0.009) {
+    // Nota de referencia (sin producto/impuestos) — el monto ya está en price_unit de productos
+    orderLines.push([
+      0,
+      0,
+      {
+        display_type: "line_note",
+        name: `Cupón ${venta.cupon.codigo} (−$${Number(venta.cupon.monto).toLocaleString("es-AR", { minimumFractionDigits: 2 })})`,
+        product_uom_qty: 0,
+        price_unit: 0,
       },
     ]);
   }
@@ -466,13 +486,20 @@ async function createOdooSaleOrder(
     note: notes.length ? notes.join("\n") : false,
   });
 
-  // La pricelist de Odoo puede aplicar descuentos promocionales; forzamos el precio cobrado.
-  const intendedByProduct = new Map<number, number>();
+  // La pricelist de Odoo puede aplicar descuentos promocionales; forzamos
+  // price_unit + discount=0 (el cupón web ya está en el precio cobrado).
+  const intendedByProduct = new Map<
+    number,
+    { price_unit: number; discount: number }
+  >();
   for (const [, , vals] of orderLines) {
     const productId = Number(vals.product_id);
     const priceUnit = Number(vals.price_unit);
     if (productId && Number.isFinite(priceUnit)) {
-      intendedByProduct.set(productId, priceUnit);
+      intendedByProduct.set(productId, {
+        price_unit: priceUnit,
+        discount: Number(vals.discount ?? 0),
+      });
     }
   }
 
@@ -500,10 +527,13 @@ async function createOdooSaleOrder(
       if (!productId) continue;
       const intended = intendedByProduct.get(productId);
       if (intended == null) continue;
-      if (Number(ln.discount) !== 0 || Math.abs(Number(ln.price_unit) - intended) > 0.01) {
+      if (
+        Math.abs(Number(ln.discount) - intended.discount) > 0.01 ||
+        Math.abs(Number(ln.price_unit) - intended.price_unit) > 0.01
+      ) {
         await odooWrite("sale.order.line", [ln.id], {
-          discount: 0,
-          price_unit: intended,
+          discount: intended.discount,
+          price_unit: intended.price_unit,
         });
       }
     }

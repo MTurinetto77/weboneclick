@@ -113,6 +113,7 @@ npm run db:seed            # incluye seed Odoo
 | `odoo_payment_method_line_id` | `174` | Línea método de pago |
 | `odoo_receiptbook_id` | `2` | Talonario recibos |
 | `odoo_shipping_product_id` | `8255` | Producto “Envío a Domicilio” |
+| `odoo_discount_product_id` | `57081` | Producto “Descuento Web” (línea negativa de cupón) |
 | `odoo_order_prefix` | `OCWN` | Nombre orden `OCWN-<id_venta>` |
 | `odoo_id_type_dni` / `odoo_id_type_cuit` | `5` / `4` | Tipos identificación |
 | `odoo_afip_cf` / `odoo_afip_ri` | `5` / `1` | Responsabilidad AFIP |
@@ -196,7 +197,20 @@ Los precios de la web son **brutos** (IVA incluido). Al armar líneas:
 4. La pricelist “Promociones Vigentes” puede aplicar descuentos; tras crear la orden se fuerza `discount = 0` y el `price_unit` cobrado.
 5. Se valida `|total_odoo − total_venta| ≤ 1`; si hay diferencia chica se ajusta la línea de mayor importe.
 
+### Cupón de descuento
+
+Si la venta tiene `id_cupon` / `cupon`:
+
+1. Las líneas de producto usan el **precio cobrado** (`precio_cobrado`, ya con cupón + contado aplicados).  
+   - En Odoo `sale.order.line` **solo existe** `discount` (%). **No hay** campo de descuento por monto fijo en la línea.
+   - Por eso **no** usamos la columna `% Descuento` ni una línea negativa: el monto del cupón queda absorbido en el `price_unit` cobrado (mismo total que Mercado Pago).
+2. Se agrega una **nota** en la orden (`display_type = line_note`) con el código y el monto del cupón, sin producto ni impuestos (importe \$0, no altera el total).
+3. El envío **no** se descuenta con el cupón (igual que en checkout web).
+4. `amount_total` Odoo = `venta.total` (= monto MP).
+
 Envío (`tipo_entrega = envio` y `costo_envio > 0`): línea con producto `odoo_shipping_product_id`, IVA 21% (tax id 116).
+
+> Parámetro `odoo_discount_product_id` (57081) queda disponible por si más adelante se usa un producto de descuento; hoy la referencia del cupón es una nota de línea.
 
 ---
 
@@ -238,24 +252,31 @@ Script: [`scripts/test-checkout-odoo.ts`](../scripts/test-checkout-odoo.ts)
 # Retiro en tienda (cliente nuevo, pago simulado, sync Odoo)
 npm run test:checkout-odoo
 
-# Envío a domicilio (otro cliente, costo envío, almacén 14)
+# Envío a domicilio
 npm run test:checkout-odoo -- --envio
 
+# Envío + cupón de $5000 (línea negativa en la sale.order)
+npm run test:checkout-odoo -- --envio --cupon 5000
+
+# Solo cupón (retiro), monto custom
+npm run test:checkout-odoo -- --cupon 3000
+
 # Reintentar sync de una venta ya pagada
-npm run test:checkout-odoo -- --venta-id 7
+npm run test:checkout-odoo -- --venta-id 8
 ```
 
 El script:
-1. Crea cliente + venta + detalle + pago pendiente (+ envío si `--envio`).
+1. Crea cliente + venta + detalle + pago pendiente (+ envío / cupón según flags).
 2. Llama `applyMercadoPagoPayment` con un payment mock (`TEST-MP-...`) y `syncOdoo: false`.
-3. Ejecuta `syncVentaToOdoo` de forma síncrona y muestra refs Odoo.
+3. Ejecuta `syncVentaToOdoo` de forma síncrona y muestra refs Odoo + líneas de la orden.
 
 Pruebas exitosas (2026-07-28, instancia training):
 
-| Venta | Tipo | Orden | Recibo |
-|-------|------|-------|--------|
-| #4 | retiro Córdoba (WH 10) | `OCWN-4` | `RE-X 0001-00121925` |
-| #7 | envío WH 14 | `OCWN-7` | `RE-X 0001-00121926` |
+| Venta | Tipo | Orden | Recibo | Notas |
+|-------|------|-------|--------|-------|
+| #4 | retiro Córdoba (WH 10) | `OCWN-4` | `RE-X 0001-00121925` | |
+| #7 | envío WH 14 | `OCWN-7` | `RE-X 0001-00121926` | |
+| #8 | envío + cupón $5000 | `OCWN-8` | `RE-X 0001-00121927` | Total Odoo = MP \$33587.77; línea `Cupón TESTCUP…` |
 
 ---
 

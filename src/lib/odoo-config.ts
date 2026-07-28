@@ -20,6 +20,7 @@ export type OdooConfig = {
   paymentMethodLineId: number;
   receiptbookId: number;
   shippingProductId: number;
+  discountProductId: number;
   orderPrefix: string;
   identificationTypeDni: number;
   identificationTypeCuit: number;
@@ -47,6 +48,7 @@ export const ODOO_PARAM_DEFS: {
   { nombre: "odoo_payment_method_line_id", tipo: "number", valor: "174" },
   { nombre: "odoo_receiptbook_id", tipo: "number", valor: "2" },
   { nombre: "odoo_shipping_product_id", tipo: "number", valor: "8255" },
+  { nombre: "odoo_discount_product_id", tipo: "number", valor: "57081" },
   { nombre: "odoo_order_prefix", tipo: "string", valor: "OCWN" },
   { nombre: "odoo_id_type_dni", tipo: "number", valor: "5" },
   { nombre: "odoo_id_type_cuit", tipo: "number", valor: "4" },
@@ -70,6 +72,7 @@ const DEFAULTS: OdooConfig = {
   paymentMethodLineId: 174,
   receiptbookId: 2,
   shippingProductId: 8255,
+  discountProductId: 57081,
   orderPrefix: "OCWN",
   identificationTypeDni: 5,
   identificationTypeCuit: 4,
@@ -119,6 +122,7 @@ function buildConfig(params: Record<string, string>): OdooConfig {
     ),
     receiptbookId: intParam(params, "odoo_receiptbook_id", DEFAULTS.receiptbookId),
     shippingProductId: intParam(params, "odoo_shipping_product_id", DEFAULTS.shippingProductId),
+    discountProductId: intParam(params, "odoo_discount_product_id", DEFAULTS.discountProductId),
     orderPrefix: params.odoo_order_prefix?.trim() || DEFAULTS.orderPrefix,
     identificationTypeDni: intParam(params, "odoo_id_type_dni", DEFAULTS.identificationTypeDni),
     identificationTypeCuit: intParam(params, "odoo_id_type_cuit", DEFAULTS.identificationTypeCuit),
