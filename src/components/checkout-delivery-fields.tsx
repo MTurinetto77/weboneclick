@@ -46,6 +46,18 @@ export type AddressDefaults = {
   referencias?: string | null;
 };
 
+type TiendaDisponible = {
+  id_tienda: number;
+  nombre: string;
+  slug: string;
+  direccion: string;
+  localidad: string;
+  provincia: string;
+  horarios: string | null;
+  odoo_warehouse_id: number | null;
+  disponible: boolean;
+};
+
 type Props = {
   onlineNote?: ReactNode;
   addressDefaults?: AddressDefaults | null;
@@ -241,6 +253,10 @@ export function CheckoutDeliveryFields({
   const [mismaFacturacion, setMismaFacturacion] = useState(true);
   const [openEntrega, setOpenEntrega] = useState(true);
   const [openFacturacion, setOpenFacturacion] = useState(true);
+  const [tiendas, setTiendas] = useState<TiendaDisponible[]>([]);
+  const [tiendasLoading, setTiendasLoading] = useState(false);
+  const [tiendaSeleccionada, setTiendaSeleccionada] = useState("");
+  const [ningunaTienda, setNingunaTienda] = useState(false);
   const provinciaDefault = matchProvincia(addressDefaults?.provincia);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -259,6 +275,40 @@ export function CheckoutDeliveryFields({
       setOpenFacturacion(true);
     }
   }, [twoPanels]);
+
+  useEffect(() => {
+    if (tipoEntrega !== "retiro") return;
+    let cancelled = false;
+    setTiendasLoading(true);
+    fetch("/api/checkout/tiendas-disponibles")
+      .then((res) => res.json())
+      .then(
+        (data: {
+          tiendas: TiendaDisponible[];
+          disponibles: TiendaDisponible[];
+          ningunaDisponible: boolean;
+        }) => {
+          if (cancelled) return;
+          setTiendas(data.tiendas ?? []);
+          setNingunaTienda(Boolean(data.ningunaDisponible));
+          const first = data.disponibles?.[0];
+          if (first) {
+            setTiendaSeleccionada(String(first.id_tienda));
+          } else {
+            setTiendaSeleccionada("");
+          }
+        }
+      )
+      .catch(() => {
+        if (!cancelled) setNingunaTienda(true);
+      })
+      .finally(() => {
+        if (!cancelled) setTiendasLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tipoEntrega, cartSubtotal]);
 
   const validateCp = useCallback(
     async (value: string, tipo: "envio" | "retiro") => {
@@ -534,9 +584,62 @@ export function CheckoutDeliveryFields({
       )}
 
       {tipoEntrega === "retiro" && (
-        <div className="oc-checkout-note">
-          Seleccionarás la tienda de retiro después de confirmar el pago.
-          {onlineNote}
+        <div className="oc-checkout-tienda-retiro">
+          <div className="oc-checkout-field">
+            <label>
+              Tienda de retiro <abbr title="obligatorio">*</abbr>
+            </label>
+            {tiendasLoading ? (
+              <p className="oc-checkout-cp-msg">Cargando tiendas…</p>
+            ) : ningunaTienda ? (
+              <p className="oc-checkout-cp-msg is-error">
+                Ninguna tienda tiene stock completo de tu carrito. Probá con envío a
+                domicilio.
+              </p>
+            ) : (
+              <select
+                name="tienda_retiro"
+                required
+                value={tiendaSeleccionada}
+                onChange={(e) => setTiendaSeleccionada(e.target.value)}
+              >
+                <option value="" disabled>
+                  Seleccioná una tienda
+                </option>
+                {tiendas
+                  .filter((t) => t.disponible)
+                  .map((t) => (
+                    <option key={t.id_tienda} value={t.id_tienda}>
+                      {t.nombre} — {t.direccion}, {t.localidad}
+                    </option>
+                  ))}
+              </select>
+            )}
+          </div>
+          {tiendaSeleccionada && (
+            <div className="oc-checkout-note">
+              {(() => {
+                const t = tiendas.find(
+                  (x) => String(x.id_tienda) === tiendaSeleccionada
+                );
+                if (!t) return null;
+                return (
+                  <>
+                    <strong>{t.nombre}</strong>
+                    <br />
+                    {t.direccion}, {t.localidad}, {t.provincia}
+                    {t.horarios && (
+                      <>
+                        <br />
+                        <span className="muted">{t.horarios}</span>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+              {onlineNote}
+            </div>
+          )}
         </div>
       )}
     </>

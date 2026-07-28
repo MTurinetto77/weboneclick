@@ -312,4 +312,4 @@ npx tsc --noEmit     # chequeo de tipos
 
 ---
 
-*Última actualización: julio 2026 — etapa 2 operativa (carrito + checkout + ventas admin). Ver [ETAPA-2-CARRITO.md](./ETAPA-2-CARRITO.md).*
+*Última actualización: julio 2026 — etapa 2 operativa (carrito + checkout + ventas admin). Ver [ETAPA-2-CARRITO.md](./ETAPA-2-CARRITO.md). Integración checkout → Odoo: [ODOO-CHECKOUT.md](./ODOO-CHECKOUT.md).*

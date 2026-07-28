@@ -96,7 +96,11 @@ El **panel admin** solo admite `tipo_usuario = admin` y `activo = true`. El seed
 
 - Productos publicados web: `x_studio_publicado_web = true`
 - Precios: `sk.product.price.by.company` con `company_id = 1` (Oneclick Argentino SRL)
-- Sync: `npm run sync:odoo` o botón en el admin (`POST /api/admin/sync-odoo`)
+- Sync catálogo: `npm run sync:odoo` (flags: `--skip-images`, `--skip-stock`) o botón admin
+- Credenciales en `.env` (`ODOO_URL`, `ODOO_DB`, `ODOO_UID`, `ODOO_API_KEY`)
+- IDs de checkout (journals, tipo pedido, etc.): tabla `parametro` grupo `odoo` → `npm run seed:odoo-params`
+- Checkout → venta Odoo: ver [docs/ODOO-CHECKOUT.md](docs/ODOO-CHECKOUT.md)
+- Prueba sin Mercado Pago: `npm run test:checkout-odoo` / `-- --envio`
 
 ## Estructura principal
 
@@ -114,6 +118,7 @@ El **panel admin** solo admite `tipo_usuario = admin` y `activo = true`. El seed
 ## Documentación
 
 - [docs/ESTADO-PROYECTO.md](docs/ESTADO-PROYECTO.md) — estado actual, home, sync y dónde tocar
+- [docs/ODOO-CHECKOUT.md](docs/ODOO-CHECKOUT.md) — checkout → Odoo (flujo, parámetros, almacenes, pruebas)
 - [docs/PROMOCIONES.md](docs/PROMOCIONES.md) — promociones dinámicas del menú (schema, admin, listado, badges)
 - [docs/BANNERS.md](docs/BANNERS.md) — banners de home (hero, secundario, triple, pie; HTML + admin)
 - [docs/ETAPA-2-CARRITO.md](docs/ETAPA-2-CARRITO.md) — carrito, checkout, ventas

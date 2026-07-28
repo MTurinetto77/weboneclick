@@ -22,40 +22,57 @@ interface JsonRpcResponse<T> {
   error?: { code: number; message: string; data?: unknown };
 }
 
-async function jsonRpcCall<T>(body: unknown): Promise<T> {
+async function jsonRpcCall<T>(body: unknown, attempt = 1): Promise<T> {
+  const maxAttempts = 4;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
   };
   if (cachedCookie) headers.Cookie = cachedCookie;
 
-  const res = await fetch(`${ODOO_URL}/jsonrpc`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
+  try {
+    const res = await fetch(`${ODOO_URL}/jsonrpc`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
 
-  const setCookie = res.headers.get("set-cookie");
-  if (setCookie) {
-    const match = /INGRESSCOOKIE=[^;]+/.exec(setCookie);
-    if (match) cachedCookie = match[0];
-  }
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) {
+      const match = /INGRESSCOOKIE=[^;]+/.exec(setCookie);
+      if (match) cachedCookie = match[0];
+    }
 
-  if (!res.ok) {
-    throw new Error(`Odoo HTTP ${res.status}: ${res.statusText}`);
+    if (!res.ok) {
+      throw new Error(`Odoo HTTP ${res.status}: ${res.statusText}`);
+    }
+    const json = (await res.json()) as JsonRpcResponse<T>;
+    if (json.error) {
+      const data = json.error.data as
+        | { message?: string; name?: string; debug?: string }
+        | string
+        | undefined;
+      const detail =
+        typeof data === "string" ? data : data?.message ?? data?.debug?.split("\n")[0];
+      throw new Error(`Odoo RPC error: ${json.error.message}${detail ? ` — ${detail}` : ""}`);
+    }
+    return json.result as T;
+  } catch (error) {
+    const retryable =
+      attempt < maxAttempts &&
+      error instanceof Error &&
+      (/terminated|other side closed|ECONNRESET|ETIMEDOUT|fetch failed|socket/i.test(
+        error.message
+      ) ||
+        (error as { cause?: { code?: string } }).cause?.code === "UND_ERR_SOCKET");
+
+    if (!retryable) throw error;
+
+    const delayMs = 1000 * 2 ** (attempt - 1);
+    await new Promise((r) => setTimeout(r, delayMs));
+    return jsonRpcCall<T>(body, attempt + 1);
   }
-  const json = (await res.json()) as JsonRpcResponse<T>;
-  if (json.error) {
-    const data = json.error.data as
-      | { message?: string; name?: string; debug?: string }
-      | string
-      | undefined;
-    const detail =
-      typeof data === "string" ? data : data?.message ?? data?.debug?.split("\n")[0];
-    throw new Error(`Odoo RPC error: ${json.error.message}${detail ? ` — ${detail}` : ""}`);
-  }
-  return json.result as T;
 }
 
 async function authenticate(): Promise<number> {

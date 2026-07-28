@@ -1,6 +1,7 @@
 import type { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import { deductStock } from "@/lib/cart";
 import { releaseCuponForVenta } from "@/lib/cupones";
+import { syncVentaToOdoo } from "@/lib/odoo-venta";
 import { prisma } from "@/lib/prisma";
 
 export type MpSyncResult = "approved" | "pending" | "rejected" | "ignored";
@@ -11,14 +12,15 @@ export type MpSyncResult = "approved" | "pending" | "rejected" | "ignored";
  * Es idempotente: un pago ya aprobado no vuelve a descontar stock.
  */
 export async function applyMercadoPagoPayment(
-  payment: PaymentResponse
+  payment: PaymentResponse,
+  options?: { syncOdoo?: boolean }
 ): Promise<MpSyncResult> {
   const idVenta = Number(payment.external_reference);
   if (!Number.isInteger(idVenta) || idVenta <= 0) return "ignored";
 
   const venta = await prisma.venta.findUnique({
     where: { id_venta: idVenta },
-    include: { detalles: true },
+    include: { detalles: true, envios: true },
   });
   if (!venta) return "ignored";
 
@@ -31,6 +33,8 @@ export async function applyMercadoPagoPayment(
   const transactionId = String(payment.id ?? "");
 
   if (status === "approved") {
+    let shouldSyncOdoo = false;
+
     await prisma.$transaction(async (tx) => {
       const pago = await tx.pago.findFirst({
         where: {
@@ -40,17 +44,28 @@ export async function applyMercadoPagoPayment(
       });
       if (!pago || pago.estado === "aprobado") return;
 
+      const warehouseOdooId = venta.odoo_warehouse_id;
+      if (!warehouseOdooId) {
+        throw new Error(`Venta ${idVenta} sin almacén Odoo asignado`);
+      }
+
       for (const item of venta.detalles) {
         const cantidad = Number(item.cantidad);
         const stocks = await tx.stock.findMany({
-          where: { id_producto: item.id_producto },
+          where: {
+            id_producto: item.id_producto,
+            almacen: { odoo_id: warehouseOdooId },
+          },
         });
         if (stocks.length === 0) continue;
-        const disponible = stocks.reduce((sum, row) => sum + Number(row.cantidad), 0);
+        const disponible = stocks.reduce(
+          (sum, row) => sum + Number(row.cantidad),
+          0
+        );
         if (disponible < cantidad) {
           throw new Error(`Stock insuficiente: ${item.nombre_producto}`);
         }
-        await deductStock(tx, item.id_producto, cantidad);
+        await deductStock(tx, item.id_producto, cantidad, warehouseOdooId);
       }
 
       await tx.pago.update({
@@ -61,7 +76,23 @@ export async function applyMercadoPagoPayment(
         where: { id_venta: idVenta },
         data: { estado: "pagada" },
       });
+
+      if (venta.envios.length > 0) {
+        await tx.envio.updateMany({
+          where: { id_venta: idVenta },
+          data: { estado: "confirmado" },
+        });
+      }
+
+      shouldSyncOdoo = true;
     });
+
+    if (shouldSyncOdoo && options?.syncOdoo !== false) {
+      syncVentaToOdoo(idVenta).catch((err) => {
+        console.error(`Odoo sync failed for venta ${idVenta}:`, err);
+      });
+    }
+
     return "approved";
   }
 

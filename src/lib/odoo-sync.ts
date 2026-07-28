@@ -11,11 +11,19 @@ import {
   type OdooMany2One,
 } from "@/lib/odoo";
 import { slugify } from "@/lib/slug";
+import { getSellableWarehouseOdooIds } from "@/lib/almacenes";
 
 const PAGE = 200;
 
-/** Odoo warehouse ids de sucursales mostradas en el PDP (siempre se persisten, aunque qty=0). */
-const PDP_WAREHOUSE_ODOO_IDS = new Set([1, 7, 8, 9, 10, 11, 15]); // AR, ROS, PS, DOT, CS, SO, WEB
+/** Mapeo odoo warehouse id → slug de tienda (solo para sync de almacenes). */
+const TIENDA_SLUG_BY_WAREHOUSE_ODOO_ID: Record<number, string> = {
+  1: "alto-rosario",
+  7: "rosario-centro",
+  8: "palermo-soho",
+  9: "dot-baires",
+  10: "cordoba-shopping",
+  11: "solar-shopping",
+};
 
 export type SyncStats = {
   categorias: { created: number; updated: number };
@@ -221,10 +229,22 @@ export async function syncCategorias(stats: SyncStats) {
 
 export async function syncAlmacenes(stats: SyncStats) {
   const rows = await paginateAll<OdooWarehouse>("stock.warehouse", [], ["id", "name", "code"]);
+
+  const tiendaSlugs = [...new Set(Object.values(TIENDA_SLUG_BY_WAREHOUSE_ODOO_ID))];
+  const tiendas = await prisma.tienda.findMany({
+    where: { slug: { in: tiendaSlugs } },
+    select: { id_tienda: true, slug: true },
+  });
+  const tiendaBySlug = new Map(tiendas.map((t) => [t.slug, t.id_tienda]));
+
   for (const row of rows) {
     try {
       const existing = await prisma.almacen.findUnique({ where: { odoo_id: row.id } });
       const descripcion = row.code ? `${row.name} (${row.code})` : row.name;
+      const tiendaSlug = TIENDA_SLUG_BY_WAREHOUSE_ODOO_ID[row.id];
+      const id_tienda = tiendaSlug ? tiendaBySlug.get(tiendaSlug) ?? null : null;
+      const es_envio_domicilio = row.code === "WH";
+
       if (stats.dryRun) {
         if (existing) stats.almacenes.updated += 1;
         else stats.almacenes.created += 1;
@@ -233,12 +253,12 @@ export async function syncAlmacenes(stats: SyncStats) {
       if (existing) {
         await prisma.almacen.update({
           where: { id_almacen: existing.id_almacen },
-          data: { descripcion },
+          data: { descripcion, id_tienda, es_envio_domicilio },
         });
         stats.almacenes.updated += 1;
       } else {
         await prisma.almacen.create({
-          data: { descripcion, odoo_id: row.id },
+          data: { descripcion, odoo_id: row.id, id_tienda, es_envio_domicilio },
         });
         stats.almacenes.created += 1;
       }
@@ -554,9 +574,7 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
     "product_tag_ids",
     "x_studio_publicado_web",
   ];
-  if (!options?.skipImages) {
-    fields.push("image_1920", "product_template_image_ids");
-  }
+  // No incluir image_1920 en search_read masivo: 200 imágenes base64 tumba el socket del proxy.
 
   const rows = await paginateAll<OdooProduct>("product.product", domain, fields);
   const publishedOdooIds = new Set(rows.map((r) => r.id));
@@ -676,27 +694,17 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
         }
       }
 
-      // Image principal (Odoo image_1920) + galería (product.image)
-      if (!options?.skipImages) {
-        if (typeof row.image_1920 === "string" && row.image_1920.length > 100) {
-          const ok = await upsertProductImage(id_producto, row.id, row.image_1920, titulo);
-          if (ok) stats.productos.images += 1;
-        }
-        const galleryIds = Array.isArray(row.product_template_image_ids)
-          ? row.product_template_image_ids.filter((id): id is number => typeof id === "number")
-          : [];
-        try {
-          const n = await replaceGalleryImages(id_producto, row.id, galleryIds, titulo);
-          stats.productos.images += n;
-        } catch (e) {
-          stats.errors.push(
-            `galeria producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`
-          );
-        }
-      }
     } catch (e) {
       stats.errors.push(`producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+
+  if (!options?.skipImages && publishedOdooIds.size > 0) {
+    const img = await syncProductImagesForOdooIds([...publishedOdooIds], {
+      dryRun: stats.dryRun,
+    });
+    stats.productos.images += img.images;
+    stats.errors.push(...img.errors);
   }
 
   // Deactivate products no longer published
@@ -746,6 +754,8 @@ export async function syncStock(stats: SyncStats) {
     return;
   }
 
+  const pdpWarehouseOdooIds = new Set(await getSellableWarehouseOdooIds());
+
   const productoByOdoo = new Map(productos.map((p) => [p.odoo_id!, p.id_producto]));
   const odooIds = [...productoByOdoo.keys()];
 
@@ -790,7 +800,7 @@ export async function syncStock(stats: SyncStats) {
   // Asegurar filas 0 para sucursales PDP aunque no haya quants
   for (const p of productos) {
     const map = byProduct.get(p.id_producto)!;
-    for (const odooWh of PDP_WAREHOUSE_ODOO_IDS) {
+    for (const odooWh of pdpWarehouseOdooIds) {
       const id_almacen = almacenByOdoo.get(odooWh);
       if (id_almacen != null && !map.has(id_almacen)) map.set(id_almacen, 0);
     }
@@ -866,8 +876,8 @@ export async function syncProductImagesForOdooIds(
   });
   const localByOdoo = new Map(locals.map((p) => [p.odoo_id!, p.id_producto]));
 
-  for (let i = 0; i < odooIds.length; i += 20) {
-    const chunk = odooIds.slice(i, i + 20);
+  for (let i = 0; i < odooIds.length; i += 5) {
+    const chunk = odooIds.slice(i, i + 5);
     try {
       const rows = await executeKw<
         {

@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
       fields,
       "tarjeta",
       session?.user?.email ?? null,
-      session?.user?.id ?? null
+      session?.user?.id ?? null,
+      fields.idempotency_key || null
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Datos inválidos";

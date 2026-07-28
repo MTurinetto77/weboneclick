@@ -1,4 +1,4 @@
-import { deductStock, resolveCart, type ResolvedCart } from "@/lib/cart";
+import { cartHasStockInWarehouse, deductStock, resolveCart, type ResolvedCart } from "@/lib/cart";
 import {
   CUPON_ESTADO_CONSUMIDO,
   CUPON_ESTADO_EMITIDO,
@@ -7,8 +7,15 @@ import {
   type ValidCupon,
 } from "@/lib/cupones";
 import { resolveCostoEnvio } from "@/lib/envio-costo";
+import {
+  checkStockOdooWarehouse,
+  formatStockShortageMessage,
+} from "@/lib/odoo-stock";
+import { resolveWarehouseOdooId } from "@/lib/odoo-venta";
+import { isOdooSyncEnabled } from "@/lib/odoo-config";
 import { CONTADO_DISCOUNT } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
+import { ALMACEN_WEB_SELECT, sumSellableStock, type StockRow } from "@/lib/almacenes";
 
 export type TipoPagoCheckout = "tarjeta" | "mercado_pago";
 
@@ -43,8 +50,35 @@ export async function createPendingVenta(
   fields: Record<string, string>,
   tipo_pago: TipoPagoCheckout,
   sessionEmail: string | null,
-  sessionUserId: number | null = null
+  sessionUserId: number | null = null,
+  idempotencyKey: string | null = null
 ): Promise<VentaPendiente> {
+  const idemKey = idempotencyKey?.trim() || null;
+  if (idemKey) {
+    const existing = await prisma.venta.findUnique({
+      where: { idempotency_key: idemKey },
+      include: { cliente: true, detalles: true },
+    });
+    if (existing && existing.estado === "pendiente") {
+      const itemsCobro = existing.detalles.map((d) => ({
+        id_producto: d.id_producto,
+        titulo: d.nombre_producto,
+        cantidad: Number(d.cantidad),
+        unit_price: Number(d.precio_cobrado ?? d.precio_unitario),
+      }));
+      return {
+        id_venta: existing.id_venta,
+        subtotal: Number(existing.subtotal),
+        descuento: Number(existing.descuento),
+        total: Number(existing.total),
+        nombre: existing.cliente.nombre,
+        apellido: existing.cliente.apellido,
+        mail: existing.cliente.mail,
+        itemsCobro,
+      };
+    }
+  }
+
   const cart = await resolveCart();
   if (!cart.canCheckout || cart.items.length === 0) {
     throw new Error("El carrito no está listo para checkout");
@@ -77,6 +111,22 @@ export async function createPendingVenta(
   }
   if (otraPersona && (!receptor_nombre || !receptor_dni)) {
     throw new Error("Completá nombre y DNI de quien retira/recibe");
+  }
+
+  let id_tienda_retiro: number | null = null;
+  if (tipo_entrega === "retiro") {
+    const tiendaRaw = field(fields, "tienda_retiro");
+    const tiendaId = Number(tiendaRaw);
+    if (!Number.isInteger(tiendaId) || tiendaId <= 0) {
+      throw new Error("Seleccioná la tienda de retiro");
+    }
+    const tienda = await prisma.tienda.findFirst({
+      where: { id_tienda: tiendaId, activo: true },
+    });
+    if (!tienda) {
+      throw new Error("Tienda de retiro inválida");
+    }
+    id_tienda_retiro = tiendaId;
   }
 
   const mismaFacturacion =
@@ -130,6 +180,56 @@ export async function createPendingVenta(
   }
 
   const total = round2(totalProductos + costo_envio);
+
+  const warehouseOdooId = await resolveWarehouseOdooId(
+    tipo_entrega,
+    id_tienda_retiro
+  );
+
+  if (!cartHasStockInWarehouse(cart.items, warehouseOdooId)) {
+    const missing = cart.items.find((item) => {
+      const qty = item.stockPorAlmacen.get(warehouseOdooId) ?? 0;
+      return qty < item.cantidad;
+    });
+    throw new Error(
+      missing
+        ? `Stock insuficiente en el almacén seleccionado: ${missing.titulo}`
+        : "Stock insuficiente en el almacén seleccionado"
+    );
+  }
+
+  if (await isOdooSyncEnabled()) {
+    const products = await prisma.producto.findMany({
+      where: { id_producto: { in: cart.items.map((i) => i.id_producto) } },
+      select: { id_producto: true, odoo_id: true, titulo: true },
+    });
+    const byId = new Map(products.map((p) => [p.id_producto, p]));
+    const stockItems = cart.items
+      .map((item) => {
+        const p = byId.get(item.id_producto);
+        if (!p?.odoo_id) return null;
+        return {
+          odooProductId: p.odoo_id,
+          cantidad: item.cantidad,
+          titulo: item.titulo,
+        };
+      })
+      .filter(Boolean) as {
+      odooProductId: number;
+      cantidad: number;
+      titulo: string;
+    }[];
+
+    const shortages = await checkStockOdooWarehouse(stockItems, warehouseOdooId);
+    if (shortages.length) {
+      throw new Error(formatStockShortageMessage(shortages));
+    }
+  }
+
+  const cobroByProduct = new Map(
+    itemsCobro.map((i) => [i.id_producto, i.unit_price])
+  );
+
   const id_usuario =
     checkoutMode !== "invitado" &&
     sessionEmail?.toLowerCase() === mail &&
@@ -141,11 +241,18 @@ export async function createPendingVenta(
     for (const item of cart.items) {
       const stocks = await tx.stock.findMany({
         where: { id_producto: item.id_producto },
+        include: { almacen: { select: ALMACEN_WEB_SELECT } },
       });
-      const stockTotal = stocks.reduce((acc, s) => acc + Number(s.cantidad), 0);
-      const tracked = stocks.length > 0;
+      const stockTotal = sumSellableStock(stocks as StockRow[]);
+      const whStock =
+        stocks.find((s) => s.almacen?.odoo_id === warehouseOdooId)?.cantidad ??
+        0;
+      const tracked = stocks.some((s) => s.almacen?.odoo_id != null);
       if (item.precio == null) {
         throw new Error(`Sin precio: ${item.titulo}`);
+      }
+      if (tracked && Number(whStock) < item.cantidad) {
+        throw new Error(`Stock insuficiente: ${item.titulo}`);
       }
       if (tracked && stockTotal < item.cantidad) {
         throw new Error(`Stock insuficiente: ${item.titulo}`);
@@ -267,6 +374,9 @@ export async function createPendingVenta(
         receptor_dni,
         id_direccion_facturacion,
         id_cupon,
+        idempotency_key: idemKey,
+        id_tienda_retiro,
+        odoo_warehouse_id: warehouseOdooId,
         detalles: {
           create: cart.items.map((item, index) => ({
             item: index + 1,
@@ -274,6 +384,7 @@ export async function createPendingVenta(
             nombre_producto: item.titulo,
             cantidad: item.cantidad,
             precio_unitario: item.precio!,
+            precio_cobrado: cobroByProduct.get(item.id_producto) ?? item.precio!,
             subtotal: item.subtotal!,
           })),
         },

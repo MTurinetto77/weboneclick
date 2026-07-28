@@ -32,6 +32,7 @@ export default async function ConfirmacionPage({
       detalles: { orderBy: { item: "asc" } },
       pagos: true,
       envios: { include: { direccion: true } },
+      tienda_retiro: true,
     },
   });
   if (!venta) notFound();
@@ -51,6 +52,9 @@ export default async function ConfirmacionPage({
                 : "Recibimos tu pedido"}
           </h1>
           <p className="muted">Número de venta #{venta.id_venta}</p>
+          {venta.odoo_order_name && (
+            <p className="muted">Pedido Odoo: {venta.odoo_order_name}</p>
+          )}
 
           <p>
             Gracias {venta.cliente.nombre}. Registramos tu pedido por{" "}
@@ -60,7 +64,11 @@ export default async function ConfirmacionPage({
           {pago && ["mercado_pago", "tarjeta"].includes(pago.tipo_pago) ? (
             <div className="alert alert-info">
               {pago.estado === "aprobado"
-                ? "Mercado Pago confirmó el pago. Comenzaremos a preparar tu pedido."
+                ? venta.odoo_sync_estado === "ok"
+                  ? "Mercado Pago confirmó el pago. Tu pedido fue registrado en nuestro sistema."
+                  : venta.odoo_sync_estado === "error"
+                    ? "Mercado Pago confirmó el pago. Estamos procesando el registro interno; si el problema persiste contactanos."
+                    : "Mercado Pago confirmó el pago. Estamos registrando tu pedido en nuestro sistema."
                 : mp === "failure"
                   ? "El pago fue rechazado o cancelado. Podés volver al carrito para intentarlo nuevamente."
                   : "Estamos verificando el pago con Mercado Pago. Actualizaremos el pedido cuando recibamos la confirmación."}
@@ -68,9 +76,19 @@ export default async function ConfirmacionPage({
           ) : venta.tipo_entrega === "retiro" ? (
             <div className="alert alert-info">
               Elegiste <strong>retiro en tienda</strong>
-              {pago?.tipo_pago === "tienda"
-                ? " con pago en el local. Te esperamos para abonar y retirar."
-                : ". El pago online estará disponible próximamente; por ahora el pedido quedó pendiente de pago."}
+              {venta.tienda_retiro && (
+                <p style={{ marginBottom: 0 }}>
+                  <strong>{venta.tienda_retiro.nombre}</strong>
+                  <br />
+                  {venta.tienda_retiro.direccion}, {venta.tienda_retiro.localidad}
+                  {venta.tienda_retiro.horarios && (
+                    <>
+                      <br />
+                      {venta.tienda_retiro.horarios}
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           ) : (
             <div className="alert alert-info">

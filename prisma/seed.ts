@@ -465,6 +465,9 @@ async function main() {
       update: { valor, grupo_parametros: "envios" },
     });
   }
+
+  const { seedOdooParametros } = await import("../src/lib/odoo-config");
+  await seedOdooParametros();
 }
 
 main()

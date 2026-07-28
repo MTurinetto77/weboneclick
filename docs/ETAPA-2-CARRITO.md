@@ -224,6 +224,14 @@ Link en menú: [`src/app/admin/layout.tsx`](../src/app/admin/layout.tsx).
 
 ---
 
+## 8.1 Integración Odoo (posterior a Etapa 2)
+
+Al aprobarse el pago en Mercado Pago, la venta se sincroniza a Odoo (partner, sale.order Ecommerce `OCWN-*`, recibo).
+
+**Documentación completa:** [ODOO-CHECKOUT.md](./ODOO-CHECKOUT.md)
+
+---
+
 ## 9. Notas operativas
 
 - Google OAuth debe incluir redirect `.../api/auth/callback/google` (shop y admin usan el mismo provider).
@@ -232,4 +240,4 @@ Link en menú: [`src/app/admin/layout.tsx`](../src/app/admin/layout.tsx).
 
 ---
 
-*Documento de cierre Etapa 2 — julio 2026.*
+*Documento de cierre Etapa 2 — julio 2026. Checkout → Odoo: [ODOO-CHECKOUT.md](./ODOO-CHECKOUT.md).*

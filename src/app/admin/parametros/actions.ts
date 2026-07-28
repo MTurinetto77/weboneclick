@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { upsertParametro } from "@/lib/parametros";
+import { GRUPO_ODOO, invalidateOdooConfigCache } from "@/lib/odoo-config";
 
 function revalidate() {
   revalidatePath("/admin/parametros");
@@ -20,6 +21,7 @@ export async function upsertParametroAction(formData: FormData) {
   if (!nombre) throw new Error("Nombre de parámetro requerido");
 
   await upsertParametro({ nombre, tipo, valor, grupo_parametros });
+  if (grupo_parametros === GRUPO_ODOO) invalidateOdooConfigCache();
   revalidate();
 }
 
@@ -33,5 +35,6 @@ export async function updateParametroAction(id_parametro: number, formData: Form
     where: { id_parametro },
     data: { tipo, valor, grupo_parametros },
   });
+  if (grupo_parametros === GRUPO_ODOO) invalidateOdooConfigCache();
   revalidate();
 }

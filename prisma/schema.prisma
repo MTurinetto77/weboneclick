@@ -172,6 +172,7 @@ model tienda {
   activo         Boolean  @default(true)
 
   almacenes almacen[]
+  ventas    venta[]
 }
 
 model lista_deseos {
@@ -219,10 +220,12 @@ model producto {
 }
 
 model almacen {
-  id_almacen  Int    @id @default(autoincrement())
-  descripcion String @db.VarChar(255)
-  odoo_id     Int?   @unique
-  id_tienda   Int?
+  id_almacen           Int     @id @default(autoincrement())
+  descripcion          String  @db.VarChar(255)
+  odoo_id              Int?    @unique
+  id_tienda            Int?
+  /// Almacén desde el que se despacha envío a domicilio (ej. WH/Stock, odoo_id 14)
+  es_envio_domicilio   Boolean @default(false)
 
   tienda tienda? @relation(fields: [id_tienda], references: [id_tienda], onDelete: SetNull)
   stocks stock[]
@@ -383,6 +386,7 @@ model cliente {
   /// CF = Consumidor Final | RI = IVA responsable inscripto
   responsabilidad_impositiva String @default("CF") @db.VarChar(2)
   fecha_hora_registro    DateTime @default(now())
+  odoo_partner_id        Int?     @unique
 
   usuario             usuario?      @relation(fields: [id_usuario], references: [id_usuario], onDelete: SetNull)
   direccion_principal direccion?    @relation("DireccionPrincipal", fields: [id_direccion_principal], references: [id_direccion], onDelete: SetNull)
@@ -428,6 +432,20 @@ model venta {
   receptor_dni    String? @db.VarChar(50)
   id_direccion_facturacion Int?
   id_cupon                 Int? @unique
+  idempotency_key          String?   @unique @db.VarChar(64)
+  /// Tienda elegida cuando tipo_entrega = "retiro"
+  id_tienda_retiro         Int?
+  odoo_partner_id          Int?
+  odoo_order_id            Int?      @unique
+  odoo_order_name          String?   @db.VarChar(50)
+  odoo_payment_id          Int?      @unique
+  odoo_payment_name        String?   @db.VarChar(50)
+  /// odoo_id del almacén desde el que se sirve el pedido (14 para envío)
+  odoo_warehouse_id        Int?
+  odoo_sync_estado         String    @default("pendiente") @db.VarChar(20)
+  odoo_sync_error          String?   @db.Text
+  odoo_sync_intentos       Int       @default(0)
+  odoo_sync_at             DateTime?
 
   cliente  cliente         @relation(fields: [id_cliente], references: [id_cliente])
   detalles venta_detalle[]
@@ -435,6 +453,7 @@ model venta {
   envios   envio[]
   direccion_facturacion direccion? @relation("VentaFacturacion", fields: [id_direccion_facturacion], references: [id_direccion], onDelete: SetNull)
   cupon    cupones_descuento? @relation(fields: [id_cupon], references: [id_cupon], onDelete: SetNull)
+  tienda_retiro tienda? @relation(fields: [id_tienda_retiro], references: [id_tienda], onDelete: SetNull)
 }
 
 /// Cupones de descuento de monto fijo (emitidos desde admin)
@@ -468,6 +487,8 @@ model venta_detalle {
   cantidad        Decimal @db.Decimal(12, 2)
   precio_unitario Decimal @db.Decimal(12, 2)
   subtotal        Decimal @db.Decimal(12, 2)
+  /// Precio bruto efectivamente cobrado (con descuentos)
+  precio_cobrado  Decimal? @db.Decimal(12, 2)
 
   venta    venta    @relation(fields: [id_venta], references: [id_venta], onDelete: Cascade)
   producto producto @relation(fields: [id_producto], references: [id_producto])
@@ -482,7 +503,7 @@ model pago {
   estado         String  @db.VarChar(30)
   monto          Decimal @db.Decimal(12, 2)
   referencia     String? @db.VarChar(255)
-  transaction_id String? @db.VarChar(255)
+  transaction_id String? @unique @db.VarChar(255)
 
   venta venta @relation(fields: [id_venta], references: [id_venta], onDelete: Cascade)
 }

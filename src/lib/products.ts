@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import {
+  isSellableAlmacen,
+  sumSellableStock,
+  type StockRow,
+} from "@/lib/almacenes";
 
 export type ProductListItem = {
   id_producto: number;
@@ -17,13 +22,14 @@ export type ProductListItem = {
 };
 
 /**
- * Disponibilidad de stock.
- * - Sin filas en `stock` → aún no sincronizado: se considera disponible (como el carrito).
- * - Con filas → inStock solo si la suma de cantidades es > 0.
+ * Disponibilidad de stock (solo almacenes vendibles).
+ * - Sin filas vendibles → aún no sincronizado: se considera disponible (como el carrito).
+ * - Con filas → inStock solo si la suma de cantidades vendibles es > 0.
  */
-export function resolveStockAvailability(stocks: { cantidad: unknown }[]) {
-  const stockTotal = stocks.reduce((acc, s) => acc + Number(s.cantidad || 0), 0);
-  const stockTracked = stocks.length > 0;
+export function resolveStockAvailability(stocks: StockRow[]) {
+  const sellable = stocks.filter((s) => isSellableAlmacen(s.almacen));
+  const stockTotal = sumSellableStock(stocks);
+  const stockTracked = sellable.length > 0;
   return {
     stockTotal,
     stockTracked,
@@ -56,13 +62,19 @@ export function sortProductImageLinks(
 }
 
 /** Sucursales visibles en el PDP (mismas etiquetas que el sitio actual). */
-export const PDP_STORE_LOCATIONS: { name: string; match: RegExp[] }[] = [
+export const PDP_STORE_LOCATIONS: {
+  name: string;
+  match: RegExp[];
+  warehouseOdooId?: number;
+  shipping?: boolean;
+}[] = [
   { name: "Alto Rosario", match: [/alto\s*rosario/i] },
   { name: "Palermo Soho", match: [/palermo/i] },
   { name: "Rosario Centro", match: [/rosario\s*centro/i] },
   {
     name: "Envío a Domicilio",
-    match: [/env[ií]o\s*a\s*domicilio/i, /\(WEB\)/i],
+    match: [/warehouse/i, /\(WH\)/i, /\bWH\b/],
+    shipping: true,
   },
   { name: "Solar Shopping", match: [/\bsolar\b/i] },
   { name: "DOT Baires Shopping", match: [/\bdot\b/i] },
@@ -76,11 +88,18 @@ export type StoreAvailabilityItem = {
 
 /** Disponibilidad por sucursal a partir del stock desglosado por almacén. */
 export function resolveStoreAvailability(
-  stocks: { cantidad: unknown; almacen?: { descripcion: string } | null }[]
+  stocks: (StockRow & { almacen?: { odoo_id: number | null; descripcion?: string; es_envio_domicilio?: boolean } | null })[]
 ): StoreAvailabilityItem[] {
   return PDP_STORE_LOCATIONS.map((loc) => {
     const qty = stocks
       .filter((s) => {
+        if ("shipping" in loc && loc.shipping) {
+          return Boolean(s.almacen?.es_envio_domicilio);
+        }
+        const odooId = s.almacen?.odoo_id;
+        if ("warehouseOdooId" in loc && loc.warehouseOdooId != null) {
+          return odooId === loc.warehouseOdooId;
+        }
         const desc = s.almacen?.descripcion ?? "";
         return loc.match.some((re) => re.test(desc));
       })
@@ -611,7 +630,7 @@ export async function getActiveProducts(options?: {
             take: 1,
             select: { archivo: { select: { link: true } } },
           },
-          stocks: { select: { cantidad: true } },
+          stocks: { include: { almacen: { select: { odoo_id: true, descripcion: true } } } },
         },
         orderBy:
           order === "nombre" ? { titulo: "asc" } : { id_producto: "desc" },
@@ -690,7 +709,7 @@ export async function getActiveProducts(options?: {
         take: 1,
         select: { archivo: { select: { link: true } } },
       },
-      stocks: { select: { cantidad: true } },
+      stocks: { include: { almacen: { select: { odoo_id: true, descripcion: true } } } },
     },
   });
   const byId = new Map(rows.map((r) => [r.id_producto, r]));

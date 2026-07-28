@@ -2,10 +2,11 @@
 
 Documento de handoff para continuar el clon de [oneclickstore.com](https://www.oneclickstore.com/) sobre la base Next.js (ex Aukan Aire Libre).
 
-**Última actualización:** 2026-07-25  
+**Última actualización:** 2026-07-28  
 **App:** `web/` (`web-oneclick` · Next.js 16 · React 19 · Prisma 6 · MariaDB)  
 **Sitio de referencia:** https://www.oneclickstore.com/ (WooCommerce / WoodMart)  
-**Mapa de rutas live:** [`Mapa.txt`](Mapa.txt) (~872 rutas)
+**Mapa de rutas live:** [`Mapa.txt`](Mapa.txt) (~872 rutas)  
+**Checkout → Odoo (detalle):** [**ODOO-CHECKOUT.md**](./ODOO-CHECKOUT.md)
 
 ---
 
@@ -18,7 +19,7 @@ Documento de handoff para continuar el clon de [oneclickstore.com](https://www.o
 | Catálogo | Sync desde Odoo (`x_studio_publicado_web = true`) |
 | Precios | `sk.product.price.by.company` con **`company_id = 1`** (no `list_price`) |
 | CMS institucional | Páginas **estáticas React**; solo banners dinámicos vía tabla `banner` |
-| Almacenes | `almacen` se mantiene; FK opcional `id_tienda` |
+| Almacenes | `almacen`: FK opcional `id_tienda` (retiro) y `es_envio_domicilio` (envío WH) |
 | Rutas | Implicar URLs Woo ES (`/producto/`, `/marca/`, `/etiqueta/`, catch-all categorías) |
 
 ---
@@ -47,13 +48,16 @@ No commitear secretos. Lo esperado:
 | Variable | Uso |
 |----------|-----|
 | `DATABASE_URL` | `mysql://user:pass@localhost:3306/oneclickstore` |
-| `ODOO_URL` | ej. `https://oneclick.adhoc.ar` |
+| `ODOO_URL` | ej. `https://oneclick.adhoc.ar` o training Adhoc |
 | `ODOO_DB` | ej. `odoo` |
-| `ODOO_UID` | usuario API |
-| `ODOO_API_KEY` / password | auth JSON-RPC |
-| `NEXTAUTH_*` | auth admin / cuenta |
+| `ODOO_UID` | id numérico de `res.users` |
+| `ODOO_API_KEY` | clave API del usuario (no la contraseña de login) |
+| `NEXTAUTH_*` / `AUTH_*` | auth admin / cuenta |
 | `NEXT_PUBLIC_WHATSAPP_PHONE` | wa.me flotante y CTAs |
 | `NEXT_PUBLIC_UPLOADS_BASE_URL` | opcional; URLs públicas de imágenes |
+| `MERCADOPAGO_*` / `NEXT_PUBLIC_MERCADOPAGO_*` | cobro (ver checkout) |
+
+IDs de journals / tipo pedido / producto envío, etc.: **tabla `parametro` grupo `odoo`** (no van en `.env`). Ver [ODOO-CHECKOUT.md](./ODOO-CHECKOUT.md).
 
 ---
 
@@ -67,7 +71,8 @@ Seed: [`web/prisma/seed.ts`](web/prisma/seed.ts)
 
 ### Extensiones OneClick
 - Producto/categoría: `slug`, `odoo_id`; producto: `id_marca`, `cuotas_max`
-- `almacen.id_tienda`
+- `almacen.id_tienda` (sucursal de retiro)
+- `almacen.es_envio_domicilio` (almacén de envío a domicilio, ej. WH)
 - Nuevas: `marca`, `etiqueta` + `etiqueta_producto`, `familia`, `grupo_producto` + items, `beneficio` + `tarjeta_adherida` + M2M, `banner` (vigencia + `html` + `clase_css`; ver [BANNERS.md](./BANNERS.md)), `tienda`, `lista_deseos` + items
 - **Promociones de menú:** `promocion` + `promocion_categoria` + `promocion_producto` (ver [PROMOCIONES.md](./PROMOCIONES.md))
 
@@ -88,6 +93,30 @@ Seed: [`web/prisma/seed.ts`](web/prisma/seed.ts)
 **Precios:** upsert raw SQL por rarezas de DATE en MySQL.
 
 **Flags útiles:** `--skip-images`, `--skip-stock` (cards pueden quedar sin foto hasta sync completo).
+
+### 5.1 Checkout → Odoo (ventas)
+
+**Doc completa:** [**ODOO-CHECKOUT.md**](./ODOO-CHECKOUT.md) (flujo, parámetros, almacenes, idempotencia, pruebas, troubleshooting).
+
+Resumen: al aprobarse Mercado Pago → `applyMercadoPagoPayment` → `syncVentaToOdoo`:
+
+| Paso | Modelo Odoo | Detalle |
+|------|-------------|---------|
+| Stock | `stock.quant` | Almacén envío (`es_envio_domicilio`) o almacén de tienda (retiro) |
+| Cliente | `res.partner` | Datos AFIP + dirección |
+| Orden | `sale.order` | Tipo Ecommerce, nombre `OCWN-<id_venta>` |
+| Recibo | `account.payment` | `memo` = nº operación MP |
+
+Credenciales en `.env`; IDs en `parametro` grupo `odoo`.
+
+```bash
+npm run seed:odoo-params          # defaults de parámetros Odoo
+npm run test:checkout-odoo        # retiro, sin MP
+npm run test:checkout-odoo -- --envio
+npm run sync:ventas               # reintentos pendientes
+```
+
+Reintento admin: `POST /api/admin/odoo/sync-venta`.
 
 ---
 

@@ -31,13 +31,27 @@ export async function confirmarVenta(formData: FormData) {
     fields,
     "mercado_pago",
     session?.user?.email ?? null,
-    session?.user?.id ?? null
+    session?.user?.id ?? null,
+    fields.idempotency_key || null
   );
 
   const siteUrl = publicSiteUrl();
   const notificationUrl = siteUrl.startsWith("https://")
     ? `${siteUrl}/api/mercadopago/webhook`
     : undefined;
+
+  const pagoExistente = await prisma.pago.findFirst({
+    where: { id_venta: venta.id_venta, tipo_pago: "mercado_pago" },
+    select: { referencia: true },
+  });
+  if (pagoExistente?.referencia) {
+    await clearCartCookie();
+    await clearCuponCookie();
+    revalidatePath("/carrito");
+    redirect(
+      `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(pagoExistente.referencia)}`
+    );
+  }
 
   let preference;
   try {

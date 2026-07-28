@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, isGoogleAuthConfigured } from "@/auth";
 import { CheckoutCoupon } from "@/components/checkout-coupon";
 import { CheckoutDeliveryFields } from "@/components/checkout-delivery-fields";
+import { CheckoutIdempotencyKey } from "@/components/checkout-idempotency-key";
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { computeTotals } from "@/lib/checkout-venta";
@@ -96,6 +97,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
         <h1 className="oc-checkout-title">Finalizar compra</h1>
 
         <form action={confirmarVenta} className="oc-checkout-layout">
+          <CheckoutIdempotencyKey />
           <input
             type="hidden"
             name="checkout_mode"

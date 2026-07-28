@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { OdooSyncRetryButton } from "@/components/admin/odoo-sync-retry-button";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
@@ -41,6 +42,7 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
       envios: { include: { direccion: true } },
       direccion_facturacion: true,
       cupon: true,
+      tienda_retiro: true,
     },
   });
   if (!venta) notFound();
@@ -136,9 +138,47 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
           <h2>Entrega</h2>
           <div className="detail-row">
             <Field label="Modalidad" value="Retiro en tienda" />
+            <Field label="Tienda" value={venta.tienda_retiro?.nombre} />
+            <Field
+              label="Dirección tienda"
+              value={
+                venta.tienda_retiro
+                  ? `${venta.tienda_retiro.direccion}, ${venta.tienda_retiro.localidad}`
+                  : null
+              }
+            />
+            <Field label="Almacén Odoo" value={venta.odoo_warehouse_id?.toString()} />
           </div>
         </div>
       )}
+
+      <div className="admin-card detail-section">
+        <h2>Odoo</h2>
+        <div className="detail-row">
+          <Field label="Sync estado" value={venta.odoo_sync_estado} />
+          <Field label="Orden" value={venta.odoo_order_name} />
+          <Field label="Recibo" value={venta.odoo_payment_name} />
+          <Field label="Partner ID" value={venta.odoo_partner_id?.toString()} />
+          <Field label="Order ID" value={venta.odoo_order_id?.toString()} />
+          <Field label="Payment ID" value={venta.odoo_payment_id?.toString()} />
+          <Field label="Warehouse ID" value={venta.odoo_warehouse_id?.toString()} />
+          <Field
+            label="Último sync"
+            value={venta.odoo_sync_at ? formatDateTime(venta.odoo_sync_at) : null}
+          />
+          <Field label="Intentos" value={String(venta.odoo_sync_intentos)} />
+        </div>
+        {venta.odoo_sync_error && (
+          <p className="muted" style={{ marginTop: "0.5rem", whiteSpace: "pre-wrap" }}>
+            {venta.odoo_sync_error}
+          </p>
+        )}
+        {venta.estado === "pagada" &&
+          venta.odoo_sync_estado !== "ok" &&
+          venta.odoo_sync_estado !== "en_proceso" && (
+            <OdooSyncRetryButton idVenta={venta.id_venta} />
+          )}
+      </div>
 
       {dirFact && (
         <div className="admin-card detail-section">

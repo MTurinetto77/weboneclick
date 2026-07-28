@@ -62,11 +62,6 @@ export function CheckoutPaymentOptions({
     setError(null);
     const form = wrapperRef.current?.closest("form");
     if (!form) throw new Error("Formulario no encontrado");
-    if (!shippingOk) {
-      const message = "Ingresá un código postal con cobertura de envío";
-      setError(message);
-      throw new Error(message);
-    }
     if (!form.reportValidity()) {
       throw new Error("Completá los datos de facturación");
     }
@@ -74,6 +69,20 @@ export function CheckoutPaymentOptions({
     const fields: Record<string, string> = {};
     for (const [key, value] of new FormData(form).entries()) {
       if (typeof value === "string") fields[key] = value;
+    }
+
+    if (!shippingOk) {
+      const tipoEntrega = fields.tipo_entrega;
+      if (tipoEntrega === "envio") {
+        const message = "Ingresá un código postal con cobertura de envío";
+        setError(message);
+        throw new Error(message);
+      }
+      if (tipoEntrega === "retiro" && !fields.tienda_retiro) {
+        const message = "Seleccioná la tienda de retiro";
+        setError(message);
+        throw new Error(message);
+      }
     }
 
     const res = await fetch("/api/mercadopago/pay", {

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPrice, resolveStockAvailability } from "@/lib/products";
+import { ALMACEN_WEB_SELECT, stockByWarehouseOdooId, type StockRow } from "@/lib/almacenes";
 
 export const CART_COOKIE = "cart";
 export const CART_MAX_AGE = 60 * 60 * 24 * 14; // 14 días
@@ -21,6 +22,8 @@ export type ResolvedCartItem = {
   ivaRate: number;
   stockTotal: number;
   stockTracked: boolean;
+  /** Stock por odoo_id de almacén vendible */
+  stockPorAlmacen: Map<number, number>;
   imagen: string | null;
   subtotal: number | null;
   disponible: boolean;
@@ -114,7 +117,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
     },
     include: {
       precios: true,
-      stocks: true,
+      stocks: { include: { almacen: { select: ALMACEN_WEB_SELECT } } },
       archivos: {
         where: { archivo: { tipo: "imagen_principal" } },
         include: { archivo: true },
@@ -140,6 +143,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
         ivaRate: 0.21,
         stockTotal: 0,
         stockTracked: false,
+        stockPorAlmacen: new Map(),
         imagen: null,
         subtotal: null,
         disponible: false,
@@ -149,7 +153,8 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
     }
 
     const precio = pickCurrentPrice(product.precios);
-    const stock = resolveStockAvailability(product.stocks);
+    const stock = resolveStockAvailability(product.stocks as StockRow[]);
+    const stockPorAlmacen = stockByWarehouseOdooId(product.stocks as StockRow[]);
     const disponible =
       precio != null &&
       stock.inStock &&
@@ -168,6 +173,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       ivaRate: estimateIvaRate(product.titulo),
       stockTotal: stock.stockTotal,
       stockTracked: stock.stockTracked,
+      stockPorAlmacen,
       imagen: product.archivos[0]?.archivo.link ?? null,
       subtotal: lineSubtotal,
       disponible,
@@ -183,33 +189,54 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
   };
 }
 
-/** Descuenta stock repartiendo entre almacenes con más cantidad primero. */
+/** Descuenta stock del almacén destino (por odoo_id). */
 export async function deductStock(
   tx: Prisma.TransactionClient,
   id_producto: number,
-  cantidad: number
+  cantidad: number,
+  warehouseOdooId: number
 ) {
-  const stocks = await tx.stock.findMany({
-    where: { id_producto, cantidad: { gt: 0 } },
-    orderBy: { cantidad: "desc" },
+  const almacen = await tx.almacen.findFirst({
+    where: { odoo_id: warehouseOdooId },
+    select: { id_almacen: true },
   });
-  let remaining = cantidad;
-  for (const row of stocks) {
-    if (remaining <= 0) break;
-    const available = Number(row.cantidad);
-    const take = Math.min(available, remaining);
-    await tx.stock.update({
-      where: {
-        id_producto_id_almacen: {
-          id_producto,
-          id_almacen: row.id_almacen,
-        },
-      },
-      data: { cantidad: available - take },
-    });
-    remaining -= take;
+  if (!almacen) {
+    throw new Error(`Almacén Odoo ${warehouseOdooId} no encontrado localmente`);
   }
-  if (remaining > 0) {
+
+  const row = await tx.stock.findUnique({
+    where: {
+      id_producto_id_almacen: {
+        id_producto,
+        id_almacen: almacen.id_almacen,
+      },
+    },
+  });
+
+  const available = row ? Number(row.cantidad) : 0;
+  if (available < cantidad) {
     throw new Error(`Stock insuficiente para el producto ${id_producto}`);
   }
+
+  await tx.stock.update({
+    where: {
+      id_producto_id_almacen: {
+        id_producto,
+        id_almacen: almacen.id_almacen,
+      },
+    },
+    data: { cantidad: available - cantidad },
+  });
+}
+
+/** Verifica si todos los ítems del carrito tienen stock en un almacén (odoo_id). */
+export function cartHasStockInWarehouse(
+  items: ResolvedCartItem[],
+  warehouseOdooId: number
+): boolean {
+  return items.every((item) => {
+    if (!item.disponible && item.precio == null) return false;
+    const qty = item.stockPorAlmacen.get(warehouseOdooId) ?? 0;
+    return qty >= item.cantidad;
+  });
 }
