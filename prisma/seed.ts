@@ -169,23 +169,21 @@ async function main() {
     clase_css?: string | null;
   }> = [
     {
-      titulo: "Llegó tu aguinaldo — MacBook Neo al mejor precio",
-      imagen_desktop: "/oneclick/hero-mac.jpg",
-      imagen_mobile: null,
-      link: "/mac/macbook-neo",
+      titulo: "Vacaciones de invierno — Regalo desde $750.000",
+      imagen_desktop: "/oneclick/hero-invierno-dsk.webp",
+      imagen_mobile: "/oneclick/hero-invierno-mb.webp",
+      link: "/",
       ubicacion: "hero",
       orden: 1,
       html: `<div class="oc-hero-live-copy">
-  <span class="oc-pill-orange">LLEGÓ TU AGUINALDO</span>
-  <h1>Eso que venías mirando,<br />ahora sí.</h1>
-  <p class="oc-hero-sub">MacBook Neo al mejor precio del mercado</p>
+  <img class="oc-hero-pill-img" src="/oneclick/pill-invierno.webp" alt="Vacaciones de invierno" />
+  <p class="oc-hero-kicker">COMPRANDO DESDE</p>
   <div class="oc-price-box">
-    <span class="oc-price-box-label">Desde</span>
-    <strong>$ 1.739.999</strong>
-    <span class="oc-price-box-cuotas">Hasta 12 cuotas sin interés</span>
+    <strong>$ 750.000</strong>
   </div>
-  <a href="/mac/macbook-neo" class="oc-hero-cta-link">Conocé los productos →</a>
-  <p class="oc-hero-foot">Hasta 18 cuotas sin interés · Hasta 50% de descuento</p>
+  <h1>O MÁS, TE LLEVÁS UN <em>JUGUETE DITOYS O UN</em><br /><em>MAZO DE CARTAS de la selección</em> DE REGALO.</h1>
+  <a href="/" class="oc-hero-cta-link">Conocé los productos →</a>
+  <p class="oc-hero-foot">Regalá más que tecnología.<br />Regalá momentos para disfrutar estas vacaciones.</p>
 </div>`,
     },
     {
@@ -287,8 +285,8 @@ async function main() {
     };
     if (!existing) {
       await prisma.banner.create({ data });
-    } else if (!existing.html) {
-      // Actualizar registros viejos (sin HTML) con el contenido seed
+    } else if (!existing.html || b.ubicacion === "hero") {
+      // Hero se actualiza siempre en seed; otros solo si aún no tienen HTML
       await prisma.banner.update({
         where: { id_banner: existing.id_banner },
         data,

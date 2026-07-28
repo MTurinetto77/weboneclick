@@ -16,6 +16,7 @@ import { isOdooSyncEnabled } from "@/lib/odoo-config";
 import { CONTADO_DISCOUNT } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { ALMACEN_WEB_SELECT, sumSellableStock, type StockRow } from "@/lib/almacenes";
+import { resolveSelectedRegaloProducto } from "@/lib/regalos";
 
 export type TipoPagoCheckout = "tarjeta" | "mercado_pago";
 
@@ -60,12 +61,14 @@ export async function createPendingVenta(
       include: { cliente: true, detalles: true },
     });
     if (existing && existing.estado === "pendiente") {
-      const itemsCobro = existing.detalles.map((d) => ({
-        id_producto: d.id_producto,
-        titulo: d.nombre_producto,
-        cantidad: Number(d.cantidad),
-        unit_price: Number(d.precio_cobrado ?? d.precio_unitario),
-      }));
+      const itemsCobro = existing.detalles
+        .filter((d) => Number(d.precio_cobrado ?? d.precio_unitario) > 0)
+        .map((d) => ({
+          id_producto: d.id_producto,
+          titulo: d.nombre_producto,
+          cantidad: Number(d.cantidad),
+          unit_price: Number(d.precio_cobrado ?? d.precio_unitario),
+        }));
       return {
         id_venta: existing.id_venta,
         subtotal: Number(existing.subtotal),
@@ -167,6 +170,13 @@ export async function createPendingVenta(
     descuentoCupon,
   } = computeTotals(cart, tipo_pago, cupon?.monto ?? 0);
 
+  const idProductoRegaloRaw = Number(field(fields, "id_producto_regalo"));
+  const idProductoRegalo =
+    Number.isFinite(idProductoRegaloRaw) && idProductoRegaloRaw > 0
+      ? idProductoRegaloRaw
+      : null;
+  const giftProducto = await resolveSelectedRegaloProducto(subtotal, idProductoRegalo);
+
   let costo_envio = 0;
   if (tipo_entrega === "envio") {
     const quote = await resolveCostoEnvio({
@@ -198,14 +208,44 @@ export async function createPendingVenta(
     );
   }
 
+  if (giftProducto) {
+    const giftStocks = await prisma.stock.findMany({
+      where: { id_producto: giftProducto.id_producto },
+      include: { almacen: { select: ALMACEN_WEB_SELECT } },
+    });
+    const tracked = giftStocks.some((s) => s.almacen?.odoo_id != null);
+    if (tracked) {
+      const whStock =
+        giftStocks.find((s) => s.almacen?.odoo_id === warehouseOdooId)?.cantidad ??
+        0;
+      if (Number(whStock) < 1) {
+        throw new Error(`Sin stock del regalo: ${giftProducto.titulo}`);
+      }
+    }
+  }
+
   if (await isOdooSyncEnabled()) {
+    const productIds = [
+      ...cart.items.map((i) => i.id_producto),
+      ...(giftProducto ? [giftProducto.id_producto] : []),
+    ];
     const products = await prisma.producto.findMany({
-      where: { id_producto: { in: cart.items.map((i) => i.id_producto) } },
+      where: { id_producto: { in: productIds } },
       select: { id_producto: true, odoo_id: true, titulo: true },
     });
     const byId = new Map(products.map((p) => [p.id_producto, p]));
-    const stockItems = cart.items
-      .map((item) => {
+
+    if (giftProducto) {
+      const gp = byId.get(giftProducto.id_producto);
+      if (!gp?.odoo_id) {
+        throw new Error(
+          `El producto de regalo "${giftProducto.titulo}" no está sincronizado con Odoo (falta odoo_id)`,
+        );
+      }
+    }
+
+    const stockItems = [
+      ...cart.items.map((item) => {
         const p = byId.get(item.id_producto);
         if (!p?.odoo_id) return null;
         return {
@@ -213,8 +253,21 @@ export async function createPendingVenta(
           cantidad: item.cantidad,
           titulo: item.titulo,
         };
-      })
-      .filter(Boolean) as {
+      }),
+      ...(giftProducto
+        ? [
+            (() => {
+              const p = byId.get(giftProducto.id_producto);
+              if (!p?.odoo_id) return null;
+              return {
+                odooProductId: p.odoo_id,
+                cantidad: 1,
+                titulo: giftProducto.titulo,
+              };
+            })(),
+          ]
+        : []),
+    ].filter(Boolean) as {
       odooProductId: number;
       cantidad: number;
       titulo: string;
@@ -378,15 +431,30 @@ export async function createPendingVenta(
         id_tienda_retiro,
         odoo_warehouse_id: warehouseOdooId,
         detalles: {
-          create: cart.items.map((item, index) => ({
-            item: index + 1,
-            id_producto: item.id_producto,
-            nombre_producto: item.titulo,
-            cantidad: item.cantidad,
-            precio_unitario: item.precio!,
-            precio_cobrado: cobroByProduct.get(item.id_producto) ?? item.precio!,
-            subtotal: item.subtotal!,
-          })),
+          create: [
+            ...cart.items.map((item, index) => ({
+              item: index + 1,
+              id_producto: item.id_producto,
+              nombre_producto: item.titulo,
+              cantidad: item.cantidad,
+              precio_unitario: item.precio!,
+              precio_cobrado: cobroByProduct.get(item.id_producto) ?? item.precio!,
+              subtotal: item.subtotal!,
+            })),
+            ...(giftProducto
+              ? [
+                  {
+                    item: cart.items.length + 1,
+                    id_producto: giftProducto.id_producto,
+                    nombre_producto: `${giftProducto.titulo} (Regalo)`,
+                    cantidad: 1,
+                    precio_unitario: 0,
+                    precio_cobrado: 0,
+                    subtotal: 0,
+                  },
+                ]
+              : []),
+          ],
         },
         pagos: {
           create: {

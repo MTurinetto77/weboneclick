@@ -401,10 +401,13 @@ async function createOdooSaleOrder(
     if (!odooId) throw new Error(`Producto sin odoo_id: ${det.nombre_producto}`);
 
     const gross = Number(det.precio_cobrado ?? det.precio_unitario);
-    const taxes = pickSaleTaxes(
-      productTaxMap.get(odooId)?.taxes_id ?? [],
-      taxRateMap
-    );
+    const isGift = gross <= 0.009;
+    const taxes = isGift
+      ? []
+      : pickSaleTaxes(
+          productTaxMap.get(odooId)?.taxes_id ?? [],
+          taxRateMap
+        );
     const taxRate = taxes.reduce(
       (acc, tid) => acc + (taxRateMap.get(tid)?.amount ?? 0) / 100,
       0
@@ -415,9 +418,13 @@ async function createOdooSaleOrder(
       0,
       {
         product_id: odooId,
-        name: det.nombre_producto,
+        name: isGift
+          ? det.nombre_producto.includes("(Regalo)")
+            ? det.nombre_producto
+            : `${det.nombre_producto} (Regalo)`
+          : det.nombre_producto,
         product_uom_qty: Number(det.cantidad),
-        price_unit: grossToNet(gross, taxRate),
+        price_unit: isGift ? 0 : grossToNet(gross, taxRate),
         discount: 0,
         tax_id: taxes.length ? [[6, 0, taxes]] : false,
       },
@@ -562,8 +569,12 @@ async function createOdooSaleOrder(
       price_unit: number;
       product_uom_qty: number;
     }>("sale.order.line", lineIds, ["id", "price_unit", "product_uom_qty"]);
-    let maxLine = lines[0];
-    for (const ln of lines) {
+    // No ajustar líneas de regalo (price_unit 0) ni notas
+    const adjustable = lines.filter(
+      (ln) => Number(ln.price_unit) > 0.009 && Number(ln.product_uom_qty) > 0,
+    );
+    let maxLine = adjustable[0];
+    for (const ln of adjustable) {
       const curVal = (maxLine?.price_unit ?? 0) * (maxLine?.product_uom_qty ?? 1);
       const lnVal = ln.price_unit * ln.product_uom_qty;
       if (lnVal > curVal) maxLine = ln;

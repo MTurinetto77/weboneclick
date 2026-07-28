@@ -557,6 +557,27 @@ img { max-width: 100%; display: block; }
   border-radius: 999px;
 }
 
+.oc-hero-pill-img {
+  display: block;
+  width: min(280px, 72%);
+  height: auto;
+  margin: 0 0 0.85rem;
+}
+
+.oc-hero-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.95;
+}
+
+.oc-hero-live-copy h1 em {
+  font-style: normal;
+  font-weight: 800;
+}
+
 .oc-hero-sub {
   margin: 0 0 1rem;
   font-size: 1.05rem;
@@ -4856,6 +4877,91 @@ img { max-width: 100%; display: block; }
 .oc-checkout-qty {
   color: #6e6e73;
   font-weight: 600;
+}
+
+.oc-checkout-gift {
+  margin: 0 0 1.15rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid #d2d2d7;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.oc-checkout-gift h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.oc-checkout-gift-lead {
+  margin: 0 0 0.85rem;
+  color: #6e6e73;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.oc-checkout-gift-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.oc-checkout-gift-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #d2d2d7;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.oc-checkout-gift-card.is-selected {
+  border-color: #1d1d1f;
+  box-shadow: inset 0 0 0 1px #1d1d1f;
+}
+
+.oc-checkout-gift-card input {
+  flex-shrink: 0;
+}
+
+.oc-checkout-gift-img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #f5f5f7;
+  flex-shrink: 0;
+}
+
+.oc-checkout-gift-img--empty {
+  display: inline-block;
+}
+
+.oc-checkout-gift-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.oc-checkout-gift-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1d1d1f;
+  line-height: 1.3;
+}
+
+.oc-checkout-gift-sku {
+  font-size: 0.75rem;
+  color: #8e8e93;
+}
+
+.oc-checkout-gift-free {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #248a3d;
 }
 
 .oc-checkout-total th,

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, isGoogleAuthConfigured } from "@/auth";
 import { CheckoutCoupon } from "@/components/checkout-coupon";
 import { CheckoutDeliveryFields } from "@/components/checkout-delivery-fields";
+import { CheckoutGiftSelector } from "@/components/checkout-gift-selector";
 import { CheckoutIdempotencyKey } from "@/components/checkout-idempotency-key";
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
@@ -12,6 +13,7 @@ import { resolveAppliedCupon } from "@/lib/cupones";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { getRegaloApplicable } from "@/lib/regalos";
 import { confirmarVenta } from "./actions";
 import { continueAsGuest, continueWithGoogle } from "./identity-actions";
 
@@ -62,6 +64,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const totalContado = totalsContado.total;
   const totalTarjeta = totalsTarjeta.total;
   const descuentoCupon = totalsTarjeta.descuentoCupon;
+  const regalo = await getRegaloApplicable(cart.subtotal);
 
   const addressDefaults =
     cliente?.direccion_principal ?? cliente?.direcciones[0] ?? null;
@@ -226,6 +229,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 appliedCodigo={cupon?.codigo}
                 appliedMonto={descuentoCupon > 0 ? descuentoCupon : null}
               />
+
+              {regalo ? <CheckoutGiftSelector regalo={regalo} /> : null}
 
               <CheckoutPaymentOptions
                 totalTarjeta={totalTarjeta}
