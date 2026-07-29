@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
+import { shopCookieOptions } from "@/lib/cookie-options";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPrice, resolveStockAvailability } from "@/lib/products";
 import { ALMACEN_WEB_SELECT, stockByWarehouseOdooId, type StockRow } from "@/lib/almacenes";
@@ -86,12 +87,7 @@ export async function writeCartLines(lines: CartLine[]): Promise<void> {
     jar.delete(CART_COOKIE);
     return;
   }
-  jar.set(CART_COOKIE, JSON.stringify(cleaned), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: CART_MAX_AGE,
-  });
+  jar.set(CART_COOKIE, JSON.stringify(cleaned), shopCookieOptions(CART_MAX_AGE));
 }
 
 export async function clearCartCookie(): Promise<void> {

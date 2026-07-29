@@ -9,11 +9,11 @@ export type MpSyncResult = "approved" | "pending" | "rejected" | "ignored";
 /**
  * Aplica el resultado de un pago de Mercado Pago sobre la venta local:
  * valida el monto, actualiza estados y descuenta stock solo al aprobarse.
- * Es idempotente: un pago ya aprobado no vuelve a descontar stock.
+ * Es idempotente bajo concurrencia: el claim atómico de pago evita doble descuento.
  */
 export async function applyMercadoPagoPayment(
   payment: PaymentResponse,
-  options?: { syncOdoo?: boolean }
+  options?: { syncOdoo?: boolean },
 ): Promise<MpSyncResult> {
   const idVenta = Number(payment.external_reference);
   if (!Number.isInteger(idVenta) || idVenta <= 0) return "ignored";
@@ -23,6 +23,9 @@ export async function applyMercadoPagoPayment(
     include: { detalles: true, envios: true },
   });
   if (!venta) return "ignored";
+
+  // Si ya está pagada, no degradar ni reprocesar.
+  if (venta.estado === "pagada") return "approved";
 
   const amount = Number(payment.transaction_amount ?? 0);
   if (Math.abs(Number(venta.total) - amount) > 0.01) {
@@ -36,13 +39,19 @@ export async function applyMercadoPagoPayment(
     let shouldSyncOdoo = false;
 
     await prisma.$transaction(async (tx) => {
-      const pago = await tx.pago.findFirst({
+      // Claim atómico: solo un worker gana si el pago aún no está aprobado.
+      const claimed = await tx.pago.updateMany({
         where: {
           id_venta: idVenta,
           tipo_pago: { in: ["mercado_pago", "tarjeta"] },
+          estado: { not: "aprobado" },
+        },
+        data: {
+          estado: "aprobado",
+          transaction_id: transactionId || null,
         },
       });
-      if (!pago || pago.estado === "aprobado") return;
+      if (claimed.count === 0) return;
 
       const warehouseOdooId = venta.odoo_warehouse_id;
       if (!warehouseOdooId) {
@@ -60,7 +69,7 @@ export async function applyMercadoPagoPayment(
         if (stocks.length === 0) continue;
         const disponible = stocks.reduce(
           (sum, row) => sum + Number(row.cantidad),
-          0
+          0,
         );
         if (disponible < cantidad) {
           throw new Error(`Stock insuficiente: ${item.nombre_producto}`);
@@ -68,10 +77,6 @@ export async function applyMercadoPagoPayment(
         await deductStock(tx, item.id_producto, cantidad, warehouseOdooId);
       }
 
-      await tx.pago.update({
-        where: { id_pago: pago.id_pago },
-        data: { estado: "aprobado", transaction_id: transactionId },
-      });
       await tx.venta.update({
         where: { id_venta: idVenta },
         data: { estado: "pagada" },
@@ -97,19 +102,33 @@ export async function applyMercadoPagoPayment(
   }
 
   const rejected = status === "rejected" || status === "cancelled";
-  await prisma.pago.updateMany({
-    where: { id_venta: idVenta, tipo_pago: { in: ["mercado_pago", "tarjeta"] } },
+
+  // Nunca degradar un pago ya aprobado (p. ej. notificación tardía rejected).
+  const updated = await prisma.pago.updateMany({
+    where: {
+      id_venta: idVenta,
+      tipo_pago: { in: ["mercado_pago", "tarjeta"] },
+      estado: { not: "aprobado" },
+    },
     data: {
       estado: rejected ? "rechazado" : "pendiente",
       transaction_id: transactionId || null,
     },
   });
-  if (rejected) {
-    await prisma.venta.update({
+
+  if (rejected && updated.count > 0) {
+    const ventaStill = await prisma.venta.findUnique({
       where: { id_venta: idVenta },
-      data: { estado: "cancelada" },
+      select: { estado: true },
     });
-    await releaseCuponForVenta(idVenta);
+    if (ventaStill && ventaStill.estado !== "pagada") {
+      await prisma.venta.update({
+        where: { id_venta: idVenta },
+        data: { estado: "cancelada" },
+      });
+      await releaseCuponForVenta(idVenta);
+    }
   }
+
   return rejected ? "rejected" : "pending";
 }

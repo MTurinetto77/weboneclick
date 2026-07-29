@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { clearCartCookie } from "@/lib/cart";
-import { createPendingVenta } from "@/lib/checkout-venta";
+import { rotateCheckoutIdempotencyKey } from "@/lib/checkout-idempotency";
+import {
+  confirmationPath,
+  createPendingVenta,
+} from "@/lib/checkout-venta";
 import { clearCuponCookie, releaseCuponForVenta } from "@/lib/cupones";
 import { mercadoPagoPreference, publicSiteUrl } from "@/lib/mercadopago";
 import { prisma } from "@/lib/prisma";
@@ -17,7 +21,7 @@ export async function confirmarVenta(formData: FormData) {
   const tipo_pago = String(formData.get("tipo_pago") || "").trim();
   if (tipo_pago !== "mercado_pago") {
     throw new Error(
-      "Para pagar con tarjeta completá el formulario de tarjeta del checkout."
+      "Para pagar con tarjeta completá el formulario de tarjeta del checkout.",
     );
   }
 
@@ -32,13 +36,14 @@ export async function confirmarVenta(formData: FormData) {
     "mercado_pago",
     session?.user?.email ?? null,
     session?.user?.id ?? null,
-    fields.idempotency_key || null
   );
 
   const siteUrl = publicSiteUrl();
   const notificationUrl = siteUrl.startsWith("https://")
     ? `${siteUrl}/api/mercadopago/webhook`
     : undefined;
+
+  const confBase = `${siteUrl}${confirmationPath(venta.id_venta, venta.access_token)}`;
 
   const pagoExistente = await prisma.pago.findFirst({
     where: { id_venta: venta.id_venta, tipo_pago: "mercado_pago" },
@@ -47,9 +52,10 @@ export async function confirmarVenta(formData: FormData) {
   if (pagoExistente?.referencia) {
     await clearCartCookie();
     await clearCuponCookie();
+    await rotateCheckoutIdempotencyKey();
     revalidatePath("/carrito");
     redirect(
-      `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(pagoExistente.referencia)}`
+      `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(pagoExistente.referencia)}`,
     );
   }
 
@@ -72,9 +78,9 @@ export async function confirmarVenta(formData: FormData) {
         external_reference: String(venta.id_venta),
         metadata: { id_venta: venta.id_venta },
         back_urls: {
-          success: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=success`,
-          pending: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=pending`,
-          failure: `${siteUrl}/checkout/confirmacion/${venta.id_venta}?mp=failure`,
+          success: `${confBase}&mp=success`,
+          pending: `${confBase}&mp=pending`,
+          failure: `${confBase}&mp=failure`,
         },
         auto_return: "approved",
         notification_url: notificationUrl,
@@ -83,7 +89,10 @@ export async function confirmarVenta(formData: FormData) {
     });
   } catch (error) {
     await prisma.venta
-      .update({ where: { id_venta: venta.id_venta }, data: { estado: "cancelada" } })
+      .update({
+        where: { id_venta: venta.id_venta },
+        data: { estado: "cancelada" },
+      })
       .catch(() => undefined);
     await releaseCuponForVenta(venta.id_venta).catch(() => undefined);
     throw error;
@@ -91,7 +100,10 @@ export async function confirmarVenta(formData: FormData) {
 
   if (!preference.init_point) {
     await prisma.venta
-      .update({ where: { id_venta: venta.id_venta }, data: { estado: "cancelada" } })
+      .update({
+        where: { id_venta: venta.id_venta },
+        data: { estado: "cancelada" },
+      })
       .catch(() => undefined);
     await releaseCuponForVenta(venta.id_venta).catch(() => undefined);
     throw new Error("Mercado Pago no devolvió una URL de pago");
@@ -104,6 +116,7 @@ export async function confirmarVenta(formData: FormData) {
 
   await clearCartCookie();
   await clearCuponCookie();
+  await rotateCheckoutIdempotencyKey();
   revalidatePath("/carrito");
   redirect(preference.init_point);
 }

@@ -304,6 +304,7 @@ async function createTestVenta(options: {
         receptor_nombre: tipo === "envio" ? "Pedro Receptor" : null,
         receptor_dni: tipo === "envio" ? "27888999" : null,
         idempotency_key: `test-odoo-${tipo}-regalo-${stamp}`,
+        access_token: `testtok${tipo}${stamp}`.slice(0, 64),
         odoo_sync_estado: "pendiente",
       },
     });

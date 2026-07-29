@@ -1,16 +1,28 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
-type SearchParams = Promise<{ mp?: string }>;
+type SearchParams = Promise<{ mp?: string; t?: string }>;
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Params }) {
   const { id } = await params;
   return { title: `Pedido #${id}` };
+}
+
+function tokensMatch(a: string, b: string): boolean {
+  try {
+    const ba = Buffer.from(a);
+    const bb = Buffer.from(b);
+    if (ba.length !== bb.length) return false;
+    return timingSafeEqual(ba, bb);
+  } catch {
+    return false;
+  }
 }
 
 export default async function ConfirmacionPage({
@@ -21,9 +33,9 @@ export default async function ConfirmacionPage({
   searchParams: SearchParams;
 }) {
   const { id } = await params;
-  const { mp } = await searchParams;
+  const { mp, t } = await searchParams;
   const id_venta = Number(id);
-  if (!id_venta) notFound();
+  if (!id_venta || !t?.trim()) notFound();
 
   const venta = await prisma.venta.findUnique({
     where: { id_venta },
@@ -35,7 +47,7 @@ export default async function ConfirmacionPage({
       tienda_retiro: true,
     },
   });
-  if (!venta) notFound();
+  if (!venta || !tokensMatch(venta.access_token, t.trim())) notFound();
 
   const pago = venta.pagos[0];
   const envio = venta.envios[0];
@@ -97,8 +109,10 @@ export default async function ConfirmacionPage({
                 <p style={{ marginBottom: 0 }}>
                   Envío a: {envio.direccion.calle} {envio.direccion.numero}
                   {envio.direccion.piso ? `, piso ${envio.direccion.piso}` : ""}
-                  {envio.direccion.departamento ? ` ${envio.direccion.departamento}` : ""},{" "}
-                  {envio.direccion.localidad}, {envio.direccion.provincia}.
+                  {envio.direccion.departamento
+                    ? ` ${envio.direccion.departamento}`
+                    : ""}
+                  , {envio.direccion.localidad}, {envio.direccion.provincia}.
                 </p>
               )}
             </div>

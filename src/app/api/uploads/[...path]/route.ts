@@ -9,13 +9,17 @@ const MIME: Record<string, string> = {
   ".png": "image/png",
   ".webp": "image/webp",
   ".gif": "image/gif",
-  ".svg": "image/svg+xml",
+  // SVG no se sirve como image/svg+xml (XSS). Se bloquea abajo.
+  ".pdf": "application/pdf",
 };
 
 type Params = Promise<{ path: string[] }>;
 
 export async function GET(_req: NextRequest, { params }: { params: Params }) {
   const { path: parts } = await params;
+  if (parts.some((p) => p === ".." || p.includes("\0"))) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
   const relative = parts.join("/");
   const root = path.resolve(getUploadsRoot());
   const absolute = path.resolve(root, relative);
@@ -25,14 +29,19 @@ export async function GET(_req: NextRequest, { params }: { params: Params }) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
+  const ext = path.extname(absolute).toLowerCase();
+  if (ext === ".svg") {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
   try {
     await stat(absolute);
     const data = await readFile(absolute);
-    const ext = path.extname(absolute).toLowerCase();
     return new NextResponse(data, {
       headers: {
         "Content-Type": MIME[ext] || "application/octet-stream",
         "Cache-Control": "public, max-age=86400",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch {

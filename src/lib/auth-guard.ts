@@ -8,3 +8,12 @@ export async function requireAdmin() {
   }
   return session;
 }
+
+/** Para rutas API: 401 JSON en lugar de redirect HTML. */
+export async function requireAdminApi() {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "admin") {
+    return null;
+  }
+  return session;
+}

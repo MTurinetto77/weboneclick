@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireAdminApi } from "@/lib/auth-guard";
 import { syncVentaToOdoo } from "@/lib/odoo-venta";
 
 export const runtime = "nodejs";
 
 /** POST /api/admin/odoo/sync-venta { id_venta: number } */
 export async function POST(req: Request) {
-  await requireAdmin();
+  const session = await requireAdminApi();
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
   const body = (await req.json().catch(() => ({}))) as { id_venta?: number };
   const id_venta = Number(body.id_venta);
   if (!Number.isInteger(id_venta) || id_venta <= 0) {

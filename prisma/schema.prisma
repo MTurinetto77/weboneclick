@@ -463,6 +463,8 @@ model venta {
   id_direccion_facturacion Int?
   id_cupon                 Int? @unique
   idempotency_key          String?   @unique @db.VarChar(64)
+  /// Token opaco para la URL de confirmación (anti-enumeración)
+  access_token             String    @unique @db.VarChar(64)
   /// Tienda elegida cuando tipo_entrega = "retiro"
   id_tienda_retiro         Int?
   odoo_partner_id          Int?

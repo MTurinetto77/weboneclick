@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireAdminApi } from "@/lib/auth-guard";
 import { runFullSync } from "@/lib/odoo-sync";
 
 export async function POST(req: Request) {
-  await requireAdmin();
+  const session = await requireAdminApi();
+  if (!session) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
   const body = (await req.json().catch(() => ({}))) as {
     skipImages?: boolean;
     skipStock?: boolean;

@@ -1,4 +1,10 @@
+import { randomUUID } from "crypto";
 import { cartHasStockInWarehouse, deductStock, resolveCart, type ResolvedCart } from "@/lib/cart";
+import {
+  ensureCheckoutIdempotencyKey,
+  readCheckoutIdempotencyKey,
+  rotateCheckoutIdempotencyKey,
+} from "@/lib/checkout-idempotency";
 import {
   CUPON_ESTADO_CONSUMIDO,
   CUPON_ESTADO_EMITIDO,
@@ -28,6 +34,7 @@ function field(fields: Record<string, string>, key: string): string {
 
 export type VentaPendiente = {
   id_venta: number;
+  access_token: string;
   subtotal: number;
   descuento: number;
   total: number;
@@ -52,9 +59,10 @@ export async function createPendingVenta(
   tipo_pago: TipoPagoCheckout,
   sessionEmail: string | null,
   sessionUserId: number | null = null,
-  idempotencyKey: string | null = null
+  /** @deprecated La clave viene de cookie httpOnly; este arg se ignora. */
+  _idempotencyKey: string | null = null,
 ): Promise<VentaPendiente> {
-  const idemKey = idempotencyKey?.trim() || null;
+  let idemKey = await readCheckoutIdempotencyKey();
   if (idemKey) {
     const existing = await prisma.venta.findUnique({
       where: { idempotency_key: idemKey },
@@ -71,6 +79,7 @@ export async function createPendingVenta(
         }));
       return {
         id_venta: existing.id_venta,
+        access_token: existing.access_token,
         subtotal: Number(existing.subtotal),
         descuento: Number(existing.descuento),
         total: Number(existing.total),
@@ -80,6 +89,13 @@ export async function createPendingVenta(
         itemsCobro,
       };
     }
+    // Clave ya asociada a una venta cerrada: emitir una nueva.
+    if (existing) {
+      await rotateCheckoutIdempotencyKey();
+      idemKey = await ensureCheckoutIdempotencyKey();
+    }
+  } else {
+    idemKey = await ensureCheckoutIdempotencyKey();
   }
 
   const cart = await resolveCart();
@@ -283,12 +299,15 @@ export async function createPendingVenta(
     itemsCobro.map((i) => [i.id_producto, i.unit_price])
   );
 
+  const isGuestCheckout = checkoutMode === "invitado";
   const id_usuario =
-    checkoutMode !== "invitado" &&
+    !isGuestCheckout &&
     sessionEmail?.toLowerCase() === mail &&
     sessionUserId
       ? sessionUserId
       : null;
+
+  const access_token = randomUUID().replace(/-/g, "");
 
   const id_venta = await prisma.$transaction(async (tx) => {
     for (const item of cart.items) {
@@ -314,18 +333,21 @@ export async function createPendingVenta(
 
     let cliente = await tx.cliente.findUnique({ where: { mail } });
     if (cliente) {
-      cliente = await tx.cliente.update({
-        where: { id_cliente: cliente.id_cliente },
-        data: {
-          nombre,
-          apellido,
-          telefono,
-          tipo_documento,
-          numero_documento,
-          responsabilidad_impositiva,
-          id_usuario: cliente.id_usuario ?? id_usuario,
-        },
-      });
+      // Invitado no puede sobrescribir PII de un cliente existente (solo enlaza).
+      if (!isGuestCheckout) {
+        cliente = await tx.cliente.update({
+          where: { id_cliente: cliente.id_cliente },
+          data: {
+            nombre,
+            apellido,
+            telefono,
+            tipo_documento,
+            numero_documento,
+            responsabilidad_impositiva,
+            id_usuario: cliente.id_usuario ?? id_usuario,
+          },
+        });
+      }
     } else {
       cliente = await tx.cliente.create({
         data: {
@@ -428,6 +450,7 @@ export async function createPendingVenta(
         id_direccion_facturacion,
         id_cupon,
         idempotency_key: idemKey,
+        access_token,
         id_tienda_retiro,
         odoo_warehouse_id: warehouseOdooId,
         detalles: {
@@ -491,8 +514,27 @@ export async function createPendingVenta(
   });
 
   await clearCuponCookie();
+  // No rotar la clave aquí: permite reintentar el pago sobre la misma venta pendiente.
 
-  return { id_venta, subtotal, descuento, total, nombre, apellido, mail, itemsCobro };
+  return {
+    id_venta,
+    access_token,
+    subtotal,
+    descuento,
+    total,
+    // Mostrar los datos del formulario (en invitado el cliente existente no se actualiza).
+    nombre,
+    apellido,
+    mail,
+    itemsCobro,
+  };
+}
+
+/** URL de confirmación con token opaco (anti-IDOR). */
+export function confirmationPath(id_venta: number, access_token: string, mp?: string) {
+  const q = new URLSearchParams({ t: access_token });
+  if (mp) q.set("mp", mp);
+  return `/checkout/confirmacion/${id_venta}?${q.toString()}`;
 }
 
 /**

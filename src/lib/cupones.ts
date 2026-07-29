@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { shopCookieOptions } from "@/lib/cookie-options";
 import { prisma } from "@/lib/prisma";
 
 export const CUPON_COOKIE = "cupon";
@@ -103,12 +104,11 @@ export async function readCuponCookie(): Promise<string | null> {
 
 export async function writeCuponCookie(codigo: string): Promise<void> {
   const jar = await cookies();
-  jar.set(CUPON_COOKIE, normalizeCuponCodigo(codigo), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: CUPON_MAX_AGE,
-  });
+  jar.set(
+    CUPON_COOKIE,
+    normalizeCuponCodigo(codigo),
+    shopCookieOptions(CUPON_MAX_AGE),
+  );
 }
 
 export async function clearCuponCookie(): Promise<void> {
