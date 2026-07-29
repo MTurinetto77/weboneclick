@@ -431,20 +431,6 @@ async function createOdooSaleOrder(
     ]);
   }
 
-  if (venta.cupon && Number(venta.cupon.monto) > 0.009) {
-    // Nota de referencia (sin producto/impuestos) — el monto ya está en price_unit de productos
-    orderLines.push([
-      0,
-      0,
-      {
-        display_type: "line_note",
-        name: `Cupón ${venta.cupon.codigo} (−$${Number(venta.cupon.monto).toLocaleString("es-AR", { minimumFractionDigits: 2 })})`,
-        product_uom_qty: 0,
-        price_unit: 0,
-      },
-    ]);
-  }
-
   const costoEnvio = Number(venta.costo_envio);
   if (venta.tipo_entrega === "envio" && costoEnvio > 0) {
     orderLines.push([
@@ -473,6 +459,14 @@ async function createOdooSaleOrder(
     );
   }
 
+  const internalNotes: string[] = [];
+  if (venta.cupon && Number(venta.cupon.monto) > 0.009) {
+    const monto = Number(venta.cupon.monto).toLocaleString("es-AR", {
+      minimumFractionDigits: 2,
+    });
+    internalNotes.push(`Cupón web ${venta.cupon.codigo}: −$${monto}`);
+  }
+
   const orderId = await odooCreate("sale.order", {
     name: orderName,
     partner_id: partnerId,
@@ -491,6 +485,9 @@ async function createOdooSaleOrder(
     date_order: venta.fecha_hora.toISOString().slice(0, 19).replace("T", " "),
     order_line: orderLines,
     note: notes.length ? notes.join("\n") : false,
+    internal_notes: internalNotes.length
+      ? internalNotes.map((n) => `<p>${n}</p>`).join("")
+      : false,
   });
 
   // La pricelist de Odoo puede aplicar descuentos promocionales; forzamos

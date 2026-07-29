@@ -203,14 +203,14 @@ Si la venta tiene `id_cupon` / `cupon`:
 
 1. Las líneas de producto usan el **precio cobrado** (`precio_cobrado`, ya con cupón + contado aplicados).  
    - En Odoo `sale.order.line` **solo existe** `discount` (%). **No hay** campo de descuento por monto fijo en la línea.
-   - Por eso **no** usamos la columna `% Descuento` ni una línea negativa: el monto del cupón queda absorbido en el `price_unit` cobrado (mismo total que Mercado Pago).
-2. Se agrega una **nota** en la orden (`display_type = line_note`) con el código y el monto del cupón, sin producto ni impuestos (importe \$0, no altera el total).
+   - Por eso **no** usamos la columna `% Descuento` ni una línea de cupón: el monto queda absorbido en el `price_unit` cobrado (mismo total que Mercado Pago).
+2. El cupón se registra en **`internal_notes`** de la `sale.order` (ej. `Cupón web TESTCUP…: −$5.000,00`).
 3. El envío **no** se descuenta con el cupón (igual que en checkout web).
 4. `amount_total` Odoo = `venta.total` (= monto MP).
 
 Envío (`tipo_entrega = envio` y `costo_envio > 0`): línea con producto `odoo_shipping_product_id`, IVA 21% (tax id 116).
 
-> Parámetro `odoo_discount_product_id` (57081) queda disponible por si más adelante se usa un producto de descuento; hoy la referencia del cupón es una nota de línea.
+Notas de cliente (`note`): retiro en tienda / receptor. Notas internas (`internal_notes`): cupón web.
 
 ---
 

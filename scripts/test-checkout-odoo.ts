@@ -467,29 +467,52 @@ async function main() {
     const [order] = await odooRead<{
       amount_total: number;
       order_line: number[];
-    }>("sale.order", [updated.odoo_order_id], ["amount_total", "order_line"]);
+      internal_notes: string | false;
+    }>("sale.order", [updated.odoo_order_id], [
+      "amount_total",
+      "order_line",
+      "internal_notes",
+    ]);
     const lines = order?.order_line?.length
       ? await odooRead<{
           name: string;
           price_unit: number;
           price_total: number;
+          display_type: string | false;
           product_id: [number, string] | false;
         }>("sale.order.line", order.order_line, [
           "name",
           "price_unit",
           "price_total",
+          "display_type",
           "product_id",
         ])
       : [];
+
+    const noteLines = lines.filter(
+      (l) => l.display_type === "line_note" || l.display_type === "line_section"
+    );
+    const cuponCodigo = updated.cupon?.codigo;
+    const cuponInInternal =
+      typeof order?.internal_notes === "string" &&
+      cuponCodigo != null &&
+      order.internal_notes.includes(cuponCodigo);
+
     console.log("\nOrden Odoo:");
     console.log(
       JSON.stringify(
         {
           amount_total: order?.amount_total,
           total_venta_mp: Number(updated.total),
-          match: Math.abs(Number(order?.amount_total ?? 0) - Number(updated.total)) <= 1,
+          match:
+            Math.abs(Number(order?.amount_total ?? 0) - Number(updated.total)) <=
+            1,
+          internal_notes: order?.internal_notes || null,
+          cupon_en_internal_notes: cuponCodigo ? cuponInInternal : null,
+          lineas_nota_en_order: noteLines.length,
           lines: lines.map((l) => ({
             name: l.name,
+            display_type: l.display_type || null,
             product: Array.isArray(l.product_id) ? l.product_id[1] : null,
             price_unit: l.price_unit,
             price_total: l.price_total,
@@ -499,6 +522,15 @@ async function main() {
         2
       )
     );
+
+    if (cuponCodigo && !cuponInInternal) {
+      console.error("FAIL: el cupón no está en internal_notes de la orden");
+      process.exitCode = 1;
+    }
+    if (noteLines.length > 0) {
+      console.error("FAIL: no debería haber líneas note/section en la orden");
+      process.exitCode = 1;
+    }
 
     if (withRegalo || hasFlag("--regalo") || lines.some((l) => String(l.name).includes("(Regalo)"))) {
       const giftLines = lines.filter(
