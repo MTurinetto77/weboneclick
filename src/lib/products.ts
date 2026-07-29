@@ -784,6 +784,334 @@ export async function getProductBySlug(slug: string) {
   };
 }
 
+/**
+ * `caracteristica` / `producto_caracteristica` están vacías en toda la base (no es un
+ * problema de este producto puntual: se verificó contra el dump completo). Hasta que
+ * se cargue esa data real, se derivan specs estructuradas del propio título y
+ * descripción del producto — ambos ya son texto real de Odoo/oneclickstore.com, no
+ * texto inventado. El patrón de título se verificó contra los ~20 MacBook Pro activos
+ * y contra oneclickstore.com/producto/... . Si el título no matchea (falta el nombre
+ * del chip, orden distinto, etc.) se devuelve lo que sí se pudo leer — nunca se
+ * inventa un valor que no está en el texto real. En cuanto `producto_caracteristica`
+ * tenga filas reales, `effectiveSpecsFrom` las prioriza solas, sin tocar este parser.
+ */
+const COLOR_ALIASES: Record<string, string> = {
+  "space black": "Negro Espacial",
+  "silver": "Plata",
+};
+
+function normalizeColorName(raw: string): string {
+  const key = raw.trim().toLowerCase();
+  return COLOR_ALIASES[key] ?? raw.trim();
+}
+
+function normalizeKeyboardName(raw: string): string {
+  return /ingl[eé]s|english/i.test(raw) ? "Inglés" : "Español";
+}
+
+const TITLE_SPEC_RE =
+  /^(?:CTO\s+)?MacBook\s+Pro\s+(\d+)(?:\s+(M\d+)(?:\s+(Pro|Max))?)?\s+(\d+)\s*CPU\s+(\d+)\s*GPU\s+(\d+)\s*GB\s+(\d+(?:GB|TB))\s*(?:SSD)?\s*[-/]?\s*(.*)$/i;
+
+const KEYBOARD_HINT_RE = /ingl[eé]s|english|espa[ñn]ol|spanish|teclado|keyboard/i;
+
+type TitleDerivedSpecs = {
+  tamano: string;
+  chip: string | null;
+  cpu: string;
+  gpu: string;
+  ram: string;
+  almacenamiento: string;
+  color: string | null;
+  teclado: string | null;
+};
+
+/** Deriva tamaño/chip/cpu/gpu/ram/almacenamiento/color/teclado del título real
+ *  (ej. "MacBook Pro 14 M5 10CPU 10GPU 16GB 1TB - Negro Espacial - Teclado Inglés"). */
+function parseTitleSpecs(titulo: string): TitleDerivedSpecs | null {
+  const match = titulo.match(TITLE_SPEC_RE);
+  if (!match) return null;
+
+  const [, tamano, chipGen, chipTier, cpu, gpu, ram, almacenamiento, rawTail] = match;
+
+  const tail = rawTail.replace(/\(CTO\)/gi, "").trim();
+  const segments = tail
+    .split(/\s*[-/]\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  let teclado: string | null = null;
+  const colorSegments: string[] = [];
+  for (const seg of segments) {
+    if (KEYBOARD_HINT_RE.test(seg)) {
+      teclado = normalizeKeyboardName(seg);
+    } else {
+      colorSegments.push(seg);
+    }
+  }
+
+  return {
+    tamano: `${tamano}"`,
+    chip: chipGen ? `${chipGen}${chipTier ? ` ${chipTier}` : ""}` : null,
+    cpu: `${cpu} CPU`,
+    gpu: `${gpu} GPU`,
+    ram: `${ram}GB`,
+    almacenamiento,
+    color: colorSegments.length ? normalizeColorName(colorSegments.join(" ")) : null,
+    teclado,
+  };
+}
+
+/** Tipo de pantalla y batería, solo cuando la descripción real de ESE producto los
+ *  menciona (frases de marketing que Odoo ya trae, ej. "pantalla Liquid Retina XDR"
+ *  y "hasta 24 horas de batería") — nunca un valor supuesto para toda la línea. */
+function parseDescriptionSpecs(descripcion: string): {
+  tipoPantalla: string | null;
+  bateria: string | null;
+} {
+  const flat = descripcion.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const tipoPantalla = /Liquid Retina XDR/i.test(flat) ? "Liquid Retina XDR" : null;
+  const horas = flat.match(/hasta (\d+)\s*horas/i)?.[1] ?? null;
+  return { tipoPantalla, bateria: horas ? `${horas} horas` : null };
+}
+
+type EffectiveSpecs = {
+  chip: string | null;
+  cpu: string | null;
+  gpu: string | null;
+  ram: string | null;
+  almacenamiento: string | null;
+  color: string | null;
+  teclado: string | null;
+  tamano: string | null;
+  tipoPantalla: string | null;
+  bateria: string | null;
+};
+
+/** Combina producto_caracteristica real (prioridad) con lo derivado de
+ *  título/descripción (fallback) — ver comentario arriba. */
+function effectiveSpecsFrom(
+  titulo: string,
+  descripcion: string,
+  caracteristicas: { caracteristica: { nombre: string }; valor: string }[]
+): EffectiveSpecs {
+  const real = new Map(caracteristicas.map((c) => [c.caracteristica.nombre, c.valor]));
+  const fromTitle = parseTitleSpecs(titulo);
+  const fromDescripcion = parseDescriptionSpecs(descripcion);
+  return {
+    chip: real.get("Chip") ?? fromTitle?.chip ?? null,
+    cpu: real.get("CPU") ?? fromTitle?.cpu ?? null,
+    gpu: real.get("GPU") ?? fromTitle?.gpu ?? null,
+    ram: real.get("RAM") ?? fromTitle?.ram ?? null,
+    almacenamiento: real.get("Almacenamiento") ?? fromTitle?.almacenamiento ?? null,
+    color: real.get("Color") ?? fromTitle?.color ?? null,
+    teclado: real.get("Teclado") ?? fromTitle?.teclado ?? null,
+    tamano: real.get("Tamaño") ?? fromTitle?.tamano ?? null,
+    tipoPantalla: real.get("Tipo de pantalla") ?? fromDescripcion.tipoPantalla ?? null,
+    bateria: real.get("Batería") ?? fromDescripcion.bateria ?? null,
+  };
+}
+
+/** Filas "característica" para la UI (spec tiles, tabla técnica, subtítulo), mezclando
+ *  filas reales de producto_caracteristica con lo derivado de título/descripción para
+ *  los nombres que todavía no están cargados en la base. */
+export function effectiveCharacteristicRows(product: {
+  titulo: string;
+  descripcion: string;
+  caracteristicas: { caracteristica: { nombre: string }; valor: string }[];
+}): { caracteristica: { nombre: string }; valor: string }[] {
+  const present = new Set(product.caracteristicas.map((c) => c.caracteristica.nombre));
+  const merged = product.caracteristicas.map((c) => ({
+    caracteristica: { nombre: c.caracteristica.nombre },
+    valor: c.valor,
+  }));
+
+  const specs = effectiveSpecsFrom(product.titulo, product.descripcion, product.caracteristicas);
+  const pushIfMissing = (nombre: string, valor: string | null) => {
+    if (valor && !present.has(nombre)) merged.push({ caracteristica: { nombre }, valor });
+  };
+  pushIfMissing("Color", specs.color);
+  pushIfMissing("Tamaño", specs.tamano);
+  pushIfMissing("Tipo de pantalla", specs.tipoPantalla);
+  pushIfMissing("Chip", specs.chip);
+  pushIfMissing("CPU", specs.cpu);
+  pushIfMissing("GPU", specs.gpu);
+  pushIfMissing("RAM", specs.ram);
+  pushIfMissing("Almacenamiento", specs.almacenamiento);
+  pushIfMissing("Batería", specs.bateria);
+  pushIfMissing("Teclado", specs.teclado);
+  return merged;
+}
+
+export type ProductVariantOption = {
+  id_producto: number;
+  slug: string;
+  color: string | null;
+  chip: string | null;
+  chipSpec: string | null;
+  teclado: string | null;
+  memoria: string | null;
+  inStock: boolean;
+  descripcion: string;
+};
+
+/**
+ * Productos de la misma categoría y mismo Tamaño (misma "línea" — ej. MacBook Pro
+ * 14"), pudiendo diferir en Chip, Color, RAM/Almacenamiento y Teclado. Usa
+ * producto_caracteristica si está cargada, y si no, lo derivado del título/
+ * descripción real (ver effectiveSpecsFrom) — si ninguna de las dos fuentes da el
+ * Tamaño, no hay variantes que mostrar (no se inventa nada).
+ */
+export async function getProductVariants(product: {
+  id_producto: number;
+  titulo: string;
+  descripcion: string;
+  categorias: { id_categoria: number }[];
+  caracteristicas: { caracteristica: { nombre: string }; valor: string }[];
+}): Promise<ProductVariantOption[]> {
+  const categoriaId = product.categorias[0]?.id_categoria;
+  if (!categoriaId) return [];
+
+  const own = effectiveSpecsFrom(product.titulo, product.descripcion, product.caracteristicas);
+  if (!own.tamano) return [];
+
+  const candidates = await prisma.producto.findMany({
+    where: { activo: true, categorias: { some: { id_categoria: categoriaId } } },
+    select: {
+      id_producto: true,
+      slug: true,
+      titulo: true,
+      descripcion: true,
+      stocks: { include: { almacen: true } },
+      caracteristicas: { include: { caracteristica: true } },
+    },
+  });
+
+  const options: ProductVariantOption[] = [];
+  for (const cand of candidates) {
+    const specs = effectiveSpecsFrom(cand.titulo, cand.descripcion, cand.caracteristicas);
+    if (specs.tamano !== own.tamano) continue;
+    options.push({
+      id_producto: cand.id_producto,
+      slug: cand.slug,
+      color: specs.color,
+      chip: specs.chip,
+      chipSpec: specs.cpu && specs.gpu ? `${specs.cpu} · ${specs.gpu}` : null,
+      teclado: specs.teclado,
+      memoria: specs.ram && specs.almacenamiento ? `${specs.ram} · ${specs.almacenamiento}` : null,
+      inStock: resolveStockAvailability(cand.stocks).inStock,
+      descripcion: cand.descripcion,
+    });
+  }
+  return options.length > 1 ? options : [];
+}
+
+/**
+ * Odoo guarda la descripción de marketing por SKU, y varía entre colores del
+ * mismo hardware: a veces está desactualizada (ej. menciona "chip M4" en un
+ * producto que en realidad es M5) y a veces simplemente no tiene el formato
+ * de bullets que sí tiene otro color. Como las variantes de color son el
+ * mismo producto, deben mostrar la misma info con la misma presentación —
+ * se usa la mejor versión disponible en la familia (con bullets y sin
+ * contradecir el Chip real ya verificado). Nunca se inventa texto nuevo,
+ * solo se elige cuál de las descripciones reales ya cargadas mostrar.
+ */
+export function pickConsistentDescription(
+  own: { descripcion: string },
+  siblings: ProductVariantOption[],
+  chip: string | null
+): string {
+  const mentionsWrongChip = (text: string) => {
+    if (!chip) return false;
+    const flat = text.replace(/<[^>]+>/g, " ");
+    const match = flat.match(/chip\s+(M\d+(?:\s+(?:Pro|Max))?)/i);
+    return !!match && match[1].toLowerCase() !== chip.toLowerCase();
+  };
+
+  const pool: { descripcion: string }[] = siblings.length ? siblings : [own];
+
+  const withBullets = pool.find(
+    (s) => s.descripcion.includes("•") && !mentionsWrongChip(s.descripcion)
+  );
+  if (withBullets) return withBullets.descripcion;
+
+  const consistent = pool.find((s) => !mentionsWrongChip(s.descripcion));
+  return consistent?.descripcion ?? own.descripcion;
+}
+
+export type SizeComparisonRow = {
+  tamano: string;
+  tipoPantalla: string | null;
+  chips: string;
+  desde: number | null;
+  /** Slug del producto real más barato de ese tamaño (para linkear el selector). */
+  slugDesde: string | null;
+};
+
+const CHIP_ORDER = ["M4", "M4 Pro", "M4 Max", "M5", "M5 Pro", "M5 Max"];
+
+/**
+ * Compara los tamaños de una línea de producto (ej. MacBook Pro 14"/16") usando
+ * Tamaño/Chip reales si están cargados en producto_caracteristica, y si no, lo
+ * derivado del título/descripción (ver effectiveSpecsFrom). Si ningún producto de
+ * la categoría da esos datos por ninguna de las dos vías, devuelve [] (no se inventa).
+ */
+export async function getSizeComparison(categoriaId: number): Promise<SizeComparisonRow[]> {
+  const products = await prisma.producto.findMany({
+    where: { activo: true, categorias: { some: { id_categoria: categoriaId } } },
+    include: {
+      precios: { orderBy: { fecha_desde: "desc" } },
+      caracteristicas: { include: { caracteristica: true } },
+    },
+  });
+
+  const groups = new Map<
+    string,
+    { chips: Set<string>; tiposPantalla: Set<string>; precios: number[]; cheapestSlug: string | null; cheapestPrecio: number }
+  >();
+
+  for (const p of products) {
+    const specs = effectiveSpecsFrom(p.titulo, p.descripcion, p.caracteristicas);
+    const tamano = specs.tamano;
+    const chip = specs.chip;
+    if (!tamano || !chip) continue;
+
+    if (!groups.has(tamano)) {
+      groups.set(tamano, {
+        chips: new Set(),
+        tiposPantalla: new Set(),
+        precios: [],
+        cheapestSlug: null,
+        cheapestPrecio: Infinity,
+      });
+    }
+    const g = groups.get(tamano)!;
+    g.chips.add(chip);
+    if (specs.tipoPantalla) g.tiposPantalla.add(specs.tipoPantalla);
+    const precio = pickCurrentPrice(p.precios);
+    if (precio != null) {
+      g.precios.push(precio);
+      if (precio < g.cheapestPrecio) {
+        g.cheapestPrecio = precio;
+        g.cheapestSlug = p.slug;
+      }
+    }
+  }
+
+  if (groups.size < 2) return [];
+
+  return [...groups.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0], "es", { numeric: true }))
+    .map(([tamano, g]) => ({
+      tamano,
+      tipoPantalla: g.tiposPantalla.size === 1 ? [...g.tiposPantalla][0] : null,
+      slugDesde: g.cheapestSlug,
+      chips: [...g.chips]
+        .sort((a, b) => CHIP_ORDER.indexOf(a) - CHIP_ORDER.indexOf(b))
+        .join(" / "),
+      desde: g.precios.length ? Math.min(...g.precios) : null,
+    }));
+}
+
 export async function getActiveBanners(ubicacion?: string) {
   const now = new Date();
   return prisma.banner.findMany({

@@ -1,0 +1,803 @@
+/*
+  Restyle estético — valores calcados 1:1 del prototipo
+  design_handoff_oneclick_component_kit / OneClick Rediseño.dc.html.
+  Scoped a .wrapper (CSS Module) — no toca clases ni variables globales del sitio,
+  solo reestiliza los elementos .oc-* existentes dentro de esta página.
+*/
+
+.wrapper {
+  --dh-ink: #0b0b0c;
+  --dh-ink-soft: #232326;
+  --dh-mist: #f5f5f7;
+  --dh-paper: #fafafc;
+  --dh-line: rgba(0, 0, 0, 0.08);
+  --dh-line-soft: rgba(0, 0, 0, 0.07);
+  --dh-text-1: rgba(11, 11, 12, 1);
+  --dh-text-2: rgba(11, 11, 12, 0.72);
+  --dh-text-3: rgba(11, 11, 12, 0.55);
+  --dh-text-4: rgba(11, 11, 12, 0.45);
+  --dh-accent: #a8123a;
+  --dh-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial,
+    sans-serif;
+  --dh-r-pill: 999px;
+  --dh-r-sm: 12px;
+  --dh-r-md: 16px;
+  --dh-r-lg: 22px;
+  --dh-r-xl: 28px;
+  --dh-ring-off: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  --dh-ring-on: 0 0 0 2px var(--dh-accent), 0 8px 20px -14px rgba(11, 11, 12, 0.5);
+  --dh-shadow-card-hover: 0 30px 50px -34px rgba(11, 11, 12, 0.5);
+  --dh-shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 24px -12px rgba(11, 11, 12, 0.7);
+  --dh-shadow-glass: inset 0 1px 1px #fff, 0 22px 40px -24px rgba(11, 11, 12, 0.3);
+
+  position: relative;
+  font-family: var(--dh-font);
+  color: var(--dh-text-1);
+  background: #fff;
+}
+
+/* Fondo blanco a todo el ancho del viewport: .wrapper vive dentro de .container
+   (que tiene max-width y queda centrado), así que sin esto los márgenes a los
+   costados en pantallas anchas siguen mostrando el gris global del body. */
+.wrapper::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  background: #fff;
+  z-index: -1;
+}
+
+/* --- Breadcrumb --- */
+.wrapper :global(.oc-page-header) {
+  padding: 18px 0 0;
+}
+
+.wrapper :global(.oc-breadcrumb) {
+  font: 400 11.5px/1.4 var(--dh-font);
+  letter-spacing: -0.01em;
+  color: var(--dh-text-4);
+}
+.wrapper :global(.oc-breadcrumb a) {
+  color: var(--dh-text-4);
+}
+.wrapper :global(.oc-breadcrumb a:hover) {
+  color: var(--dh-ink);
+}
+
+/* --- Layout --- */
+.wrapper :global(.oc-product-detail) {
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 56px;
+  /* stretch (default): la celda de la galería queda tan alta como la del
+     buybox, para que el sticky de adentro tenga recorrido y "siga" el
+     scroll en vez de despegarse apenas termina el contenido corto de la
+     imagen. */
+  align-items: stretch;
+  padding: 8px 0 70px;
+}
+
+@media (max-width: 900px) {
+  .wrapper :global(.oc-product-detail) {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* --- Galería --- */
+.wrapper :global(.oc-pdp-gallery-wrap) {
+  position: relative;
+}
+
+.wrapper :global(.oc-pdp-reseller-badge) {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  z-index: 2;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  padding: 7px 13px 7px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.wrapper :global(.oc-pdp-reseller-badge span) {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dh-accent);
+}
+
+.wrapper :global(.oc-gallery) {
+  position: sticky;
+  top: 72px;
+}
+
+.wrapper :global(.oc-gallery.has-thumbs) {
+  grid-template-columns: 1fr;
+}
+
+.wrapper :global(.oc-gallery-stage) {
+  background: #fff;
+  border-radius: var(--dh-r-xl);
+  min-height: 420px;
+  padding: 36px;
+}
+
+.wrapper :global(.oc-gallery-main) {
+  max-height: 400px;
+}
+
+.wrapper :global(.oc-gallery-thumbs-col) {
+  order: 2;
+  flex-direction: row;
+  justify-content: center;
+  width: 100%;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.wrapper :global(.oc-gallery-thumb-nav) {
+  display: none;
+}
+
+.wrapper :global(.oc-gallery-thumbs) {
+  flex-direction: row;
+  max-height: none;
+  overflow: visible;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wrapper :global(.oc-gallery-thumb) {
+  width: 72px;
+  height: 72px;
+  padding: 10px 6px 9px;
+  border-radius: 14px;
+  border: 0;
+  background: var(--dh-mist);
+  box-shadow: var(--dh-ring-off);
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.wrapper :global(.oc-gallery-thumb:hover) {
+  transform: translateY(-2px);
+}
+
+.wrapper :global(.oc-gallery-thumb.is-active) {
+  box-shadow: 0 0 0 2px var(--dh-ink);
+}
+
+.wrapper :global(.oc-gallery-dot.is-active) {
+  background: var(--dh-ink);
+  border-color: var(--dh-ink);
+}
+
+@media (max-width: 900px) {
+  .wrapper :global(.oc-gallery) {
+    position: static;
+  }
+}
+
+/* --- Buybox --- */
+.wrapper :global(.oc-pdp-brand a) {
+  font: 600 11.5px var(--dh-font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dh-accent);
+}
+
+.wrapper :global(.oc-pdp-buybox h1) {
+  font: 600 52px/1.02 var(--dh-font);
+  letter-spacing: -0.035em;
+  margin: 8px 0 0;
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-pdp-subtitle) {
+  font: 400 17px/1.5 var(--dh-font);
+  letter-spacing: -0.015em;
+  color: rgba(11, 11, 12, 0.56);
+  margin: 14px 0 0;
+  max-width: 44ch;
+}
+
+.wrapper :global(.oc-pdp-price-row) {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 26px 0 0;
+  flex-wrap: wrap;
+}
+
+.wrapper :global(.oc-price) {
+  font: 600 34px/1 var(--dh-font);
+  letter-spacing: -0.03em;
+  color: var(--dh-text-1);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.wrapper :global(.oc-pdp-price-cuota) {
+  font: 400 13px var(--dh-font);
+  color: var(--dh-text-3);
+  letter-spacing: -0.01em;
+}
+
+.wrapper :global(.oc-pdp-divider) {
+  height: 1px;
+  background: var(--dh-line);
+  margin: 28px 0;
+}
+
+.wrapper :global(.oc-cuotas) {
+  font: 600 13px var(--dh-font);
+  color: var(--dh-accent);
+}
+
+.wrapper :global(.oc-contado),
+.wrapper :global(.oc-sin-imp) {
+  font: 400 13px var(--dh-font);
+  letter-spacing: -0.01em;
+  color: var(--dh-text-3);
+}
+
+.wrapper :global(.oc-pdp-in-stock) {
+  font: 600 14px var(--dh-font);
+  color: #1a7f37;
+}
+
+.wrapper :global(.oc-pdp-oos-label) {
+  font: 600 14px var(--dh-font);
+  color: var(--dh-accent);
+}
+
+/* --- Resumen glass (cantidad + Añadir al carrito) --- */
+.wrapper :global(.oc-pdp-summary-glass) {
+  margin-top: 22px;
+  padding: 22px;
+  border-radius: var(--dh-r-lg);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.66));
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  box-shadow: var(--dh-shadow-glass);
+}
+
+.wrapper :global(.oc-pdp-summary-glass .oc-pdp-cart-form) {
+  margin: 0;
+}
+
+/* --- Cantidad + Añadir al carrito --- */
+.wrapper :global(.oc-pdp-cart-form) {
+  gap: 10px;
+  margin: 0;
+}
+
+.wrapper :global(.oc-pdp-qty-controls) {
+  height: auto;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border: 0;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.05);
+  overflow: visible;
+}
+
+.wrapper :global(.oc-pdp-qty-controls button) {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(11, 11, 12, 0.1);
+  font: 600 17px var(--dh-font);
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-pdp-qty-controls input) {
+  width: 30px;
+  min-width: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--dh-text-1);
+  text-align: center;
+  font: 600 14px var(--dh-font);
+  letter-spacing: -0.01em;
+}
+
+.wrapper :global(.oc-pdp-add-btn),
+.wrapper :global(.oc-pdp-wa-btn) {
+  flex: 1 1 auto;
+  height: auto;
+  padding: 15px 24px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--dh-ink-soft), var(--dh-ink));
+  box-shadow: var(--dh-shadow-btn);
+  font: 600 13.5px var(--dh-font);
+  letter-spacing: -0.015em;
+  text-align: center;
+  transition: transform 0.18s ease;
+}
+
+.wrapper :global(.oc-pdp-add-btn:hover:not(:disabled)),
+.wrapper :global(.oc-pdp-wa-btn:hover) {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, var(--dh-ink-soft), var(--dh-ink));
+}
+
+/* --- Wishlist / links --- */
+.wrapper :global(.oc-pdp-wishlist) {
+  color: var(--dh-accent);
+  font: 600 13.5px var(--dh-font);
+  margin-top: 14px;
+}
+
+.wrapper :global(.oc-pdp-wishlist:hover) {
+  color: var(--dh-ink);
+}
+
+/* --- Entrega --- */
+.wrapper :global(.oc-pdp-delivery) {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--dh-line-soft);
+  border-radius: var(--dh-r-md);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: inset 0 1px 1px #fff;
+}
+
+.wrapper :global(.oc-pdp-delivery strong),
+.wrapper :global(.oc-pdp-delivery p) {
+  color: var(--dh-text-1);
+}
+
+/* --- Promociones bancarias (glass) --- */
+.wrapper :global(.oc-pdp-bank) {
+  margin-top: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--dh-r-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7));
+  box-shadow: var(--dh-shadow-glass);
+  backdrop-filter: blur(24px) saturate(170%);
+}
+
+.wrapper :global(.oc-pdp-bank h4) {
+  border-bottom: 0;
+  padding-bottom: 0.3rem;
+  font: 600 12px var(--dh-font);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--dh-text-3);
+}
+
+.wrapper :global(.oc-pdp-bank-row) {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.wrapper :global(.oc-pdp-bank-title) {
+  font: 600 18px var(--dh-font);
+  letter-spacing: -0.02em;
+}
+
+.wrapper :global(.oc-pdp-bank-sub) {
+  color: var(--dh-accent);
+}
+
+/* --- Disponibilidad en tiendas --- */
+.wrapper :global(.oc-pdp-stores) {
+  border-top: 1px solid var(--dh-line);
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+
+.wrapper :global(.oc-pdp-stores h4) {
+  font: 600 12px var(--dh-font);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--dh-text-3);
+}
+
+/* --- Selector de variantes (Color / Memoria / Teclado / Tamaño) --- */
+.wrapper :global(.oc-pdp-variants) {
+  margin: 0;
+  display: grid;
+  gap: 30px;
+}
+
+.wrapper :global(.oc-pdp-variant-group) {
+  display: grid;
+  gap: 14px;
+  margin-top: 30px;
+}
+
+.wrapper :global(.oc-pdp-variant-heading) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font: 600 14px var(--dh-font);
+  letter-spacing: -0.015em;
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-pdp-variant-heading em) {
+  font: 400 13px var(--dh-font);
+  font-style: normal;
+  color: var(--dh-text-3);
+}
+
+.wrapper :global(.oc-pdp-variant-options) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.wrapper :global(.oc-pdp-variant-swatch) {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 16px 11px 12px;
+  border-radius: var(--dh-r-md);
+  border: 0;
+  background: #fff;
+  font: 600 13px var(--dh-font);
+  letter-spacing: -0.015em;
+  color: var(--dh-text-1);
+  box-shadow: var(--dh-ring-off);
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+}
+
+.wrapper :global(.oc-pdp-variant-swatch:hover) {
+  transform: translateY(-1px);
+}
+
+.wrapper :global(.oc-pdp-variant-swatch.is-active) {
+  box-shadow: var(--dh-ring-on);
+}
+
+.wrapper :global(.oc-pdp-variant-swatch.is-oos) {
+  opacity: 0.5;
+}
+
+.wrapper :global(.oc-pdp-variant-dot) {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12), inset 0 -6px 10px rgba(0, 0, 0, 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.wrapper :global(.oc-pdp-variant-pill) {
+  display: inline-flex;
+  align-items: center;
+  padding: 11px 16px;
+  border-radius: var(--dh-r-md);
+  border: 0;
+  background: #fff;
+  font: 600 13px var(--dh-font);
+  letter-spacing: -0.015em;
+  color: var(--dh-text-1);
+  box-shadow: var(--dh-ring-off);
+  transition: box-shadow 0.25s ease;
+}
+
+.wrapper :global(.oc-pdp-variant-pill.is-active) {
+  box-shadow: var(--dh-ring-on);
+}
+
+.wrapper :global(.oc-pdp-variant-pill.is-oos) {
+  opacity: 0.5;
+}
+
+.wrapper :global(.oc-pdp-variant-chip) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 15px 18px;
+  border-radius: var(--dh-r-md);
+  border: 0;
+  background: #fff;
+  box-shadow: var(--dh-ring-off);
+  transition: box-shadow 0.25s ease;
+}
+
+.wrapper :global(.oc-pdp-variant-chip.is-active) {
+  box-shadow: var(--dh-ring-on);
+}
+
+.wrapper :global(.oc-pdp-variant-chip.is-oos) {
+  opacity: 0.5;
+}
+
+.wrapper :global(.oc-pdp-variant-chip-n) {
+  display: block;
+  font: 600 14.5px var(--dh-font);
+  letter-spacing: -0.02em;
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-pdp-variant-chip-m) {
+  display: block;
+  font: 400 11.5px var(--dh-font);
+  color: var(--dh-text-3);
+  margin-top: 3px;
+}
+
+/* --- Tamaño (jump entre líneas 14"/16") --- */
+.wrapper :global(.oc-pdp-size-options) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.wrapper :global(.oc-pdp-size-tile) {
+  display: block;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--dh-ring-off);
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-pdp-size-tile:hover) {
+  transform: translateY(-1px);
+}
+
+.wrapper :global(.oc-pdp-size-tile.is-active) {
+  box-shadow: var(--dh-ring-on);
+}
+
+.wrapper :global(.oc-pdp-size-tile-n) {
+  font: 600 22px var(--dh-font);
+  letter-spacing: -0.03em;
+}
+
+.wrapper :global(.oc-pdp-size-tile-m) {
+  font: 400 11.5px var(--dh-font);
+  color: var(--dh-text-3);
+  margin-top: 4px;
+  letter-spacing: -0.01em;
+}
+
+.wrapper :global(.oc-pdp-size-tile-p) {
+  font: 600 11.5px var(--dh-font);
+  margin-top: 8px;
+  letter-spacing: -0.01em;
+}
+
+/* --- Tiles de especificaciones --- */
+.wrapper :global(.oc-pdp-spec-tiles) {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 0 0 2rem;
+}
+
+@media (max-width: 720px) {
+  .wrapper :global(.oc-pdp-spec-tiles) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.wrapper :global(.oc-pdp-spec-tile) {
+  background: var(--dh-mist);
+  border-radius: var(--dh-r-lg);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wrapper :global(.oc-pdp-spec-tile strong) {
+  font: 600 36px var(--dh-font);
+  letter-spacing: -0.035em;
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-pdp-spec-tile span) {
+  font: 400 12.5px var(--dh-font);
+  color: var(--dh-text-3);
+}
+
+/* --- Comparativa de tamaños --- */
+.wrapper :global(.oc-pdp-compare-wrap) {
+  margin-top: 2.5rem;
+}
+
+.wrapper :global(.oc-pdp-compare-wrap h2) {
+  max-width: 22ch;
+}
+
+.wrapper :global(.oc-pdp-compare) {
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(11, 11, 12, 0.05), 0 24px 50px -30px rgba(11, 11, 12, 0.28);
+}
+
+.wrapper :global(.oc-pdp-compare-row) {
+  display: grid;
+  font: 400 13.5px var(--dh-font);
+  letter-spacing: -0.01em;
+  background: #fff;
+}
+
+.wrapper :global(.oc-pdp-compare-row:nth-child(even)) {
+  background: var(--dh-mist);
+}
+
+.wrapper :global(.oc-pdp-compare-row > div) {
+  padding: 16px 24px;
+}
+
+.wrapper :global(.oc-pdp-compare-row > div:first-child) {
+  color: var(--dh-text-3);
+}
+
+.wrapper :global(.oc-pdp-compare-head) {
+  background: #fff;
+}
+
+.wrapper :global(.oc-pdp-compare-head > div) {
+  padding: 20px 24px;
+  font: 600 15px var(--dh-font);
+  letter-spacing: -0.02em;
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-pdp-compare-head > div:first-child) {
+  font: 600 12px var(--dh-font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dh-text-4);
+}
+
+.wrapper :global(.oc-pdp-compare-strong > div) {
+  font-weight: 600;
+  color: var(--dh-text-1);
+}
+
+/* --- Descripción --- */
+.wrapper :global(.oc-pdp-description) {
+  max-width: none;
+  margin-top: 2.5rem;
+  padding-top: 3rem;
+  border-top: 1px solid var(--dh-line);
+}
+
+.wrapper :global(.oc-pdp-description h2),
+.wrapper :global(.oc-pdp-related h2) {
+  font: 600 40px/1.06 var(--dh-font);
+  letter-spacing: -0.035em;
+  color: var(--dh-text-1);
+  margin: 0 0 1.75rem;
+}
+
+/* --- Por qué esta [Modelo] (highlights) --- */
+.wrapper :global(.oc-pdp-highlights-wrap) {
+  margin-top: 3rem;
+}
+
+.wrapper :global(.oc-pdp-highlights-grid) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+@media (max-width: 900px) {
+  .wrapper :global(.oc-pdp-highlights-grid) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wrapper :global(.oc-pdp-highlight) {
+  padding: 20px 22px;
+  border-radius: var(--dh-r-lg);
+  background: var(--dh-mist);
+}
+
+.wrapper :global(.oc-pdp-highlight h4) {
+  font: 600 15px var(--dh-font);
+  letter-spacing: -0.015em;
+  color: var(--dh-text-1);
+  margin: 0 0 0.35rem;
+}
+
+.wrapper :global(.oc-pdp-highlight p) {
+  font: 400 13.5px/1.55 var(--dh-font);
+  letter-spacing: -0.01em;
+  color: var(--dh-text-3);
+  margin: 0;
+}
+
+.wrapper :global(.oc-pdp-highlights-fallback) {
+  max-width: 68ch;
+  padding: 22px 24px;
+  border-radius: var(--dh-r-lg);
+  background: var(--dh-mist);
+  font: 400 15px/1.65 var(--dh-font);
+  letter-spacing: -0.01em;
+  color: var(--dh-text-2);
+}
+
+/* --- Características técnicas (tabla ancho completo) --- */
+.wrapper :global(.oc-pdp-techspecs-wrap) {
+  margin-top: 3.5rem;
+}
+
+.wrapper :global(.oc-pdp-techspecs) {
+  border-radius: var(--dh-r-xl);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(11, 11, 12, 0.05), 0 24px 50px -30px rgba(11, 11, 12, 0.28);
+}
+
+.wrapper :global(.oc-pdp-techspecs-row) {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  background: #fff;
+}
+
+.wrapper :global(.oc-pdp-techspecs-row:nth-child(even)) {
+  background: var(--dh-mist);
+}
+
+.wrapper :global(.oc-pdp-techspecs-row > div) {
+  padding: 18px 28px;
+  font: 400 14px var(--dh-font);
+  letter-spacing: -0.01em;
+}
+
+.wrapper :global(.oc-pdp-techspecs-row > div:first-child) {
+  color: var(--dh-text-3);
+}
+
+.wrapper :global(.oc-pdp-techspecs-row > div:last-child) {
+  font-weight: 600;
+  color: var(--dh-text-1);
+}
+
+/* --- Relacionados --- */
+.wrapper :global(.oc-pdp-related h2) {
+  margin-bottom: 1.5rem;
+}
+
+.wrapper :global(.oc-product-card) {
+  background: var(--dh-mist);
+  border-radius: var(--dh-r-lg);
+  transition: transform 0.28s ease, box-shadow 0.28s ease;
+}
+
+.wrapper :global(.oc-product-card:hover) {
+  transform: translateY(-4px);
+  box-shadow: var(--dh-shadow-card-hover);
+}
+
+.wrapper :global(.oc-product-card-media) {
+  background: transparent;
+}
+
+.wrapper :global(.oc-product-card-body h3) {
+  font: 500 14px/1.4 var(--dh-font);
+  letter-spacing: -0.01em;
+  color: var(--dh-text-1);
+}
+
+.wrapper :global(.oc-btn-cart) {
+  border-radius: var(--dh-r-pill);
+}

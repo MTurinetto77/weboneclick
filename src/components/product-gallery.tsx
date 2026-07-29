@@ -41,11 +41,11 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
   }
 
   return (
-    <div className={`oc-gallery${outOfStock ? " oc-gallery-oos" : ""}${multi ? " has-thumbs" : ""}`}>
+    <div className={`oc-gallery has-thumbs${outOfStock ? " oc-gallery-oos" : ""}`}>
       {outOfStock && <span className="oc-pdp-badge-oos">Sin Stock</span>}
 
-      {multi && (
-        <div className="oc-gallery-thumbs-col">
+      <div className="oc-gallery-thumbs-col">
+        {multi && (
           <button
             type="button"
             className="oc-gallery-thumb-nav"
@@ -54,22 +54,24 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
           >
             <ChevronUp />
           </button>
-          <div className="oc-gallery-thumbs" ref={thumbsRef}>
-            {urls.map((src, i) => (
-              <button
-                key={`${src}-${i}`}
-                type="button"
-                data-thumb={i}
-                className={`oc-gallery-thumb${i === index ? " is-active" : ""}`}
-                aria-label={`Imagen ${i + 1}`}
-                aria-current={i === index}
-                onClick={() => setIndex(i)}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" />
-              </button>
-            ))}
-          </div>
+        )}
+        <div className="oc-gallery-thumbs" ref={thumbsRef}>
+          {urls.map((src, i) => (
+            <button
+              key={`${src}-${i}`}
+              type="button"
+              data-thumb={i}
+              className={`oc-gallery-thumb${i === index ? " is-active" : ""}`}
+              aria-label={`Imagen ${i + 1}`}
+              aria-current={i === index}
+              onClick={() => setIndex(i)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" />
+            </button>
+          ))}
+        </div>
+        {multi && (
           <button
             type="button"
             className="oc-gallery-thumb-nav"
@@ -78,8 +80,8 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
           >
             <ChevronDown />
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="oc-gallery-stage">
         {multi && (

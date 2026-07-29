@@ -41,7 +41,7 @@ export async function SiteHeader() {
   });
 
   return (
-    <header className="oc-header-float">
+    <header className="oc-header-float oc-glass">
       <div className="oc-header-float-inner">
         <Link href="/" className="oc-logo-float">
           {/* eslint-disable-next-line @next/next/no-img-element */}

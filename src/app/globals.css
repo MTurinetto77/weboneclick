@@ -1,7 +1,7 @@
 :root {
   --oc-bg: #f4f4f4;
   --oc-bg-soft: #f4f4f4;
-  --oc-ink: #1d1d1f;
+  --oc-ink: #0b0b0c;
   --oc-muted: #6e6e73;
   --oc-border: #d2d2d7;
   --oc-black: #000000;
@@ -12,8 +12,21 @@
   --oc-green: #1d8348;
   --oc-radius: 12px;
   --oc-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --font-display: "SF Pro Display", Arial, Helvetica, sans-serif;
-  --font-body: "SF Pro Display", Arial, Helvetica, sans-serif;
+  /* Escala de radios del rediseño (kit "OneClick — estética Apple"). Uso libre en
+     componentes nuevos; los existentes siguen con --oc-radius hasta migrarse. */
+  --oc-r-pill: 999px;
+  --oc-r-sm: 12px;
+  --oc-r-md: 16px;
+  --oc-r-lg: 22px;
+  --oc-r-xl: 28px;
+  --oc-mist: #f5f5f7;
+  --oc-shadow-card-hover: 0 30px 50px -34px rgba(11, 11, 12, 0.5);
+  --oc-shadow-btn: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 24px -12px rgba(11, 11, 12, 0.7);
+  --oc-shadow-glass: inset 0 1px 1px #fff, 0 22px 40px -24px rgba(11, 11, 12, 0.3);
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial,
+    Helvetica, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial,
+    Helvetica, sans-serif;
   --color-bg: var(--oc-bg-soft);
   --color-surface: #fff;
   --color-ink: var(--oc-ink);
@@ -34,15 +47,80 @@ html, body {
   min-height: 100%;
 }
 
-body {
+body,
+button,
+input,
+textarea,
+select {
   font-family: var(--font-body);
+  letter-spacing: -0.015em;
+}
+
+body {
   color: var(--oc-ink);
   background: var(--oc-bg);
   line-height: 1.45;
 }
 
+h1,
+h2 {
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.06;
+}
+
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; display: block; }
+
+/* --- Liquid Glass: utilidad reusable (nav, barras, cards de precio/CTA) --- */
+.oc-glass {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.66));
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  box-shadow: var(--oc-shadow-glass);
+}
+
+.oc-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    220px circle at var(--mx, 50%) var(--my, 0%),
+    rgba(255, 255, 255, 0.9),
+    transparent 65%
+  );
+}
+
+/* --- Tarjetas: mist (catálogo), glass (precio/CTA), ink (mensajes de marca) --- */
+.oc-card {
+  background: var(--oc-mist);
+  border-radius: var(--oc-r-lg);
+  padding: 24px;
+  border: 0;
+  transition: transform 0.28s ease, box-shadow 0.28s ease;
+}
+
+.oc-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--oc-shadow-card-hover);
+}
+
+.oc-card--ink {
+  background: var(--oc-ink);
+  color: #fff;
+}
+
+.oc-card--glass {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7));
+  box-shadow: var(--oc-shadow-glass);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+}
 
 .container {
   width: min(1320px, calc(100% - 2rem));
@@ -54,9 +132,15 @@ img { max-width: 100%; display: block; }
   position: sticky;
   top: 0;
   z-index: 50;
-  background: #fff;
-  border-bottom: 1px solid #ececec;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   padding: 0 1rem;
+  /* .oc-glass trae overflow:hidden para el brillo interno; acá lo pisamos
+     porque el menú desplegable de categorías (.oc-pill-panel) se abre hacia
+     abajo, fuera de los límites del header, y no debe recortarse. */
+  overflow: visible;
+  /* .oc-glass también trae una sombra de caída pensada para cards flotantes;
+     en un header sticky se ve como una franja gris debajo — la sacamos. */
+  box-shadow: none;
 }
 
 .oc-header-float-inner {
@@ -1406,16 +1490,26 @@ img { max-width: 100%; display: block; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 980px;
-  padding: 0.65rem 1.2rem;
+  border-radius: 13px;
+  padding: 0.8rem 1.5rem;
   font: inherit;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.84375rem;
+  letter-spacing: -0.015em;
   border: 0;
   cursor: pointer;
+  transition: transform 0.18s ease;
 }
 
+.oc-btn:hover { transform: translateY(-2px); }
+.oc-btn:active { transform: none; }
+
 .oc-btn-primary { background: var(--oc-blue); color: #fff; }
-.oc-btn-dark { background: #000; color: #fff; }
+.oc-btn-dark {
+  background: linear-gradient(180deg, #232326, var(--oc-ink));
+  color: #fff;
+  box-shadow: var(--oc-shadow-btn);
+}
 .oc-btn-ghost { background: transparent; border: 1px solid var(--oc-border); }
 
 .oc-btn-cart {
