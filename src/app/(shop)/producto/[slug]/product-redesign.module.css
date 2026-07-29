@@ -34,6 +34,8 @@
   font-family: var(--dh-font);
   color: var(--dh-text-1);
   background: #fff;
+  /* deja lugar para que la buybar fija (.oc-pdp-buybar) no tape contenido */
+  padding-bottom: 90px;
 }
 
 /* Fondo blanco a todo el ancho del viewport: .wrapper vive dentro de .container
@@ -800,4 +802,144 @@
 
 .wrapper :global(.oc-btn-cart) {
   border-radius: var(--dh-r-pill);
+}
+
+/* --- Barra de compra fija (buybar) --- */
+.wrapper :global(.oc-pdp-buybar) {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 70;
+  padding: 14px 28px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.32s ease, opacity 0.32s ease;
+}
+
+.wrapper :global(.oc-pdp-buybar.is-visible) {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.wrapper :global(.oc-pdp-buybar-inner) {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.wrapper :global(.oc-pdp-buybar-media) {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--dh-mist);
+}
+
+.wrapper :global(.oc-pdp-buybar-media img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.wrapper :global(.oc-pdp-buybar-title) {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 600 13.5px var(--dh-font);
+  letter-spacing: -0.015em;
+  color: var(--dh-text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wrapper :global(.oc-pdp-buybar-price) {
+  flex: none;
+  text-align: right;
+}
+
+.wrapper :global(.oc-pdp-buybar-price div) {
+  font: 600 15px var(--dh-font);
+  letter-spacing: -0.02em;
+  color: var(--dh-text-1);
+  white-space: nowrap;
+}
+
+.wrapper :global(.oc-pdp-buybar-price span) {
+  font: 400 11px var(--dh-font);
+  color: var(--dh-text-3);
+  white-space: nowrap;
+}
+
+.wrapper :global(.oc-pdp-buybar-stock) {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font: 600 12.5px var(--dh-font);
+  letter-spacing: -0.01em;
+  color: #1a7f37;
+  white-space: nowrap;
+}
+
+.wrapper :global(.oc-pdp-buybar .oc-pdp-qty-controls) {
+  flex: none;
+}
+
+.wrapper :global(.oc-pdp-buybar-add) {
+  flex: none;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 13px;
+  border: 0;
+  background: linear-gradient(180deg, var(--dh-ink-soft), var(--dh-ink));
+  color: #fff;
+  box-shadow: var(--dh-shadow-btn);
+  font: 600 13px var(--dh-font);
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+
+.wrapper :global(.oc-pdp-buybar-add:hover:not(:disabled)) {
+  transform: translateY(-2px);
+}
+
+.wrapper :global(.oc-pdp-buybar-add:disabled) {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.wrapper :global(.oc-pdp-buybar-wishlist) {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--dh-accent);
+  transition: background 0.2s ease;
+}
+
+.wrapper :global(.oc-pdp-buybar-wishlist:hover) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 900px) {
+  .wrapper :global(.oc-pdp-buybar-title),
+  .wrapper :global(.oc-pdp-buybar-price span) {
+    display: none;
+  }
 }

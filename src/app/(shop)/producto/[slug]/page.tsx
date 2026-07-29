@@ -5,6 +5,7 @@ import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { ProductReserveForm } from "@/components/product-reserve-form";
+import { ProductStickyBar } from "@/components/product-sticky-bar";
 import { ProductStoreAvailability } from "@/components/product-store-availability";
 import { ProductVariantPicker } from "@/components/product-variant-picker";
 import {
@@ -18,7 +19,7 @@ import {
   sortProductImageLinks,
 } from "@/lib/products";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
-import { whatsappUrl } from "@/lib/utils";
+import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
 
 type Params = Promise<{ slug: string }>;
 
@@ -523,7 +524,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
 
               <p className="oc-pdp-in-stock">Hay existencias</p>
 
-              <div className="oc-pdp-summary-glass">
+              <div className="oc-pdp-summary-glass" id="oc-pdp-buybox-cta">
                 <ProductAddToCart idProducto={product.id_producto} maxQty={maxQty} />
               </div>
 
@@ -594,6 +595,18 @@ export default async function ProductoPage({ params }: { params: Params }) {
             ))}
           </div>
         </section>
+      )}
+
+      {inStock && (
+        <ProductStickyBar
+          idProducto={product.id_producto}
+          title={displayTitle}
+          imageUrl={uploadPublicUrl(imagenes[0] ?? "")}
+          priceLabel={formatPriceArs(product.precio)}
+          cuotaLabel={cuotaMonto != null ? `${cuotas} cuotas de ${formatPriceArs(cuotaMonto)}` : null}
+          maxQty={maxQty}
+          triggerId="oc-pdp-buybox-cta"
+        />
       )}
     </div>
   );
