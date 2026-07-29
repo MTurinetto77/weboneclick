@@ -2,8 +2,8 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import {
   FASTRACK_ZONAS_PRECIO,
-  PARAM_SMARTPOST_PRECIO,
   PARAM_VALOR_ENVIO_GRATIS,
+  SMARTPOST_CORDONES,
   paramFastrackPrecioZona,
 } from "@/lib/parametros";
 import {
@@ -24,7 +24,8 @@ export default async function AdminParametrosPage() {
       <h1 style={{ marginTop: 0 }}>Parámetros</h1>
       <p className="muted">
         Configuración genérica (nombre / tipo / valor / grupo). Ejemplos:{" "}
-        <code>{PARAM_SMARTPOST_PRECIO}</code>, <code>{PARAM_VALOR_ENVIO_GRATIS}</code>,{" "}
+        <code>{SMARTPOST_CORDONES[0].param}</code>…cordones SmartPost,{" "}
+        <code>{PARAM_VALOR_ENVIO_GRATIS}</code>,{" "}
         <code>{paramFastrackPrecioZona(FASTRACK_ZONAS_PRECIO[0])}</code>…zona 7 (grupo{" "}
         <code>envios</code>).
       </p>
@@ -42,7 +43,7 @@ export default async function AdminParametrosPage() {
       >
         <label>
           Nombre
-          <input name="nombre" placeholder={PARAM_SMARTPOST_PRECIO} required />
+          <input name="nombre" placeholder={SMARTPOST_CORDONES[0].param} required />
         </label>
         <label>
           Tipo

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { formatPriceArs } from "@/lib/pricing";
-import { getParametrosEnvioPrecios } from "@/lib/parametros";
+import { getParametrosEnvioPrecios, formatZonaEnvio } from "@/lib/parametros";
 import { PreciosEnvioModal } from "@/components/admin-precios-envio-modal";
 import {
   clearProveedorAction,
@@ -77,13 +77,13 @@ export default async function AdminEnviosPage({
       >
         <h1 style={{ margin: 0, flex: "1 1 auto" }}>Envíos</h1>
         <PreciosEnvioModal
-          smartpostPrecio={preciosParams.smartpost}
-          preciosZona={preciosParams.zonas}
+          smartpostCordones={preciosParams.smartpostCordones}
+          fastrackZonas={preciosParams.fastrackZonas}
         />
       </div>
       <p className="muted" style={{ marginTop: 0, marginBottom: "0.85rem", fontSize: "0.85rem" }}>
-        Códigos postales por proveedor. FastTrack: precio por zona. SmartPost: precio del
-        parámetro (también editable desde Actualizar precios).
+        Códigos postales por proveedor. FastTrack: precio por zona. SmartPost: precio por
+        cordón (CABA / CORDON 1–3), editable desde Actualizar precios.
       </p>
 
       {(ok || cleared || preciosOk) && (
@@ -187,7 +187,7 @@ export default async function AdminEnviosPage({
             Importar
           </button>
           <span className="muted" style={{ fontSize: "0.75rem" }}>
-            {countByProv.smartpost ?? 0} CPs · precio del Excel / parámetro
+            {countByProv.smartpost ?? 0} CPs · precio por cordón
           </span>
         </form>
       </div>
@@ -265,7 +265,7 @@ export default async function AdminEnviosPage({
                 <td>{row.proveedor}</td>
                 <td>{row.codigo_postal}</td>
                 <td>{row.localidad}</td>
-                <td>{row.zona ?? "—"}</td>
+                <td>{formatZonaEnvio(row.proveedor, row.zona)}</td>
                 <td>{row.dias_entrega}</td>
                 <td>{formatPriceArs(Number(row.precio))}</td>
                 <td>

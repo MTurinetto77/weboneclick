@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { updatePreciosEnvioAction } from "@/app/admin/envios/actions";
-import { FASTRACK_ZONAS_PRECIO } from "@/lib/parametros";
+import { FASTRACK_ZONAS_PRECIO, SMARTPOST_CORDONES } from "@/lib/parametros";
 
 type Props = {
-  smartpostPrecio: string;
-  preciosZona: Record<number, string>;
+  smartpostCordones: Record<string, string>;
+  fastrackZonas: Record<number, string>;
 };
 
-export function PreciosEnvioModal({ smartpostPrecio, preciosZona }: Props) {
+export function PreciosEnvioModal({ smartpostCordones, fastrackZonas }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -50,23 +50,27 @@ export function PreciosEnvioModal({ smartpostPrecio, preciosZona }: Props) {
 
             <p className="muted" style={{ marginTop: 0, fontSize: "0.85rem" }}>
               Grupo <code>envios</code>. Al guardar se actualizan los parámetros y los
-              precios de todos los códigos postales (FastTrack por zona, SmartPost
-              uniforme).
+              precios de todos los códigos postales (FastTrack por zona, SmartPost por
+              cordón).
             </p>
 
             <form action={updatePreciosEnvioAction} className="oc-admin-modal-form">
               <fieldset>
-                <legend>SmartPost</legend>
-                <label>
-                  Precio SmartPost
-                  <input
-                    name="smartpost_precio"
-                    type="text"
-                    inputMode="decimal"
-                    required
-                    defaultValue={smartpostPrecio}
-                  />
-                </label>
+                <legend>SmartPost por cordón</legend>
+                <div className="oc-admin-modal-zonas">
+                  {SMARTPOST_CORDONES.map((c) => (
+                    <label key={c.slug}>
+                      {c.label}
+                      <input
+                        name={`smartpost_${c.slug}`}
+                        type="text"
+                        inputMode="decimal"
+                        required
+                        defaultValue={smartpostCordones[c.slug] ?? ""}
+                      />
+                    </label>
+                  ))}
+                </div>
               </fieldset>
 
               <fieldset>
@@ -80,7 +84,7 @@ export function PreciosEnvioModal({ smartpostPrecio, preciosZona }: Props) {
                         type="text"
                         inputMode="decimal"
                         required
-                        defaultValue={preciosZona[zona] ?? ""}
+                        defaultValue={fastrackZonas[zona] ?? ""}
                       />
                     </label>
                   ))}

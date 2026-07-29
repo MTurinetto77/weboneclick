@@ -1,4 +1,8 @@
 import * as XLSX from "xlsx";
+import {
+  normalizeSmartpostCordon,
+  smartpostCordonBySlug,
+} from "@/lib/parametros";
 
 export type ProveedorEnvio = "fastrack" | "smartpost";
 
@@ -137,15 +141,21 @@ export function parseFastrackWorkbook(
 
 /**
  * SmartPost.xlsx — hoja "CP"
- * Headers: cp | localidad | ... | Costo
- * Precio se toma de la columna Costo. Días default 1 (no viene en el archivo).
+ * Headers: cp | localidad | ... | CORDON | Costo
+ * Precio por cordón desde parámetros (CABA / CORDON 1–3).
+ * Días default 1 (no viene en el archivo).
  */
 export function parseSmartpostWorkbook(
   buffer: Buffer,
-  opts?: { diasEntrega?: number },
+  opts: {
+    diasEntrega?: number;
+    preciosPorCordon: Record<number, number>;
+  },
 ): CpEnvioRow[] {
   const diasEntrega =
-    opts?.diasEntrega != null && opts.diasEntrega > 0 ? Math.round(opts.diasEntrega) : 1;
+    opts.diasEntrega != null && opts.diasEntrega > 0
+      ? Math.round(opts.diasEntrega)
+      : 1;
 
   const wb = readWorkbook(buffer);
   const sheetName = wb.SheetNames.find((n) => /^cp$/i.test(n)) ?? wb.SheetNames[0];
@@ -163,26 +173,31 @@ export function parseSmartpostWorkbook(
     const cpKey = keys.find((k) => k.trim().toLowerCase() === "cp") ?? "cp";
     const locKey =
       keys.find((k) => k.trim().toLowerCase() === "localidad") ?? "localidad";
-    const costoKey =
-      keys.find((k) => {
-        const n = k.trim().toLowerCase();
-        return n === "costo" || n === "precio" || n === "costo ";
-      }) ?? keys.find((k) => /costo|precio/i.test(k.trim()));
+    const cordonKey =
+      keys.find((k) => k.trim().toLowerCase() === "cordon") ??
+      keys.find((k) => /^cordon$/i.test(k.trim()));
 
     const cp = normalizeCp(obj[cpKey]);
     if (!cp) continue;
     if (seen.has(cp)) continue;
     seen.add(cp);
 
-    const precio = costoKey ? cellNum(obj[costoKey]) : null;
+    const cordonRaw = cordonKey ? cellStr(obj[cordonKey]) : "";
+    const slug = normalizeSmartpostCordon(cordonRaw);
+    const cordon = slug ? smartpostCordonBySlug(slug) : null;
+    const zona = cordon?.zona ?? null;
+    const precio =
+      zona != null && opts.preciosPorCordon[zona] != null
+        ? opts.preciosPorCordon[zona]
+        : 0;
 
     out.push({
       proveedor: "smartpost",
       codigo_postal: cp,
       localidad: cellStr(obj[locKey]) || "—",
       dias_entrega: diasEntrega,
-      precio: precio != null && precio >= 0 ? precio : 0,
-      zona: null,
+      precio,
+      zona,
     });
   }
 

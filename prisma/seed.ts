@@ -426,16 +426,35 @@ async function main() {
   }
 
   // Parámetros de configuración
-  await prisma.parametro.upsert({
-    where: { nombre: "smartpost_precio_envio" },
-    create: {
-      nombre: "smartpost_precio_envio",
-      tipo: "number",
+  for (const c of [
+    {
+      nombre: "smartpost_precio_caba",
       valor: "4380.44",
-      grupo_parametros: "envios",
     },
-    update: { grupo_parametros: "envios" },
-  });
+    {
+      nombre: "smartpost_precio_cordon_1",
+      valor: "7002.44",
+    },
+    {
+      nombre: "smartpost_precio_cordon_2",
+      valor: "9733.69",
+    },
+    {
+      nombre: "smartpost_precio_cordon_3",
+      valor: "9733.69",
+    },
+  ]) {
+    await prisma.parametro.upsert({
+      where: { nombre: c.nombre },
+      create: {
+        nombre: c.nombre,
+        tipo: "number",
+        valor: c.valor,
+        grupo_parametros: "envios",
+      },
+      update: { grupo_parametros: "envios" },
+    });
+  }
   await prisma.parametro.upsert({
     where: { nombre: "valor_para_envio_gratis" },
     create: {

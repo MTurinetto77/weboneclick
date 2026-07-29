@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 
-export const PARAM_SMARTPOST_PRECIO = "smartpost_precio_envio";
 export const PARAM_VALOR_ENVIO_GRATIS = "valor_para_envio_gratis";
 export const DEFAULT_VALOR_ENVIO_GRATIS = 200_000;
 export const GRUPO_ENVIOS = "envios";
@@ -19,6 +18,84 @@ export const FASTRACK_PRECIO_ZONA_DEFAULTS: Record<number, string> = {
 
 export function paramFastrackPrecioZona(zona: number): string {
   return `fastrack_precio_zona_${zona}`;
+}
+
+/**
+ * SmartPost — columna Excel CORDON.
+ * Se guarda en codigo_postal_envio.zona (1=CABA … 4=CORDON 3).
+ */
+export const SMARTPOST_CORDONES = [
+  {
+    zona: 1,
+    label: "CABA",
+    slug: "caba",
+    param: "smartpost_precio_caba",
+    defaultValor: "4380.44",
+  },
+  {
+    zona: 2,
+    label: "CORDON 1",
+    slug: "cordon_1",
+    param: "smartpost_precio_cordon_1",
+    defaultValor: "7002.44",
+  },
+  {
+    zona: 3,
+    label: "CORDON 2",
+    slug: "cordon_2",
+    param: "smartpost_precio_cordon_2",
+    defaultValor: "9733.69",
+  },
+  {
+    zona: 4,
+    label: "CORDON 3",
+    slug: "cordon_3",
+    param: "smartpost_precio_cordon_3",
+    defaultValor: "9733.69",
+  },
+] as const;
+
+export type SmartpostCordonSlug = (typeof SMARTPOST_CORDONES)[number]["slug"];
+
+export function paramSmartpostPrecioCordon(slug: string): string {
+  const found = SMARTPOST_CORDONES.find((c) => c.slug === slug);
+  return found?.param ?? `smartpost_precio_${slug}`;
+}
+
+/** Normaliza texto CORDON del Excel → slug interno. */
+export function normalizeSmartpostCordon(
+  raw: string,
+): SmartpostCordonSlug | null {
+  const s = String(raw || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+  if (!s) return null;
+  if (s === "CABA" || s.startsWith("CABA ")) return "caba";
+  if (s === "CORDON 1" || s === "CORDÓN 1" || s === "CORDON1") return "cordon_1";
+  if (s === "CORDON 2" || s === "CORDÓN 2" || s === "CORDON2") return "cordon_2";
+  if (s === "CORDON 3" || s === "CORDÓN 3" || s === "CORDON3") return "cordon_3";
+  return null;
+}
+
+export function smartpostCordonBySlug(slug: string) {
+  return SMARTPOST_CORDONES.find((c) => c.slug === slug) ?? null;
+}
+
+export function smartpostCordonLabel(zona: number | null | undefined): string | null {
+  if (zona == null) return null;
+  return SMARTPOST_CORDONES.find((c) => c.zona === zona)?.label ?? null;
+}
+
+export function formatZonaEnvio(
+  proveedor: string,
+  zona: number | null | undefined,
+): string {
+  if (zona == null) return "—";
+  if (proveedor === "smartpost") {
+    return smartpostCordonLabel(zona) ?? String(zona);
+  }
+  return String(zona);
 }
 
 export async function getParametro(nombre: string): Promise<string | null> {
@@ -72,12 +149,31 @@ export async function getFastrackPreciosPorZona(): Promise<Record<number, number
   return out;
 }
 
+/** Mapa zona numérica → precio SmartPost (CABA=1 … CORDON 3=4). */
+export async function getSmartpostPreciosPorCordon(): Promise<
+  Record<number, number>
+> {
+  const names = SMARTPOST_CORDONES.map((c) => c.param);
+  const rows = await prisma.parametro.findMany({
+    where: { nombre: { in: [...names] } },
+  });
+  const byName = Object.fromEntries(rows.map((r) => [r.nombre, r.valor]));
+
+  const out: Record<number, number> = {};
+  for (const c of SMARTPOST_CORDONES) {
+    const raw = byName[c.param] ?? c.defaultValor;
+    const n = parseParamNumber(raw);
+    if (n != null && n >= 0) out[c.zona] = n;
+  }
+  return out;
+}
+
 export async function getParametrosEnvioPrecios(): Promise<{
-  smartpost: string;
-  zonas: Record<number, string>;
+  smartpostCordones: Record<string, string>;
+  fastrackZonas: Record<number, string>;
 }> {
   const names = [
-    PARAM_SMARTPOST_PRECIO,
+    ...SMARTPOST_CORDONES.map((c) => c.param),
     ...FASTRACK_ZONAS_PRECIO.map(paramFastrackPrecioZona),
   ];
   const rows = await prisma.parametro.findMany({
@@ -85,16 +181,18 @@ export async function getParametrosEnvioPrecios(): Promise<{
   });
   const byName = Object.fromEntries(rows.map((r) => [r.nombre, r.valor]));
 
-  const zonas: Record<number, string> = {};
+  const smartpostCordones: Record<string, string> = {};
+  for (const c of SMARTPOST_CORDONES) {
+    smartpostCordones[c.slug] = byName[c.param] ?? c.defaultValor;
+  }
+
+  const fastrackZonas: Record<number, string> = {};
   for (const zona of FASTRACK_ZONAS_PRECIO) {
-    zonas[zona] =
+    fastrackZonas[zona] =
       byName[paramFastrackPrecioZona(zona)] ?? FASTRACK_PRECIO_ZONA_DEFAULTS[zona];
   }
 
-  return {
-    smartpost: byName[PARAM_SMARTPOST_PRECIO] ?? "4380.44",
-    zonas,
-  };
+  return { smartpostCordones, fastrackZonas };
 }
 
 export async function upsertParametro(input: {

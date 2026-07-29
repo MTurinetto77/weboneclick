@@ -15,8 +15,9 @@ import {
 import {
   FASTRACK_ZONAS_PRECIO,
   GRUPO_ENVIOS,
-  PARAM_SMARTPOST_PRECIO,
+  SMARTPOST_CORDONES,
   getFastrackPreciosPorZona,
+  getSmartpostPreciosPorCordon,
   paramFastrackPrecioZona,
   parseParamNumber,
 } from "@/lib/parametros";
@@ -84,7 +85,11 @@ export async function importSmartpost(formData: FormData) {
   await requireAdmin();
 
   const buffer = await readUpload(formData);
-  const rows = parseSmartpostWorkbook(buffer, { diasEntrega: 1 });
+  const preciosPorCordon = await getSmartpostPreciosPorCordon();
+  const rows = parseSmartpostWorkbook(buffer, {
+    diasEntrega: 1,
+    preciosPorCordon,
+  });
   if (!rows.length) {
     throw new Error("No se importaron filas. Revisá el formato del Excel SmartPost.");
   }
@@ -96,15 +101,19 @@ export async function importSmartpost(formData: FormData) {
 
 /**
  * Guarda precios de envío (grupo envios) y recalcula codigo_postal_envio.
- * FastTrack: por zona. SmartPost: precio único del parámetro.
+ * FastTrack: por zona. SmartPost: por cordón (CABA / CORDON 1–3).
  */
 export async function updatePreciosEnvioAction(formData: FormData) {
   await requireAdmin();
 
-  const smartpostRaw = String(formData.get("smartpost_precio") || "").trim();
-  const smartpostPrecio = parseParamNumber(smartpostRaw);
-  if (smartpostPrecio == null || smartpostPrecio < 0) {
-    throw new Error("Precio SmartPost inválido");
+  const preciosSmartpost: Record<number, number> = {};
+  for (const c of SMARTPOST_CORDONES) {
+    const raw = String(formData.get(`smartpost_${c.slug}`) || "").trim();
+    const n = parseParamNumber(raw);
+    if (n == null || n < 0) {
+      throw new Error(`Precio SmartPost ${c.label} inválido`);
+    }
+    preciosSmartpost[c.zona] = n;
   }
 
   const preciosZona: Record<number, number> = {};
@@ -118,20 +127,22 @@ export async function updatePreciosEnvioAction(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.parametro.upsert({
-      where: { nombre: PARAM_SMARTPOST_PRECIO },
-      create: {
-        nombre: PARAM_SMARTPOST_PRECIO,
-        tipo: "number",
-        valor: String(smartpostPrecio),
-        grupo_parametros: GRUPO_ENVIOS,
-      },
-      update: {
-        tipo: "number",
-        valor: String(smartpostPrecio),
-        grupo_parametros: GRUPO_ENVIOS,
-      },
-    });
+    for (const c of SMARTPOST_CORDONES) {
+      await tx.parametro.upsert({
+        where: { nombre: c.param },
+        create: {
+          nombre: c.param,
+          tipo: "number",
+          valor: String(preciosSmartpost[c.zona]),
+          grupo_parametros: GRUPO_ENVIOS,
+        },
+        update: {
+          tipo: "number",
+          valor: String(preciosSmartpost[c.zona]),
+          grupo_parametros: GRUPO_ENVIOS,
+        },
+      });
+    }
 
     for (const zona of FASTRACK_ZONAS_PRECIO) {
       const nombre = paramFastrackPrecioZona(zona);
@@ -151,10 +162,12 @@ export async function updatePreciosEnvioAction(formData: FormData) {
       });
     }
 
-    await tx.codigo_postal_envio.updateMany({
-      where: { proveedor: "smartpost" },
-      data: { precio: new Prisma.Decimal(smartpostPrecio) },
-    });
+    for (const c of SMARTPOST_CORDONES) {
+      await tx.codigo_postal_envio.updateMany({
+        where: { proveedor: "smartpost", zona: c.zona },
+        data: { precio: new Prisma.Decimal(preciosSmartpost[c.zona]) },
+      });
+    }
 
     for (const zona of FASTRACK_ZONAS_PRECIO) {
       await tx.codigo_postal_envio.updateMany({
