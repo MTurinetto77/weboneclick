@@ -507,43 +507,45 @@ img { max-width: 100%; display: block; }
 
 .oc-hero-live-bg {
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 62%;
+  inset: 0;
+  width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: left center;
+  object-position: center;
 }
 
 .oc-hero-live-shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    #0b0b0c 0%,
-    #0b0b0c 34%,
-    rgba(11, 11, 12, 0.75) 48%,
-    rgba(11, 11, 12, 0.2) 68%,
-    transparent 100%
-  );
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
 }
 
 .oc-hero-live-grid {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(280px, 520px) 1fr;
+  display: flex;
   align-items: center;
-  min-height: 520px;
+  justify-content: center;
+  min-height: 560px;
   padding: 2.5rem 0 3rem;
 }
 
+.oc-hero-live-copy {
+  text-align: center;
+  color: #fff;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
 .oc-hero-live-copy h1 {
-  margin: 0.85rem 0 0.65rem;
-  font-size: clamp(2rem, 4vw, 3.1rem);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  margin: 0 0 25px;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  line-height: 1.3;
+  letter-spacing: 0;
   font-weight: 700;
+  color: #fff;
 }
 
 .oc-pill-orange {
@@ -559,23 +561,24 @@ img { max-width: 100%; display: block; }
 
 .oc-hero-pill-img {
   display: block;
-  width: min(280px, 72%);
+  max-width: 220px;
+  width: auto;
   height: auto;
-  margin: 0 0 0.85rem;
+  margin: 0 auto 15px;
 }
 
 .oc-hero-kicker {
-  margin: 0 0 0.35rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  opacity: 0.95;
+  color: #fff;
 }
 
 .oc-hero-live-copy h1 em {
-  font-style: normal;
-  font-weight: 800;
+  font-style: italic;
+  font-weight: 700;
 }
 
 .oc-hero-sub {
@@ -585,14 +588,14 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-price-box {
-  width: min(320px, 100%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 10px;
-  padding: 0.85rem 1rem;
-  margin: 0 0 1rem;
-  background: rgba(0, 0, 0, 0.28);
-  display: grid;
-  gap: 0.15rem;
+  display: inline-block;
+  width: auto;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  padding: 12px 30px;
+  margin: 0 0 20px;
+  background: transparent;
+  color: #fff;
 }
 
 .oc-price-box-label {
@@ -601,8 +604,9 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-price-box strong {
-  font-size: 1.85rem;
+  font-size: 2rem;
   letter-spacing: -0.02em;
+  color: #fff;
 }
 
 .oc-price-box-cuotas {
@@ -611,18 +615,30 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-hero-cta-link {
+  display: inline-block;
+  padding: 14px 28px;
+  margin-bottom: 25px;
+  background: transparent;
   color: #fff;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  font-weight: 500;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 0.25s ease;
+}
+
+.oc-hero-cta-link:hover {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .oc-hero-foot {
-  margin: 1.25rem 0 0;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
-  font-size: 0.88rem;
-  opacity: 0.92;
+  margin: 0;
+  padding-top: 0;
+  border-top: none;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #fff;
+  opacity: 1;
 }
 
 .oc-utility-bar {
@@ -2975,7 +2991,6 @@ img { max-width: 100%; display: block; }
 }
 
 @media (max-width: 1100px) {
-  .oc-hero-live-grid { grid-template-columns: 1fr; }
   .oc-product-grid:not(.oc-product-scroll) { grid-template-columns: repeat(3, 1fr); }
   .oc-product-grid-5 { grid-template-columns: repeat(3, 1fr); }
   .oc-product-grid-6 { grid-template-columns: repeat(3, 1fr); }
@@ -2988,6 +3003,25 @@ img { max-width: 100%; display: block; }
 
 @media (max-width: 768px) {
   .oc-pill-nav { display: none; }
+  .oc-hero-live,
+  .oc-hero-live-grid {
+    min-height: 480px;
+  }
+  .oc-hero-pill-img {
+    max-width: 170px;
+  }
+  .oc-price-box strong {
+    font-size: 1.6rem;
+  }
+  .oc-hero-live-copy h1 {
+    font-size: 1.1rem;
+  }
+  .oc-hero-foot {
+    font-size: 0.9rem;
+  }
+  .oc-hero-cta-link {
+    padding: 12px 22px;
+  }
   .oc-destacados-head {
     grid-template-columns: 1fr;
     justify-items: center;

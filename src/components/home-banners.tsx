@@ -27,7 +27,7 @@ export function HomeHeroBanner({ banner }: { banner: BannerRow | null | undefine
         {...(mobile
           ? {
               srcSet: `${mobile} 768w, ${desktop} 1200w`,
-              sizes: "(max-width: 768px) 100vw, 62vw",
+              sizes: "100vw",
             }
           : {})}
       />
