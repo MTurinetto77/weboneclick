@@ -93,7 +93,7 @@ export const MAIN_NAV: NavItem[] = [
     children: [
       {
         label: "Apple Watch Series",
-        href: "/watch/watch-series",
+        href: "/watch/watch-serie",
         badge: "Nuevos",
         variant: "product",
       },
