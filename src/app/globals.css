@@ -3268,7 +3268,7 @@ img { max-width: 100%; display: block; }
   font-size: 0.92rem;
 }
 
-.oc-field-label {
+.oc-inst-form .oc-field-label {
   display: grid;
   gap: 0.35rem;
   font-size: 0.9rem;
@@ -3280,6 +3280,7 @@ img { max-width: 100%; display: block; }
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
+.oc-inst-form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
 
 /* Libro de quejas */
 .oc-quejas-page .oc-page-header {
@@ -3298,6 +3299,29 @@ img { max-width: 100%; display: block; }
   margin: 1rem 0;
 }
 .oc-quejas-page .oc-inst-form {
+  margin: 0 auto;
+}
+
+/* Gestión de garantía post-venta */
+.oc-garantia-page .oc-page-header {
+  max-width: 720px;
+  margin: 0 auto 2rem;
+}
+.oc-garantia-page .oc-page-header h3 {
+  margin: 0.5rem 0 1rem;
+  font-weight: 500;
+}
+.oc-garantia-page .oc-page-header p {
+  margin: 0 0 0.6rem;
+  color: var(--oc-muted);
+  line-height: 1.5;
+}
+.oc-garantia-divider {
+  border: none;
+  border-top: 1px solid var(--oc-border);
+  margin: 1rem 0;
+}
+.oc-garantia-page .oc-inst-form {
   margin: 0 auto;
 }
 
@@ -3358,7 +3382,8 @@ img { max-width: 100%; display: block; }
 
 @media (max-width: 720px) {
   .oc-arrep-steps { grid-template-columns: 1fr; }
-  .oc-inst-form-row { grid-template-columns: 1fr; }
+  .oc-inst-form-row,
+  .oc-inst-form-row-3 { grid-template-columns: 1fr; }
 }
 
 /* Tiendas map layout */
