@@ -17,6 +17,10 @@ export type TiendaSeed = {
   imagen: string;
   latitud: number;
   longitud: number;
+  /** Líneas de horario de ventas, ej: ["Lunes a Sábados de 10:00 a 19:00 hs"] */
+  horario_ventas: string[];
+  /** Líneas de horario de servicio técnico */
+  horario_servicio_tecnico: string[];
 };
 
 export const ONECLICK_TIENDAS: TiendaSeed[] = [
@@ -36,6 +40,8 @@ export const ONECLICK_TIENDAS: TiendaSeed[] = [
     imagen: "/oneclick/tiendas/palermo.jpeg",
     latitud: -34.5889,
     longitud: -58.4255,
+    horario_ventas: ["Lunes a Sábados de 10:00 a 19:00 hs"],
+    horario_servicio_tecnico: ["Lunes a Sábados de 10:00 a 19:00 hs"],
   },
   {
     nombre: "El Solar Shopping",
@@ -54,6 +60,8 @@ export const ONECLICK_TIENDAS: TiendaSeed[] = [
     imagen: "/oneclick/tiendas/el-solar.jpg",
     latitud: -34.5745,
     longitud: -58.4105,
+    horario_ventas: ["Lunes a Domingo de 10:00 a 21:00 hs"],
+    horario_servicio_tecnico: ["Lunes a Viernes de 10:00 a 19:00 hs"],
   },
   {
     nombre: "Rosario Centro",
@@ -71,6 +79,14 @@ export const ONECLICK_TIENDAS: TiendaSeed[] = [
     imagen: "/oneclick/tiendas/rosario-centro.jpeg",
     latitud: -32.9442,
     longitud: -60.6505,
+    horario_ventas: [
+      "Lunes a Viernes de 9:00 a 19:00 hs",
+      "Sábados de 9:00 a 14:00 hs",
+    ],
+    horario_servicio_tecnico: [
+      "Lunes a Viernes de 9:00 a 18:00 hs",
+      "Sábados de 9:00 a 14:00 hs",
+    ],
   },
   {
     nombre: "Alto Rosario Shopping",
@@ -88,13 +104,18 @@ export const ONECLICK_TIENDAS: TiendaSeed[] = [
     imagen: "/oneclick/tiendas/alto-rosario.jpeg",
     latitud: -32.9267,
     longitud: -60.6775,
+    horario_ventas: ["Lunes a Domingo de 10:00 a 21:00 hs"],
+    horario_servicio_tecnico: [
+      "Lunes a Viernes de 10:00 a 19:00 hs",
+      "Sábados de 10:00 a 15:00 hs",
+    ],
   },
   {
     nombre: "Cordoba Shopping",
     nombre_mapa: "Córdoba Shopping",
     slug: "cordoba-shopping",
-    direccion: "Jose Antonio de Goyechea 2851, (5000) Córdoba. Piso 1, local 54",
-    direccion_corta: "Piso 1, local 54",
+    direccion: "Jose Antonio de Goyechea 2851, (5000) Córdoba. Piso 1, local 55",
+    direccion_corta: "Piso 1, local 55",
     localidad: "Córdoba",
     provincia: "Córdoba",
     codigo_postal: "5000",
@@ -105,6 +126,8 @@ export const ONECLICK_TIENDAS: TiendaSeed[] = [
     imagen: "/oneclick/tiendas/cordoba.jpeg",
     latitud: -31.365,
     longitud: -64.175,
+    horario_ventas: ["Lunes a Domingo de 10:00 a 22:00 hs"],
+    horario_servicio_tecnico: ["Lunes a Sábados de 10:00 a 19:00 hs"],
   },
   {
     nombre: "Dot Baires Shopping",
@@ -122,6 +145,8 @@ export const ONECLICK_TIENDAS: TiendaSeed[] = [
     imagen: "/oneclick/tiendas/dot.jpeg",
     latitud: -34.547,
     longitud: -58.488,
+    horario_ventas: ["Lunes a Domingo de 10:00 a 22:00 hs"],
+    horario_servicio_tecnico: ["Lunes a Sábados de 10:00 a 19:00 hs"],
   },
 ];
 
