@@ -19,18 +19,11 @@ export function HomeHeroBanner({ banner }: { banner: BannerRow | null | undefine
 
   return (
     <section className="oc-hero-live">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="oc-hero-live-bg"
-        src={desktop}
-        alt=""
-        {...(mobile
-          ? {
-              srcSet: `${mobile} 768w, ${desktop} 1200w`,
-              sizes: "100vw",
-            }
-          : {})}
-      />
+      <picture>
+        {mobile ? <source media="(max-width: 768px)" srcSet={mobile} /> : null}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="oc-hero-live-bg" src={desktop} alt="" />
+      </picture>
       <div className="oc-hero-live-shade" />
       <div className="container oc-hero-live-grid">
         <HtmlSlot html={banner.html} />

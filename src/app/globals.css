@@ -3070,12 +3070,17 @@ img { max-width: 100%; display: block; }
 
 @media (max-width: 768px) {
   .oc-pill-nav { display: none; }
-  .oc-hero-live,
+  .oc-hero-live {
+    min-height: 0;
+    aspect-ratio: 941 / 1672;
+  }
   .oc-hero-live-grid {
-    min-height: 480px;
+    min-height: 0;
+    align-items: flex-start;
+    padding-top: 2.75rem;
   }
   .oc-hero-live-bg {
-    object-position: center 15%;
+    object-position: center top;
   }
   .oc-hero-live-copy {
     text-align: center;
