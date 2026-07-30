@@ -13,7 +13,7 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: S
   return (
     <div className="login-page" style={{ gridColumn: "1 / -1" }}>
       <div className="login-box">
-        <h1 style={{ marginTop: 0 }}>Aukan Admin</h1>
+        <h1 style={{ marginTop: 0 }}>OneClick Admin</h1>
         <p className="muted">
           {devBypass
             ? "Modo desarrollo activo: podés entrar sin Google."
