@@ -109,18 +109,45 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
 
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Ventas</h1>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          alignItems: "center",
+          marginBottom: "0.85rem",
+        }}
+      >
+        <div style={{ flex: "1 1 auto" }}>
+          <h1 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Ventas</h1>
+          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+            Pedidos del sitio. Por defecto se muestra la última semana.
+          </p>
+        </div>
+      </div>
 
-      <form className="admin-filters" action="/admin/ventas" method="get">
-        <div className="form-field">
+      <form
+        method="get"
+        action="/admin/ventas"
+        className="admin-card"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.65rem",
+          alignItems: "flex-end",
+          marginBottom: "0.85rem",
+          padding: "0.75rem",
+        }}
+      >
+        <div className="form-field" style={{ margin: 0, minWidth: "9rem" }}>
           <label>Desde</label>
           <input type="date" name="desde" defaultValue={desde} required />
         </div>
-        <div className="form-field">
+        <div className="form-field" style={{ margin: 0, minWidth: "9rem" }}>
           <label>Hasta</label>
           <input type="date" name="hasta" defaultValue={hasta} required />
         </div>
-        <div className="form-field">
+        <div className="form-field" style={{ margin: 0, minWidth: "8rem" }}>
           <label>Tipo de entrega</label>
           <select name="tipo_entrega" defaultValue={tipo_entrega}>
             <option value="">Todos</option>
@@ -131,7 +158,7 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
             ))}
           </select>
         </div>
-        <div className="form-field">
+        <div className="form-field" style={{ margin: 0, minWidth: "8rem" }}>
           <label>Estado</label>
           <select name="estado" defaultValue={estado}>
             <option value="">Todos</option>
@@ -142,22 +169,15 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
             ))}
           </select>
         </div>
-        <div className="admin-filters-actions">
-          <button className="btn btn-secondary" type="submit">
-            Filtrar
-          </button>
-          <Link href="/admin/ventas" className="btn btn-ghost">
-            Última semana
-          </Link>
-        </div>
+        <button className="btn btn-secondary" type="submit">
+          Filtrar
+        </button>
+        <Link href="/admin/ventas" className="btn btn-ghost">
+          Última semana
+        </Link>
       </form>
 
-      <p className="muted">
-        {total} venta{total === 1 ? "" : "s"}
-        {totalPages > 1 ? ` · página ${page} de ${totalPages}` : ""}
-      </p>
-
-      <table className="admin-table">
+      <table className="table table-compact">
         <thead>
           <tr>
             <th>ID</th>
@@ -213,28 +233,25 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
         </tbody>
       </table>
 
-      {totalPages > 1 && (
-        <div className="pagination">
-          {page > 1 && (
-            <Link href={hrefFor(page - 1)} className="btn btn-ghost">
-              Anterior
-            </Link>
-          )}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={hrefFor(p)}
-              className={`btn ${p === page ? "btn-secondary" : "btn-ghost"}`}
-            >
-              {p}
-            </Link>
-          ))}
-          {page < totalPages && (
-            <Link href={hrefFor(page + 1)} className="btn btn-ghost">
-              Siguiente
-            </Link>
-          )}
-        </div>
+      {(totalPages > 1 || total > 0) && (
+        <p
+          className="muted"
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            alignItems: "center",
+            marginTop: "0.75rem",
+            fontSize: "0.85rem",
+          }}
+        >
+          <span>
+            {totalPages > 1
+              ? `Página ${page} de ${totalPages} (${total} venta${total === 1 ? "" : "s"})`
+              : `${total} venta${total === 1 ? "" : "s"}`}
+          </span>
+          {page > 1 && <Link href={hrefFor(page - 1)}>← Anterior</Link>}
+          {page < totalPages && <Link href={hrefFor(page + 1)}>Siguiente →</Link>}
+        </p>
       )}
     </div>
   );

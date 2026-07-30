@@ -40,16 +40,44 @@ export default async function AdminUsuariosPage({ searchParams }: { searchParams
 
   return (
     <div>
-      <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ margin: 0 }}>Usuarios</h1>
-        <Link href="/admin/usuarios/nuevo" className="btn btn-primary">
-          Nuevo usuario
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          alignItems: "center",
+          marginBottom: "0.85rem",
+        }}
+      >
+        <div style={{ flex: "1 1 auto" }}>
+          <h1 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Usuarios</h1>
+          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+            Cuentas del panel y del sitio. Buscar por correo electrónico.
+          </p>
+        </div>
+        <Link href="/admin/usuarios/nuevo" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
+          Crear
         </Link>
       </div>
 
-      <form className="search-form" action="/admin/usuarios" method="get" style={{ marginTop: "1rem" }}>
-        <input name="q" defaultValue={q || ""} placeholder="Buscar por mail..." />
-        <button className="btn btn-secondary" type="submit">
+      <form
+        method="get"
+        action="/admin/usuarios"
+        className="admin-card"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.65rem",
+          alignItems: "flex-end",
+          marginBottom: "0.85rem",
+          padding: "0.75rem",
+        }}
+      >
+        <div className="form-field" style={{ margin: 0, minWidth: "12rem", flex: "1 1 12rem" }}>
+          <label>Buscar</label>
+          <input name="q" defaultValue={q || ""} placeholder="Mail…" />
+        </div>
+        <button type="submit" className="btn btn-secondary">
           Buscar
         </button>
         <Link href="/admin/usuarios" className="btn btn-ghost">
@@ -57,18 +85,13 @@ export default async function AdminUsuariosPage({ searchParams }: { searchParams
         </Link>
       </form>
 
-      <p className="muted" style={{ marginTop: 0 }}>
-        {total} usuario{total === 1 ? "" : "s"}
-        {totalPages > 1 ? ` · página ${page} de ${totalPages}` : ""}
-      </p>
-
-      <table className="admin-table">
+      <table className="table table-compact">
         <thead>
           <tr>
             <th>ID</th>
             <th>Mail</th>
             <th>Tipo</th>
-            <th>Estado</th>
+            <th>Activo</th>
             <th></th>
           </tr>
         </thead>
@@ -85,7 +108,7 @@ export default async function AdminUsuariosPage({ searchParams }: { searchParams
                 <td>{u.id_usuario}</td>
                 <td>{u.mail}</td>
                 <td>{u.tipo_usuario}</td>
-                <td>{u.activo ? "Activo" : "Inactivo"}</td>
+                <td>{u.activo ? "Sí" : "No"}</td>
                 <td>
                   <Link href={`/admin/usuarios/${u.id_usuario}`}>Editar</Link>
                 </td>
@@ -96,27 +119,22 @@ export default async function AdminUsuariosPage({ searchParams }: { searchParams
       </table>
 
       {totalPages > 1 && (
-        <div className="pagination">
-          {page > 1 && (
-            <Link href={hrefFor(page - 1)} className="btn btn-ghost">
-              Anterior
-            </Link>
-          )}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={hrefFor(p)}
-              className={`btn ${p === page ? "btn-secondary" : "btn-ghost"}`}
-            >
-              {p}
-            </Link>
-          ))}
-          {page < totalPages && (
-            <Link href={hrefFor(page + 1)} className="btn btn-ghost">
-              Siguiente
-            </Link>
-          )}
-        </div>
+        <p
+          className="muted"
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            alignItems: "center",
+            marginTop: "0.75rem",
+            fontSize: "0.85rem",
+          }}
+        >
+          <span>
+            Página {page} de {totalPages} ({total} usuario{total === 1 ? "" : "s"})
+          </span>
+          {page > 1 && <Link href={hrefFor(page - 1)}>← Anterior</Link>}
+          {page < totalPages && <Link href={hrefFor(page + 1)}>Siguiente →</Link>}
+        </p>
       )}
     </div>
   );

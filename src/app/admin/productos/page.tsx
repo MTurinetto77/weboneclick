@@ -43,16 +43,44 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
 
   return (
     <div>
-      <div className="actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ margin: 0 }}>Productos</h1>
-        <Link href="/admin/productos/nuevo" className="btn btn-primary">
-          Nuevo producto
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          alignItems: "center",
+          marginBottom: "0.85rem",
+        }}
+      >
+        <div style={{ flex: "1 1 auto" }}>
+          <h1 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Productos</h1>
+          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+            Catálogo de productos. Precio vigente según lista de precios.
+          </p>
+        </div>
+        <Link href="/admin/productos/nuevo" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
+          Crear
         </Link>
       </div>
 
-      <form className="search-form" action="/admin/productos" method="get" style={{ marginTop: "1rem" }}>
-        <input name="q" defaultValue={q || ""} placeholder="Buscar..." />
-        <button className="btn btn-secondary" type="submit">
+      <form
+        method="get"
+        action="/admin/productos"
+        className="admin-card"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.65rem",
+          alignItems: "flex-end",
+          marginBottom: "0.85rem",
+          padding: "0.75rem",
+        }}
+      >
+        <div className="form-field" style={{ margin: 0, minWidth: "12rem", flex: "1 1 12rem" }}>
+          <label>Buscar</label>
+          <input name="q" defaultValue={q || ""} placeholder="Título o descripción…" />
+        </div>
+        <button type="submit" className="btn btn-secondary">
           Buscar
         </button>
         <Link href="/admin/productos" className="btn btn-ghost">
@@ -60,18 +88,13 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
         </Link>
       </form>
 
-      <p className="muted" style={{ marginTop: 0 }}>
-        {total} producto{total === 1 ? "" : "s"}
-        {totalPages > 1 ? ` · página ${page} de ${totalPages}` : ""}
-      </p>
-
-      <table className="admin-table">
+      <table className="table table-compact">
         <thead>
           <tr>
             <th>ID</th>
             <th>Título</th>
             <th>Precio</th>
-            <th>Estado</th>
+            <th>Activo</th>
             <th></th>
           </tr>
         </thead>
@@ -88,7 +111,7 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
                 <td>{p.id_producto}</td>
                 <td>{p.titulo}</td>
                 <td>{formatPrice(pickCurrentPrice(p.precios))}</td>
-                <td>{p.activo ? "Activo" : "Inactivo"}</td>
+                <td>{p.activo ? "Sí" : "No"}</td>
                 <td>
                   <Link href={`/admin/productos/${p.id_producto}`}>Editar</Link>
                 </td>
@@ -99,27 +122,22 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
       </table>
 
       {totalPages > 1 && (
-        <div className="pagination">
-          {page > 1 && (
-            <Link href={hrefFor(page - 1)} className="btn btn-ghost">
-              Anterior
-            </Link>
-          )}
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={hrefFor(p)}
-              className={`btn ${p === page ? "btn-secondary" : "btn-ghost"}`}
-            >
-              {p}
-            </Link>
-          ))}
-          {page < totalPages && (
-            <Link href={hrefFor(page + 1)} className="btn btn-ghost">
-              Siguiente
-            </Link>
-          )}
-        </div>
+        <p
+          className="muted"
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            alignItems: "center",
+            marginTop: "0.75rem",
+            fontSize: "0.85rem",
+          }}
+        >
+          <span>
+            Página {page} de {totalPages} ({total} producto{total === 1 ? "" : "s"})
+          </span>
+          {page > 1 && <Link href={hrefFor(page - 1)}>← Anterior</Link>}
+          {page < totalPages && <Link href={hrefFor(page + 1)}>Siguiente →</Link>}
+        </p>
       )}
     </div>
   );

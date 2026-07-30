@@ -10,29 +10,85 @@ export default async function AdminTiendasPage() {
 
   return (
     <div>
-      <h1 style={{ marginTop: 0 }}>Tiendas</h1>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.5rem",
+          alignItems: "center",
+          marginBottom: "0.85rem",
+        }}
+      >
+        <div style={{ flex: "1 1 auto" }}>
+          <h1 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Tiendas</h1>
+          <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+            Puntos de retiro y showrooms. Orden menor = primero en el listado.
+          </p>
+        </div>
+      </div>
+
       <form
         action={createTienda}
         className="admin-card"
-        style={{ display: "grid", gap: "0.55rem", marginBottom: "1.25rem" }}
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "0.65rem",
+          alignItems: "flex-end",
+          marginBottom: "0.85rem",
+          padding: "0.75rem",
+        }}
       >
-        <h3 style={{ margin: 0 }}>Nueva tienda</h3>
-        <input name="nombre" placeholder="Nombre" required />
-        <input name="slug" placeholder="Slug (opcional)" />
-        <input name="direccion" placeholder="Dirección completa" required />
-        <input name="direccion_corta" placeholder="Dirección corta (listados)" />
-        <input name="localidad" placeholder="Localidad" required />
-        <input name="provincia" placeholder="Provincia" required />
-        <input name="codigo_postal" placeholder="Código postal" />
-        <input name="email" type="email" placeholder="Email" />
-        <input name="telefono" placeholder="Teléfono" />
-        <input name="orden" type="number" placeholder="Orden" defaultValue={0} />
-        <textarea name="horarios" placeholder="Horarios" rows={2} />
-        <button type="submit" className="btn btn-primary">
+        <div className="form-field" style={{ margin: 0, minWidth: "10rem", flex: "1 1 10rem" }}>
+          <label>Nombre</label>
+          <input name="nombre" required />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "8rem", flex: "1 1 8rem" }}>
+          <label>Slug</label>
+          <input name="slug" placeholder="Opcional" />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "12rem", flex: "2 1 12rem" }}>
+          <label>Dirección</label>
+          <input name="direccion" required />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "8rem", flex: "1 1 8rem" }}>
+          <label>Dirección corta</label>
+          <input name="direccion_corta" placeholder="Listados" />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "8rem" }}>
+          <label>Localidad</label>
+          <input name="localidad" required />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "8rem" }}>
+          <label>Provincia</label>
+          <input name="provincia" required />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "6rem" }}>
+          <label>CP</label>
+          <input name="codigo_postal" />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "10rem" }}>
+          <label>Email</label>
+          <input name="email" type="email" />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "8rem" }}>
+          <label>Teléfono</label>
+          <input name="telefono" />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "5rem" }}>
+          <label>Orden</label>
+          <input name="orden" type="number" defaultValue={0} />
+        </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "14rem", flex: "2 1 14rem" }}>
+          <label>Horarios</label>
+          <textarea name="horarios" rows={2} />
+        </div>
+        <button type="submit" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
           Crear
         </button>
       </form>
-      <table className="table">
+
+      <table className="table table-compact">
         <thead>
           <tr>
             <th>Orden</th>
@@ -54,18 +110,29 @@ export default async function AdminTiendasPage() {
               <td>
                 {t.telefono || "—"}
                 <br />
-                {t.email || "—"}
+                <span className="muted">{t.email || "—"}</span>
               </td>
               <td>{t.activo ? "Sí" : "No"}</td>
               <td>
                 <form action={deleteTienda.bind(null, t.id_tienda)}>
-                  <button type="submit" className="btn btn-ghost">
+                  <button
+                    type="submit"
+                    className="btn btn-ghost"
+                    style={{ padding: "0.15rem 0.45rem", fontSize: "0.8rem" }}
+                  >
                     Eliminar
                   </button>
                 </form>
               </td>
             </tr>
           ))}
+          {!tiendas.length && (
+            <tr>
+              <td colSpan={7} className="muted">
+                No hay tiendas cargadas.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
