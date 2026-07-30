@@ -17,11 +17,30 @@ export type CartDrawerItem = {
 
 type Props = {
   items: CartDrawerItem[];
-  itemCount: number;
   subtotal: number;
   canCheckout: boolean;
   valorEnvioGratis: number;
 };
+
+export function CartTrigger({
+  itemCount,
+  className,
+}: {
+  itemCount: number;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`oc-icon-btn oc-icon-btn-flat nav-cart${className ? ` ${className}` : ""}`}
+      aria-label="Carrito"
+      onClick={() => window.dispatchEvent(new Event("oc:cart-open"))}
+    >
+      <BagIcon />
+      <span className="cart-badge">{itemCount}</span>
+    </button>
+  );
+}
 
 function formatArs(value: number | null): string {
   if (value == null) return "Consultar";
@@ -35,7 +54,6 @@ function formatArs(value: number | null): string {
 
 export function CartDrawer({
   items,
-  itemCount,
   subtotal,
   canCheckout,
   valorEnvioGratis,
@@ -55,6 +73,13 @@ export function CartDrawer({
     setOpen(false);
   }, [pathname]);
 
+  // Permite abrir el drawer desde el trigger del header mobile
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("oc:cart-open", handler);
+    return () => window.removeEventListener("oc:cart-open", handler);
+  }, []);
+
   // Bloquear scroll del body con el drawer abierto + cerrar con Escape
   useEffect(() => {
     if (!open) return;
@@ -72,16 +97,6 @@ export function CartDrawer({
 
   return (
     <>
-      <button
-        type="button"
-        className="oc-icon-btn oc-icon-btn-flat nav-cart"
-        aria-label="Carrito"
-        onClick={() => setOpen(true)}
-      >
-        <BagIcon />
-        <span className="cart-badge">{itemCount}</span>
-      </button>
-
       <div
         className={`oc-cart-overlay${open ? " oc-cart-overlay-open" : ""}`}
         onClick={() => setOpen(false)}
@@ -200,7 +215,7 @@ export function CartDrawer({
   );
 }
 
-function BagIcon() {
+export function BagIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path

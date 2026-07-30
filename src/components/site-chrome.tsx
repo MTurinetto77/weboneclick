@@ -4,7 +4,8 @@ import { resolveCart } from "@/lib/cart";
 import { getValorEnvioGratis } from "@/lib/parametros";
 import { MAIN_NAV, type NavItem, type NavLink } from "@/lib/nav";
 import { getActivePromosNav, isPromoIconImage } from "@/lib/promos";
-import { CartDrawer, type CartDrawerItem } from "@/components/cart-drawer";
+import { CartDrawer, CartTrigger, type CartDrawerItem } from "@/components/cart-drawer";
+import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 import { SearchOverlay } from "@/components/search-overlay";
 import { uploadPublicUrl } from "@/lib/utils";
 
@@ -42,6 +43,22 @@ export async function SiteHeader() {
 
   return (
     <header className="oc-header-float">
+      <div className="oc-header-mobile-row">
+        <MobileNavDrawer nav={nav} />
+        <Link href="/" className="oc-logo-float oc-logo-float-mobile">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/oneclick/logo.svg" alt="OneClick" />
+        </Link>
+        <CartTrigger itemCount={cart.itemCount} className="oc-header-mobile-cart" />
+      </div>
+
+      <CartDrawer
+        items={drawerItems}
+        subtotal={cart.subtotal}
+        canCheckout={cart.canCheckout}
+        valorEnvioGratis={valorEnvioGratis}
+      />
+
       <div className="oc-header-float-inner">
         <Link href="/" className="oc-logo-float">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -149,13 +166,7 @@ export async function SiteHeader() {
               </Link>
             )}
 
-            <CartDrawer
-              items={drawerItems}
-              itemCount={cart.itemCount}
-              subtotal={cart.subtotal}
-              canCheckout={cart.canCheckout}
-              valorEnvioGratis={valorEnvioGratis}
-            />
+            <CartTrigger itemCount={cart.itemCount} />
           </div>
         </nav>
       </div>

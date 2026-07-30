@@ -4228,6 +4228,158 @@ img { max-width: 100%; display: block; }
 }
 
 /* ============================================================
+   Header mobile (hamburguesa + logo + carrito)
+   ============================================================ */
+.oc-header-mobile-row {
+  display: none;
+}
+
+.oc-logo-float-mobile img {
+  height: 30px;
+  width: auto;
+  display: block;
+}
+
+.oc-mobile-nav-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 90;
+}
+
+.oc-mobile-nav-overlay-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.oc-mobile-nav-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100dvh;
+  width: min(340px, 85vw);
+  background: #fff;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-100%);
+  transition: transform 0.28s ease;
+  box-shadow: 12px 0 40px rgba(0, 0, 0, 0.12);
+}
+
+.oc-mobile-nav-drawer-open {
+  transform: translateX(0);
+}
+
+.oc-mobile-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e8e8e8;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.oc-mobile-nav-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #1d1d1f;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.oc-mobile-nav-close:hover {
+  opacity: 0.65;
+}
+
+.oc-mobile-nav-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.oc-mobile-nav-item {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.oc-mobile-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.oc-mobile-nav-row > a {
+  flex: 1;
+  padding: 0.85rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1d1d1f;
+}
+
+.oc-mobile-nav-caret {
+  border: 0;
+  background: transparent;
+  color: #1d1d1f;
+  padding: 0.85rem 1.5rem;
+  display: inline-flex;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.oc-mobile-nav-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.oc-mobile-nav-children {
+  display: flex;
+  flex-direction: column;
+  padding: 0 1.5rem 0.75rem 2.25rem;
+  gap: 0.1rem;
+}
+
+.oc-mobile-nav-children > a {
+  padding: 0.5rem 0;
+  font-size: 0.88rem;
+  color: var(--oc-muted);
+}
+
+.oc-mobile-nav-foot {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #e8e8e8;
+  padding: 0.5rem 1.5rem 1.25rem;
+}
+
+.oc-mobile-nav-foot > a {
+  padding: 0.6rem 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1d1d1f;
+}
+
+@media (max-width: 768px) {
+  .oc-header-float-inner {
+    display: none;
+  }
+  .oc-header-mobile-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+    width: min(1380px, 100%);
+    margin: 0 auto;
+  }
+}
+
+/* ============================================================
    Página /carrito (estilo OneClick Store)
    ============================================================ */
 .oc-cart-page {
