@@ -12,8 +12,30 @@ import {
 } from "@/lib/odoo";
 import { slugify } from "@/lib/slug";
 import { getSellableWarehouseOdooIds } from "@/lib/almacenes";
+import type { SyncBatchResult, SyncStats, SyncType } from "@/lib/odoo-sync-types";
+
+export type { SyncBatchResult, SyncStats, SyncType } from "@/lib/odoo-sync-types";
 
 const PAGE = 200;
+const STOCK_CHUNK = 80;
+const IMAGE_CHUNK = 5;
+
+const PRODUCT_DOMAIN: unknown[] = [["x_studio_publicado_web", "=", true]];
+const PRODUCT_FIELDS = [
+  "id",
+  "name",
+  "display_name",
+  "default_code",
+  "list_price",
+  "description_sale",
+  "description_ecommerce",
+  "website_description",
+  "categ_id",
+  "product_tmpl_id",
+  "product_brand_id",
+  "product_tag_ids",
+  "x_studio_publicado_web",
+];
 
 /** Mapeo odoo warehouse id → slug de tienda (solo para sync de almacenes). */
 const TIENDA_SLUG_BY_WAREHOUSE_ODOO_ID: Record<number, string> = {
@@ -23,18 +45,6 @@ const TIENDA_SLUG_BY_WAREHOUSE_ODOO_ID: Record<number, string> = {
   9: "dot-baires",
   10: "cordoba-shopping",
   11: "solar-shopping",
-};
-
-export type SyncStats = {
-  categorias: { created: number; updated: number };
-  almacenes: { created: number; updated: number };
-  marcas: { created: number; updated: number };
-  etiquetas: { created: number; updated: number };
-  productos: { created: number; updated: number; deactivated: number; images: number };
-  precios: { inserted: number };
-  stock: { upserted: number };
-  errors: string[];
-  dryRun: boolean;
 };
 
 type OdooCategory = {
@@ -557,29 +567,7 @@ export async function syncImagesForProducts(options?: {
   return result;
 }
 
-export async function syncProductos(stats: SyncStats, options?: { skipImages?: boolean }) {
-  const domain = [["x_studio_publicado_web", "=", true]];
-  const fields = [
-    "id",
-    "name",
-    "display_name",
-    "default_code",
-    "list_price",
-    "description_sale",
-    "description_ecommerce",
-    "website_description",
-    "categ_id",
-    "product_tmpl_id",
-    "product_brand_id",
-    "product_tag_ids",
-    "x_studio_publicado_web",
-  ];
-  // No incluir image_1920 en search_read masivo: 200 imágenes base64 tumba el socket del proxy.
-
-  const rows = await paginateAll<OdooProduct>("product.product", domain, fields);
-  const publishedOdooIds = new Set(rows.map((r) => r.id));
-
-  // Precios por compañía (Oneclick Argentino SRL = company_id 1)
+async function loadCompanyPriceMap(): Promise<Map<number, number>> {
   const companyPrices = await paginateAll<OdooCompanyPrice>(
     "sk.product.price.by.company",
     [["company_id", "=", 1]],
@@ -590,154 +578,289 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
     const tmplId = m2oId(cp.product_tmpl_id);
     if (tmplId && cp.price > 0) priceByTmpl.set(tmplId, Number(cp.price));
   }
+  return priceByTmpl;
+}
 
-  const brands = await prisma.marca.findMany({ where: { odoo_id: { not: null } } });
-  const brandByOdoo = new Map(brands.map((b) => [b.odoo_id!, b.id_marca]));
-  const tags = await prisma.etiqueta.findMany({ where: { odoo_id: { not: null } } });
-  const tagByOdoo = new Map(tags.map((t) => [t.odoo_id!, t.id_etiqueta]));
-  const cats = await prisma.categoria.findMany({ where: { odoo_id: { not: null } } });
-  const catByOdoo = new Map(cats.map((c) => [c.odoo_id!, c.id_categoria]));
+async function loadProductLookupMaps() {
+  const [brands, tags, cats] = await Promise.all([
+    prisma.marca.findMany({ where: { odoo_id: { not: null } } }),
+    prisma.etiqueta.findMany({ where: { odoo_id: { not: null } } }),
+    prisma.categoria.findMany({ where: { odoo_id: { not: null } } }),
+  ]);
+  return {
+    brandByOdoo: new Map(brands.map((b) => [b.odoo_id!, b.id_marca])),
+    tagByOdoo: new Map(tags.map((t) => [t.odoo_id!, t.id_etiqueta])),
+    catByOdoo: new Map(cats.map((c) => [c.odoo_id!, c.id_categoria])),
+  };
+}
 
-  for (const row of rows) {
-    try {
-      const titulo = pickProductTitle(row);
-      const descripcion = pickEcommerceDescription(row, titulo);
-      const sku = typeof row.default_code === "string" ? row.default_code : null;
-      const id_marca = brandByOdoo.get(m2oId(row.product_brand_id) ?? -1) ?? null;
-      const existing = await prisma.producto.findUnique({ where: { odoo_id: row.id } });
+async function upsertProductoRow(
+  row: OdooProduct,
+  stats: SyncStats,
+  maps: {
+    brandByOdoo: Map<number, number>;
+    tagByOdoo: Map<number, number>;
+    catByOdoo: Map<number, number>;
+    priceByTmpl: Map<number, number>;
+  }
+) {
+  const titulo = pickProductTitle(row);
+  const descripcion = pickEcommerceDescription(row, titulo);
+  const sku = typeof row.default_code === "string" ? row.default_code : null;
+  const id_marca = maps.brandByOdoo.get(m2oId(row.product_brand_id) ?? -1) ?? null;
+  const existing = await prisma.producto.findUnique({ where: { odoo_id: row.id } });
 
-      if (stats.dryRun) {
-        if (existing) stats.productos.updated += 1;
-        else stats.productos.created += 1;
-        continue;
-      }
+  if (stats.dryRun) {
+    if (existing) stats.productos.updated += 1;
+    else stats.productos.created += 1;
+    return;
+  }
 
-      let id_producto: number;
-      if (existing) {
-        await prisma.producto.update({
-          where: { id_producto: existing.id_producto },
-          data: {
-            titulo,
-            descripcion,
-            sku,
-            id_marca,
-            activo: true,
-          },
-        });
-        id_producto = existing.id_producto;
-        stats.productos.updated += 1;
-      } else {
-        const slug = await ensureUniqueSlug(titulo, async (s) =>
-          Boolean(await prisma.producto.findUnique({ where: { slug: s } }))
-        , row.id);
-        const created = await prisma.producto.create({
-          data: {
-            titulo,
-            slug,
-            descripcion,
-            sku,
-            id_marca,
-            odoo_id: row.id,
-            activo: true,
-          },
-        });
-        id_producto = created.id_producto;
-        stats.productos.created += 1;
-      }
+  let id_producto: number;
+  if (existing) {
+    // No reactivar: si el producto está inactivo en el sitio, el sync no lo vuelve a activar.
+    await prisma.producto.update({
+      where: { id_producto: existing.id_producto },
+      data: { titulo, descripcion, sku, id_marca },
+    });
+    id_producto = existing.id_producto;
+    stats.productos.updated += 1;
+  } else {
+    const slug = await ensureUniqueSlug(
+      titulo,
+      async (s) => Boolean(await prisma.producto.findUnique({ where: { slug: s } })),
+      row.id
+    );
+    const created = await prisma.producto.create({
+      data: {
+        titulo,
+        slug,
+        descripcion,
+        sku,
+        id_marca,
+        odoo_id: row.id,
+        activo: true,
+      },
+    });
+    id_producto = created.id_producto;
+    stats.productos.created += 1;
+  }
 
-      // Category link
-      const categOdoo = m2oId(row.categ_id);
-      if (categOdoo && catByOdoo.has(categOdoo)) {
-        const id_categoria = catByOdoo.get(categOdoo)!;
-        await prisma.categoria_producto.upsert({
-          where: {
-            id_categoria_id_producto: { id_categoria, id_producto },
-          },
-          create: { id_categoria, id_producto },
-          update: {},
-        });
-      }
+  const categOdoo = m2oId(row.categ_id);
+  if (categOdoo && maps.catByOdoo.has(categOdoo)) {
+    const id_categoria = maps.catByOdoo.get(categOdoo)!;
+    await prisma.categoria_producto.upsert({
+      where: { id_categoria_id_producto: { id_categoria, id_producto } },
+      create: { id_categoria, id_producto },
+      update: {},
+    });
+  }
 
-      // Tags
-      if (Array.isArray(row.product_tag_ids)) {
-        for (const tagOdoo of row.product_tag_ids) {
-          const id_etiqueta = tagByOdoo.get(tagOdoo);
-          if (!id_etiqueta) continue;
-          await prisma.etiqueta_producto.upsert({
-            where: {
-              id_etiqueta_id_producto: { id_etiqueta, id_producto },
-            },
-            create: { id_etiqueta, id_producto },
-            update: {},
-          });
-        }
-      }
-
-      // Price history via company prices (OneClick Argentina)
-      const tmplId = m2oId(row.product_tmpl_id) ?? row.id;
-      const precio =
-        priceByTmpl.get(tmplId) ??
-        priceByTmpl.get(row.id) ??
-        (Number(row.list_price) > 0 ? Number(row.list_price) : 0);
-      if (precio > 0) {
-        const latest = await prisma.precio_producto.findFirst({
-          where: { id_producto },
-          orderBy: { fecha_desde: "desc" },
-        });
-        if (!latest || Number(latest.precio) !== precio) {
-          await prisma.$executeRaw`
-            INSERT INTO precio_producto (id_producto, fecha_desde, precio)
-            VALUES (${id_producto}, CURDATE(), ${precio})
-            ON DUPLICATE KEY UPDATE precio = VALUES(precio)
-          `;
-          stats.precios.inserted += 1;
-        }
-      }
-
-    } catch (e) {
-      stats.errors.push(`producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`);
+  if (Array.isArray(row.product_tag_ids)) {
+    for (const tagOdoo of row.product_tag_ids) {
+      const id_etiqueta = maps.tagByOdoo.get(tagOdoo);
+      if (!id_etiqueta) continue;
+      await prisma.etiqueta_producto.upsert({
+        where: { id_etiqueta_id_producto: { id_etiqueta, id_producto } },
+        create: { id_etiqueta, id_producto },
+        update: {},
+      });
     }
   }
 
-  if (!options?.skipImages && publishedOdooIds.size > 0) {
-    const img = await syncProductImagesForOdooIds([...publishedOdooIds], {
-      dryRun: stats.dryRun,
+  const tmplId = m2oId(row.product_tmpl_id) ?? row.id;
+  const precio =
+    maps.priceByTmpl.get(tmplId) ??
+    maps.priceByTmpl.get(row.id) ??
+    (Number(row.list_price) > 0 ? Number(row.list_price) : 0);
+  if (precio > 0) {
+    const latest = await prisma.precio_producto.findFirst({
+      where: { id_producto },
+      orderBy: { fecha_desde: "desc" },
     });
-    stats.productos.images += img.images;
-    stats.errors.push(...img.errors);
+    if (!latest || Number(latest.precio) !== precio) {
+      await prisma.$executeRaw`
+        INSERT INTO precio_producto (id_producto, fecha_desde, precio)
+        VALUES (${id_producto}, CURDATE(), ${precio})
+        ON DUPLICATE KEY UPDATE precio = VALUES(precio)
+      `;
+      stats.precios.inserted += 1;
+    }
   }
+}
 
-  // Deactivate products no longer published
-  if (!stats.dryRun) {
-    const locals = await prisma.producto.findMany({
-      where: { odoo_id: { not: null }, activo: true },
-      select: { id_producto: true, odoo_id: true },
-    });
-    for (const p of locals) {
-      if (p.odoo_id && !publishedOdooIds.has(p.odoo_id)) {
-        await prisma.producto.update({
-          where: { id_producto: p.id_producto },
-          data: { activo: false },
-        });
-        stats.productos.deactivated += 1;
-      }
+async function deactivateUnpublishedProducts(stats: SyncStats) {
+  if (stats.dryRun) return;
+  const publishedRows = await paginateAll<{ id: number }>(
+    "product.product",
+    PRODUCT_DOMAIN,
+    ["id"]
+  );
+  const publishedOdooIds = new Set(publishedRows.map((r) => r.id));
+  const locals = await prisma.producto.findMany({
+    where: { odoo_id: { not: null }, activo: true },
+    select: { id_producto: true, odoo_id: true },
+  });
+  for (const p of locals) {
+    if (p.odoo_id && !publishedOdooIds.has(p.odoo_id)) {
+      await prisma.producto.update({
+        where: { id_producto: p.id_producto },
+        data: { activo: false },
+      });
+      stats.productos.deactivated += 1;
     }
   }
 }
 
 /**
- * Llena `stock` desde `stock.quant` agrupado por almacén (warehouse_id).
- * Persiste filas por depósito con cantidad disponible (quantity − reserved).
- * Las sucursales del PDP se escriben siempre (aunque en 0) para poder mostrar cruz roja.
+ * Lote de productos: en offset 0 sincroniza maestro (categorías, almacenes, marcas, etiquetas).
+ * Luego páginas de productos + precios. En el último lote desactiva no publicados. Sin imágenes.
  */
-export async function syncStock(stats: SyncStats) {
+export async function runProductosSyncBatch(options?: {
+  offset?: number;
+  dryRun?: boolean;
+  stats?: SyncStats;
+}): Promise<SyncBatchResult> {
+  const offset = Math.max(0, options?.offset ?? 0);
+  const stats = options?.stats ?? emptyStats(Boolean(options?.dryRun));
+  stats.dryRun = Boolean(options?.dryRun ?? stats.dryRun);
+
+  let message: string | undefined;
+
+  if (offset === 0) {
+    message = "Sincronizando categorías, almacenes, marcas y etiquetas…";
+    await syncCategorias(stats);
+    await syncAlmacenes(stats);
+    await syncMarcas(stats);
+    await syncEtiquetas(stats);
+  }
+
+  const total = await searchCount("product.product", PRODUCT_DOMAIN);
+  if (total === 0) {
+    return {
+      type: "productos",
+      processed: 0,
+      total: 0,
+      done: true,
+      nextOffset: 0,
+      message: "No hay productos publicados web en Odoo",
+      stats,
+      errors: stats.errors,
+    };
+  }
+
+  const [priceByTmpl, maps] = await Promise.all([
+    loadCompanyPriceMap(),
+    loadProductLookupMaps(),
+  ]);
+
+  // No incluir image_1920 en search_read masivo: 200 imágenes base64 tumba el socket del proxy.
+  const rows = await searchRead<OdooProduct>("product.product", PRODUCT_DOMAIN, PRODUCT_FIELDS, {
+    limit: PAGE,
+    offset,
+    order: "id asc",
+  });
+
+  message = `Sincronizando productos ${offset + 1}–${Math.min(offset + rows.length, total)} de ${total}…`;
+
+  for (const row of rows) {
+    try {
+      await upsertProductoRow(row, stats, { ...maps, priceByTmpl });
+    } catch (e) {
+      stats.errors.push(`producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  const processed = offset + rows.length;
+  const done = processed >= total || rows.length < PAGE;
+  const nextOffset = processed;
+
+  if (done) {
+    message = "Desactivando productos no publicados…";
+    await deactivateUnpublishedProducts(stats);
+    message = "Productos y precios sincronizados";
+  }
+
+  return {
+    type: "productos",
+    processed: Math.min(processed, total),
+    total,
+    done,
+    nextOffset,
+    message,
+    stats,
+    errors: stats.errors,
+  };
+}
+
+/** Sync completo de productos/precios/maestro (cron / CLI). Sin imágenes ni stock. */
+export async function runProductosSync(options?: { dryRun?: boolean }): Promise<SyncStats> {
+  const stats = emptyStats(Boolean(options?.dryRun));
+  let offset = 0;
+  for (;;) {
+    const batch = await runProductosSyncBatch({ offset, dryRun: options?.dryRun, stats });
+    if (batch.done) break;
+    offset = batch.nextOffset;
+  }
+  return stats;
+}
+
+export async function syncProductos(stats: SyncStats, options?: { skipImages?: boolean }) {
+  let offset = 0;
+  for (;;) {
+    const batch = await runProductosSyncBatch({
+      offset,
+      dryRun: stats.dryRun,
+      stats,
+    });
+    if (batch.done) break;
+    offset = batch.nextOffset;
+  }
+
+  if (!options?.skipImages) {
+    const locals = await prisma.producto.findMany({
+      where: { odoo_id: { not: null }, activo: true },
+      select: { odoo_id: true },
+    });
+    const odooIds = locals.map((p) => p.odoo_id!).filter(Boolean);
+    if (odooIds.length) {
+      const img = await syncProductImagesForOdooIds(odooIds, { dryRun: stats.dryRun });
+      stats.productos.images += img.images;
+      stats.errors.push(...img.errors);
+    }
+  }
+}
+
+/**
+ * Lote de stock: chunk de productos, read_group + persistir ese chunk.
+ */
+export async function runStockSyncBatch(options?: {
+  offset?: number;
+  dryRun?: boolean;
+  stats?: SyncStats;
+}): Promise<SyncBatchResult> {
+  const offset = Math.max(0, options?.offset ?? 0);
+  const stats = options?.stats ?? emptyStats(Boolean(options?.dryRun));
+  stats.dryRun = Boolean(options?.dryRun ?? stats.dryRun);
+
   const productos = await prisma.producto.findMany({
     where: { odoo_id: { not: null }, activo: true },
     select: { id_producto: true, odoo_id: true },
+    orderBy: { id_producto: "asc" },
   });
+
   if (!productos.length) {
     stats.errors.push("stock: no hay productos con odoo_id para sincronizar");
-    return;
+    return {
+      type: "stock",
+      processed: 0,
+      total: 0,
+      done: true,
+      nextOffset: 0,
+      message: "No hay productos con odoo_id",
+      stats,
+      errors: stats.errors,
+    };
   }
 
   const almacenes = await prisma.almacen.findMany({
@@ -751,25 +874,34 @@ export async function syncStock(stats: SyncStats) {
   );
   if (!almacenByOdoo.size) {
     stats.errors.push("stock: no hay almacenes con odoo_id; corré sync de almacenes primero");
-    return;
+    return {
+      type: "stock",
+      processed: 0,
+      total: productos.length,
+      done: true,
+      nextOffset: 0,
+      message: "Faltan almacenes sincronizados",
+      stats,
+      errors: stats.errors,
+    };
   }
 
+  const total = productos.length;
+  const chunk = productos.slice(offset, offset + STOCK_CHUNK);
   const pdpWarehouseOdooIds = new Set(await getSellableWarehouseOdooIds());
-
-  const productoByOdoo = new Map(productos.map((p) => [p.odoo_id!, p.id_producto]));
+  const productoByOdoo = new Map(chunk.map((p) => [p.odoo_id!, p.id_producto]));
   const odooIds = [...productoByOdoo.keys()];
 
   /** productLocalId → (almacenLocalId → qty) */
   const byProduct = new Map<number, Map<number, number>>();
-  for (const p of productos) byProduct.set(p.id_producto, new Map());
+  for (const p of chunk) byProduct.set(p.id_producto, new Map());
 
-  for (let i = 0; i < odooIds.length; i += 80) {
-    const chunk = odooIds.slice(i, i + 80);
+  if (odooIds.length) {
     try {
       const groups = await readGroup(
         "stock.quant",
         [
-          ["product_id", "in", chunk],
+          ["product_id", "in", odooIds],
           ["location_id.usage", "=", "internal"],
           ["warehouse_id", "!=", false],
         ],
@@ -793,12 +925,11 @@ export async function syncStock(stats: SyncStats) {
         map.set(id_almacen, (map.get(id_almacen) ?? 0) + available);
       }
     } catch (e) {
-      stats.errors.push(`stock chunk ${i}: ${e instanceof Error ? e.message : String(e)}`);
+      stats.errors.push(`stock chunk ${offset}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
-  // Asegurar filas 0 para sucursales PDP aunque no haya quants
-  for (const p of productos) {
+  for (const p of chunk) {
     const map = byProduct.get(p.id_producto)!;
     for (const odooWh of pdpWarehouseOdooIds) {
       const id_almacen = almacenByOdoo.get(odooWh);
@@ -806,37 +937,63 @@ export async function syncStock(stats: SyncStats) {
     }
   }
 
-  if (stats.dryRun) {
-    stats.stock.upserted = productos.length;
-    return;
+  if (!stats.dryRun) {
+    for (const p of chunk) {
+      const map = byProduct.get(p.id_producto)!;
+      try {
+        await prisma.stock.deleteMany({ where: { id_producto: p.id_producto } });
+        const data = [...map.entries()].map(([id_almacen, cantidad]) => ({
+          id_producto: p.id_producto,
+          id_almacen,
+          cantidad,
+        }));
+        if (data.length) {
+          await prisma.stock.createMany({ data });
+        } else {
+          const fallback = [...almacenByOdoo.values()][0];
+          if (fallback != null) {
+            await prisma.stock.create({
+              data: { id_producto: p.id_producto, id_almacen: fallback, cantidad: 0 },
+            });
+          }
+        }
+        stats.stock.upserted += 1;
+      } catch (e) {
+        stats.errors.push(
+          `stock producto ${p.id_producto}: ${e instanceof Error ? e.message : String(e)}`
+        );
+      }
+    }
+  } else {
+    stats.stock.upserted += chunk.length;
   }
 
-  for (const p of productos) {
-    const map = byProduct.get(p.id_producto)!;
-    try {
-      await prisma.stock.deleteMany({ where: { id_producto: p.id_producto } });
-      const data = [...map.entries()].map(([id_almacen, cantidad]) => ({
-        id_producto: p.id_producto,
-        id_almacen,
-        cantidad,
-      }));
-      if (data.length) {
-        await prisma.stock.createMany({ data });
-      } else {
-        // Sin almacenes mapeados: marcar trackeado en 0 vía primer almacén conocido
-        const fallback = [...almacenByOdoo.values()][0];
-        if (fallback != null) {
-          await prisma.stock.create({
-            data: { id_producto: p.id_producto, id_almacen: fallback, cantidad: 0 },
-          });
-        }
-      }
-      stats.stock.upserted += 1;
-    } catch (e) {
-      stats.errors.push(
-        `stock producto ${p.id_producto}: ${e instanceof Error ? e.message : String(e)}`
-      );
-    }
+  const processed = Math.min(offset + chunk.length, total);
+  const done = processed >= total;
+  return {
+    type: "stock",
+    processed,
+    total,
+    done,
+    nextOffset: processed,
+    message: done
+      ? "Stock sincronizado"
+      : `Sincronizando stock ${offset + 1}–${processed} de ${total}…`,
+    stats,
+    errors: stats.errors,
+  };
+}
+
+/**
+ * Llena `stock` desde `stock.quant` agrupado por almacén (warehouse_id).
+ * Persiste filas por depósito con cantidad disponible (quantity − reserved).
+ */
+export async function syncStock(stats: SyncStats) {
+  let offset = 0;
+  for (;;) {
+    const batch = await runStockSyncBatch({ offset, dryRun: stats.dryRun, stats });
+    if (batch.done) break;
+    offset = batch.nextOffset;
   }
 }
 
@@ -845,17 +1002,20 @@ export async function runFullSync(options?: {
   skipImages?: boolean;
   skipStock?: boolean;
 }): Promise<SyncStats> {
-  const stats = emptyStats(Boolean(options?.dryRun));
-  await syncCategorias(stats);
-  await syncAlmacenes(stats);
-  await syncMarcas(stats);
-  await syncEtiquetas(stats);
-  await syncProductos(stats, { skipImages: options?.skipImages });
+  const stats = await runProductosSync({ dryRun: options?.dryRun });
+  if (!options?.skipImages) {
+    let offset = 0;
+    for (;;) {
+      const batch = await runImagesSyncBatch({ offset, dryRun: options?.dryRun, stats });
+      if (batch.done) break;
+      offset = batch.nextOffset;
+    }
+  }
   if (!options?.skipStock) await syncStock(stats);
   return stats;
 }
 
-/** Solo sincroniza stock por almacén desde Odoo (`stock.quant`). */
+/** Solo sincroniza stock por almacén desde Odoo (`stock.quant`). Para cron/CLI. */
 export async function runStockSync(options?: { dryRun?: boolean }): Promise<SyncStats> {
   const stats = emptyStats(Boolean(options?.dryRun));
   await syncStock(stats);
@@ -876,8 +1036,8 @@ export async function syncProductImagesForOdooIds(
   });
   const localByOdoo = new Map(locals.map((p) => [p.odoo_id!, p.id_producto]));
 
-  for (let i = 0; i < odooIds.length; i += 5) {
-    const chunk = odooIds.slice(i, i + 5);
+  for (let i = 0; i < odooIds.length; i += IMAGE_CHUNK) {
+    const chunk = odooIds.slice(i, i + IMAGE_CHUNK);
     try {
       const rows = await executeKw<
         {
@@ -922,4 +1082,76 @@ export async function syncProductImagesForOdooIds(
   }
 
   return result;
+}
+
+/**
+ * Lote de imágenes (principal + galería) sobre productos activos locales.
+ */
+export async function runImagesSyncBatch(options?: {
+  offset?: number;
+  dryRun?: boolean;
+  stats?: SyncStats;
+}): Promise<SyncBatchResult> {
+  const offset = Math.max(0, options?.offset ?? 0);
+  const stats = options?.stats ?? emptyStats(Boolean(options?.dryRun));
+  stats.dryRun = Boolean(options?.dryRun ?? stats.dryRun);
+
+  const products = await prisma.producto.findMany({
+    where: { odoo_id: { not: null }, activo: true },
+    select: { odoo_id: true },
+    orderBy: { id_producto: "asc" },
+  });
+  const odooIds = products.map((p) => p.odoo_id!).filter(Boolean);
+  const total = odooIds.length;
+
+  if (!total) {
+    return {
+      type: "imagenes",
+      processed: 0,
+      total: 0,
+      done: true,
+      nextOffset: 0,
+      message: "No hay productos activos con odoo_id",
+      stats,
+      errors: stats.errors,
+    };
+  }
+
+  const chunk = odooIds.slice(offset, offset + IMAGE_CHUNK);
+  const img = await syncProductImagesForOdooIds(chunk, { dryRun: stats.dryRun });
+  stats.productos.images += img.images;
+  stats.errors.push(...img.errors);
+
+  const processed = Math.min(offset + chunk.length, total);
+  const done = processed >= total;
+  return {
+    type: "imagenes",
+    processed,
+    total,
+    done,
+    nextOffset: processed,
+    message: done
+      ? "Imágenes sincronizadas"
+      : `Sincronizando imágenes ${offset + 1}–${processed} de ${total}…`,
+    stats,
+    errors: stats.errors,
+  };
+}
+
+/** Dispatch de un lote según tipo (API admin). */
+export async function runSyncBatch(options: {
+  type: SyncType;
+  offset?: number;
+  dryRun?: boolean;
+}): Promise<SyncBatchResult> {
+  switch (options.type) {
+    case "productos":
+      return runProductosSyncBatch({ offset: options.offset, dryRun: options.dryRun });
+    case "stock":
+      return runStockSyncBatch({ offset: options.offset, dryRun: options.dryRun });
+    case "imagenes":
+      return runImagesSyncBatch({ offset: options.offset, dryRun: options.dryRun });
+    default:
+      throw new Error(`Tipo de sync desconocido: ${options.type as string}`);
+  }
 }

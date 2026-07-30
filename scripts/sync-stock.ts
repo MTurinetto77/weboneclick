@@ -1,3 +1,10 @@
+/**
+ * Sincroniza stock por almacén desde Odoo (stock.quant).
+ * Pensado para cron frecuente.
+ *
+ *   npm run sync:stock
+ *   npm run sync:stock -- --dry-run
+ */
 import "dotenv/config";
 import { runStockSync } from "../src/lib/odoo-sync";
 import { prisma } from "../src/lib/prisma";

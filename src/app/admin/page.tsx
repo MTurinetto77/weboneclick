@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import { syncOdooAction } from "@/app/admin/sync-actions";
+import { OdooSyncPanel } from "@/components/admin/odoo-sync-panel";
 
 export const metadata = { title: "Admin" };
 
@@ -52,26 +52,7 @@ export default async function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="admin-card" style={{ marginTop: "1.5rem" }}>
-        <h2 style={{ marginTop: 0 }}>Sincronizar con Odoo</h2>
-        <p className="muted">
-          Importa categorías, almacenes, marcas, etiquetas, productos publicados web y precios
-          (compañía Argentina).
-        </p>
-        <form action={syncOdooAction}>
-          <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.75rem" }}>
-            <input type="checkbox" name="skip_images" value="1" defaultChecked />
-            Omitir imágenes (más rápido)
-          </label>
-          <label style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginBottom: "0.75rem" }}>
-            <input type="checkbox" name="skip_stock" value="1" defaultChecked />
-            Omitir stock
-          </label>
-          <button type="submit" className="btn btn-primary">
-            Sincronizar con Odoo
-          </button>
-        </form>
-      </div>
+      <OdooSyncPanel />
     </div>
   );
 }
