@@ -3302,6 +3302,54 @@ img { max-width: 100%; display: block; }
   margin: 0 auto;
 }
 
+/* Bases y condiciones */
+.oc-bases-page .oc-page-header {
+  max-width: 100%;
+  text-align: center;
+}
+.oc-bases-divider {
+  border: none;
+  border-top: 1px solid var(--oc-border);
+  margin: 1rem 0 0.5rem;
+}
+.oc-bases-sections {
+  display: grid;
+  gap: 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.oc-bases-section {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--oc-border);
+  text-align: center;
+}
+.oc-bases-section:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+.oc-bases-section h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+.oc-bases-body {
+  text-align: left;
+}
+.oc-bases-body p {
+  margin: 0 0 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--oc-ink);
+}
+.oc-bases-body p:last-child { margin-bottom: 0; }
+.oc-bases-postal {
+  color: var(--oc-muted);
+  font-size: 0.85rem;
+}
+.oc-bases-date {
+  font-size: 0.8rem;
+  color: var(--oc-muted);
+}
+
 /* Gestión de garantía post-venta */
 .oc-garantia-page .oc-page-header {
   max-width: 720px;
