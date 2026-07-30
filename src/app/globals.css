@@ -1651,11 +1651,13 @@ img { max-width: 100%; display: block; }
   transition: opacity 0.3s ease, max-height 0.35s ease, margin-bottom 0.3s ease;
 }
 
-.oc-category-banner:hover .oc-category-banner-copy p,
-.oc-category-banner:focus-visible .oc-category-banner-copy p {
-  opacity: 0.95;
-  max-height: 8rem;
-  margin-bottom: 1rem;
+@media (hover: hover) {
+  .oc-category-banner:hover .oc-category-banner-copy p,
+  .oc-category-banner:focus-visible .oc-category-banner-copy p {
+    opacity: 0.95;
+    max-height: 8rem;
+    margin-bottom: 1rem;
+  }
 }
 
 .oc-category-banner-cta {
@@ -1669,14 +1671,6 @@ img { max-width: 100%; display: block; }
   color: #111;
   font-size: 0.88rem;
   font-weight: 600;
-}
-
-@media (hover: none) {
-  .oc-category-banner-copy p {
-    opacity: 0.95;
-    max-height: none;
-    margin-bottom: 1rem;
-  }
 }
 
 .oc-product-card {
