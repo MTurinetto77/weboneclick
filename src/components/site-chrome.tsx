@@ -47,7 +47,11 @@ export async function SiteHeader() {
         <MobileNavDrawer nav={nav} />
         <Link href="/" className="oc-logo-float oc-logo-float-mobile">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/oneclick/logo.svg" alt="OneClick" />
+          <img
+            src="/oneclick/footer/apple-premium.svg"
+            alt="Apple Premium Reseller"
+            className="oc-footer-apple"
+          />
         </Link>
         <CartTrigger itemCount={cart.itemCount} className="oc-header-mobile-cart" />
       </div>
@@ -62,7 +66,11 @@ export async function SiteHeader() {
       <div className="oc-header-float-inner">
         <Link href="/" className="oc-logo-float">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/oneclick/logo.svg" alt="OneClick" />
+          <img
+            src="/oneclick/footer/apple-premium.svg"
+            alt="Apple Premium Reseller"
+            className="oc-footer-apple"
+          />
         </Link>
 
         <div className="oc-header-spacer" aria-hidden />
@@ -237,9 +245,6 @@ export function SiteFooter() {
         <div className="container oc-footer-bottom-inner">
           <div className="oc-footer-brand">
             <Link href="/" className="oc-footer-logos" aria-label="OneClick inicio">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/oneclick/logo.svg" alt="OneClick" className="oc-footer-logo" />
-              <span className="oc-footer-logo-sep" aria-hidden />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/oneclick/footer/apple-premium.svg"
