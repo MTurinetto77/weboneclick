@@ -3085,6 +3085,9 @@ img { max-width: 100%; display: block; }
     align-items: stretch;
   }
   .oc-newsletter {
+    flex: 0 1 auto;
+    min-width: 0;
+    width: 100%;
     margin-left: 0;
     max-width: none;
   }
