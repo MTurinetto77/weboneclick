@@ -142,7 +142,7 @@ export default async function HomePage() {
       <HomeTripleBanners banners={tripleBanners} />
 
       {jblProducts.length > 0 && (
-        <section className="oc-section">
+        <section className="oc-section oc-jbl-carousel">
           <div className="container">
             <div className="oc-section-head">
               <h2>¡Llevá la fiesta a donde quieras!</h2>
@@ -154,7 +154,7 @@ export default async function HomePage() {
                 +
               </Link>
             </div>
-            <div className="oc-product-grid oc-product-grid-5">
+            <div className="oc-product-grid oc-product-scroll">
               {jblProducts.map((p) => (
                 <ProductCard key={p.id_producto} product={p} />
               ))}

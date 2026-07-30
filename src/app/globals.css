@@ -1510,7 +1510,8 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-destacados .oc-product-scroll,
-.oc-potencia .oc-product-scroll {
+.oc-potencia .oc-product-scroll,
+.oc-jbl-carousel .oc-product-scroll {
   --oc-scroll-visible: 5;
 }
 
@@ -1714,6 +1715,14 @@ img { max-width: 100%; display: block; }
   opacity: 1;
   visibility: visible;
   transform: translate3d(0, 0, 0);
+}
+
+@media (hover: none) {
+  .oc-product-card-wishlist {
+    opacity: 1;
+    visibility: visible;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .oc-product-card-thumb:has(.oc-product-card-promo-badge) .oc-product-card-wishlist {
@@ -2994,7 +3003,10 @@ img { max-width: 100%; display: block; }
   .oc-product-grid:not(.oc-product-scroll) { grid-template-columns: repeat(3, 1fr); }
   .oc-product-grid-5 { grid-template-columns: repeat(3, 1fr); }
   .oc-product-grid-6 { grid-template-columns: repeat(3, 1fr); }
-  .oc-product-scroll { --oc-scroll-visible: 3; }
+  .oc-product-scroll,
+  .oc-destacados .oc-product-scroll,
+  .oc-potencia .oc-product-scroll,
+  .oc-jbl-carousel .oc-product-scroll { --oc-scroll-visible: 3; }
   .oc-promo-grid { grid-template-columns: 1fr; }
   .oc-promo-card { height: 190px; }
   .oc-category-banner-grid { grid-template-columns: 1fr; }
@@ -3032,12 +3044,25 @@ img { max-width: 100%; display: block; }
     justify-self: center;
     grid-column: auto;
   }
+  .oc-seg {
+    width: 100%;
+    max-width: 420px;
+  }
+  .oc-seg-item {
+    flex: 1 1 0;
+    width: auto;
+    padding: 0 0.75rem;
+    font-size: 15px;
+  }
   .oc-product-grid:not(.oc-product-scroll), .oc-footer-grid, .oc-store-grid, .oc-benefit-grid {
     grid-template-columns: 1fr 1fr;
   }
   .oc-product-grid-5,
   .oc-product-grid-6 { grid-template-columns: 1fr 1fr; }
-  .oc-product-scroll { --oc-scroll-visible: 2; }
+  .oc-product-scroll,
+  .oc-destacados .oc-product-scroll,
+  .oc-potencia .oc-product-scroll,
+  .oc-jbl-carousel .oc-product-scroll { --oc-scroll-visible: 2; }
   .oc-product-grid-6 { grid-template-columns: 1fr 1fr; }
   .oc-promo-grid { grid-template-columns: 1fr; }
   .oc-product-detail { grid-template-columns: 1fr; }
@@ -3064,7 +3089,18 @@ img { max-width: 100%; display: block; }
   .oc-product-grid:not(.oc-product-scroll), .oc-promo-grid, .oc-footer-grid, .oc-store-grid, .oc-benefit-grid {
     grid-template-columns: 1fr;
   }
+  .oc-product-grid.oc-product-grid-5,
+  .oc-product-grid.oc-product-grid-6 {
+    grid-template-columns: 1fr 1fr;
+  }
   .oc-product-scroll { --oc-scroll-visible: 1; }
+  .oc-destacados .oc-product-scroll,
+  .oc-potencia .oc-product-scroll,
+  .oc-jbl-carousel .oc-product-scroll { --oc-scroll-visible: 2; }
+  .oc-seg-item {
+    padding: 0 0.4rem;
+    font-size: 13.5px;
+  }
 }
 
 /* ——— Institutional pages ——— */
