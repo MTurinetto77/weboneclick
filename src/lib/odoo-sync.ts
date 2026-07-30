@@ -27,6 +27,7 @@ const PRODUCT_FIELDS = [
   "display_name",
   "default_code",
   "list_price",
+  "taxed_lst_price",
   "description_sale",
   "description_ecommerce",
   "website_description",
@@ -76,6 +77,8 @@ type OdooProduct = {
   display_name: string;
   default_code: string | false;
   list_price: number;
+  /** Precio de venta con impuestos incluidos (campo Odoo `taxed_lst_price`). */
+  taxed_lst_price?: number;
   description_sale: string | false;
   /** UI es_AR: "Descripción para comercio electrónico" */
   description_ecommerce?: string | false;
@@ -669,10 +672,27 @@ async function upsertProductoRow(
   }
 
   const tmplId = m2oId(row.product_tmpl_id) ?? row.id;
-  const precio =
-    maps.priceByTmpl.get(tmplId) ??
-    maps.priceByTmpl.get(row.id) ??
-    (Number(row.list_price) > 0 ? Number(row.list_price) : 0);
+  // Precio web = bruto (IVA incluido). Campo Odoo: taxed_lst_price
+  // ("(= $ X impuestos incluidos)"). price/list_price son netos.
+  const taxed =
+    typeof row.taxed_lst_price === "number" && row.taxed_lst_price > 0
+      ? Number(row.taxed_lst_price)
+      : 0;
+  const companyNet =
+    maps.priceByTmpl.get(tmplId) ?? maps.priceByTmpl.get(row.id) ?? 0;
+  const listNet = Number(row.list_price) > 0 ? Number(row.list_price) : 0;
+  let precio = taxed;
+  if (
+    precio > 0 &&
+    companyNet > 0 &&
+    listNet > 0 &&
+    Math.abs(companyNet - listNet) >= 0.02
+  ) {
+    // Precio por compañía distinto del list_price: escalar el bruto.
+    precio = Math.round(((companyNet * taxed) / listNet) * 100) / 100;
+  } else if (!precio) {
+    precio = companyNet || listNet;
+  }
   if (precio > 0) {
     const latest = await prisma.precio_producto.findFirst({
       where: { id_producto },
