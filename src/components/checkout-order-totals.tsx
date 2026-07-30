@@ -69,12 +69,7 @@ export function CheckoutEnvioTotalRows({ subtotal, iva105, iva21 }: Props) {
         >
           {envioLabel}
           {quote.ok && quote.tipo === "envio" && quote.proveedor && !quote.gratis ? (
-            <span className="oc-checkout-envio-meta">
-              {quote.proveedor}
-              {quote.dias_entrega != null
-                ? ` · ${quote.dias_entrega} día${quote.dias_entrega === 1 ? "" : "s"}`
-                : ""}
-            </span>
+            <span className="oc-checkout-envio-meta">{quote.proveedor}</span>
           ) : null}
         </td>
       </tr>
