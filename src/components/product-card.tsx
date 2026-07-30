@@ -8,6 +8,7 @@ import type { ProductListItem } from "@/lib/products";
 export function ProductCard({ product }: { product: ProductListItem }) {
   const sinImp = precioSinImpuestos(product.precio);
   const cuotas = product.cuotas_max ?? 12;
+  const outOfStock = product.stockTracked && product.stockTotal <= 0;
 
   return (
     <article className="oc-product-card">
@@ -19,6 +20,9 @@ export function ProductCard({ product }: { product: ProductListItem }) {
             alt={product.titulo}
           />
         </Link>
+        {outOfStock && (
+          <span className="out-of-stock product-label wd-shape-round-sm">Sin Stock</span>
+        )}
         {product.promoBadge ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -47,12 +51,18 @@ export function ProductCard({ product }: { product: ProductListItem }) {
           <p className="oc-sin-imp">Sin imp nacionales: {formatPriceArs(sinImp)}</p>
         )}
         <div className="oc-add-form">
-          <AddToCartButton idProducto={product.id_producto} className="oc-btn oc-btn-cart">
-            <span className="oc-btn-cart-label">Agregar al carrito</span>
-            <span className="oc-btn-cart-icon" aria-hidden>
-              <CartBagIcon />
-            </span>
-          </AddToCartButton>
+          {outOfStock ? (
+            <Link href={`/producto/${product.slug}`} className="oc-btn oc-btn-cart">
+              <span className="oc-btn-cart-label">Ver</span>
+            </Link>
+          ) : (
+            <AddToCartButton idProducto={product.id_producto} className="oc-btn oc-btn-cart">
+              <span className="oc-btn-cart-label">Agregar al carrito</span>
+              <span className="oc-btn-cart-icon" aria-hidden>
+                <CartBagIcon />
+              </span>
+            </AddToCartButton>
+          )}
         </div>
       </div>
     </article>

@@ -1744,6 +1744,25 @@ img { max-width: 100%; display: block; }
   pointer-events: none;
 }
 
+.product-label.out-of-stock {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  background: #ececec;
+  color: #1d1d1f;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.4rem 0.9rem;
+  pointer-events: none;
+}
+
+.product-label.wd-shape-round-sm {
+  border-radius: 999px;
+}
+
 .oc-product-card-wishlist {
   position: absolute;
   top: 10px;

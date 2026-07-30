@@ -630,7 +630,18 @@ export async function getActiveProducts(options?: {
             take: 1,
             select: { archivo: { select: { link: true } } },
           },
-          stocks: { include: { almacen: { select: { odoo_id: true, descripcion: true } } } },
+          stocks: {
+            include: {
+              almacen: {
+                select: {
+                  odoo_id: true,
+                  descripcion: true,
+                  id_tienda: true,
+                  es_envio_domicilio: true,
+                },
+              },
+            },
+          },
         },
         orderBy:
           order === "nombre" ? { titulo: "asc" } : { id_producto: "desc" },
@@ -709,7 +720,18 @@ export async function getActiveProducts(options?: {
         take: 1,
         select: { archivo: { select: { link: true } } },
       },
-      stocks: { include: { almacen: { select: { odoo_id: true, descripcion: true } } } },
+      stocks: {
+        include: {
+          almacen: {
+            select: {
+              odoo_id: true,
+              descripcion: true,
+              id_tienda: true,
+              es_envio_domicilio: true,
+            },
+          },
+        },
+      },
     },
   });
   const byId = new Map(rows.map((r) => [r.id_producto, r]));

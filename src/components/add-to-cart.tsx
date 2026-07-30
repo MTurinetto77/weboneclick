@@ -51,11 +51,13 @@ export function AddToCartButton({
   cantidad = 1,
   className,
   children,
+  disabled = false,
 }: {
   idProducto: number;
   cantidad?: number;
   className?: string;
   children: React.ReactNode;
+  disabled?: boolean;
 }) {
   const { add, pending, modal } = useAddToCart();
 
@@ -64,7 +66,7 @@ export function AddToCartButton({
       <button
         type="button"
         className={className}
-        disabled={pending}
+        disabled={disabled || pending}
         onClick={() => add(idProducto, cantidad)}
       >
         {children}
