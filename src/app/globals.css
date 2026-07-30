@@ -12,8 +12,8 @@
   --oc-green: #1d8348;
   --oc-radius: 12px;
   --oc-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --font-display: "SF Pro Display", Arial, Helvetica, sans-serif;
-  --font-body: "SF Pro Display", Arial, Helvetica, sans-serif;
+  --font-display: var(--font-sf-pro-display), Arial, Helvetica, sans-serif;
+  --font-body: var(--font-sf-pro-display), Arial, Helvetica, sans-serif;
   --color-bg: var(--oc-bg-soft);
   --color-surface: #fff;
   --color-ink: var(--oc-ink);
@@ -517,7 +517,7 @@ img { max-width: 100%; display: block; }
 .oc-hero-live-shade {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.64) 0%, rgba(0, 0, 0, 0) 50%);
   pointer-events: none;
 }
 
@@ -526,25 +526,27 @@ img { max-width: 100%; display: block; }
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  width: min(980px, calc(100% - 2rem));
   min-height: 560px;
   padding: 2.5rem 0 3rem;
 }
 
 .oc-hero-live-copy {
-  text-align: center;
+  text-align: left;
   color: #fff;
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: 520px;
+  margin: 0;
   padding: 20px;
 }
 
 .oc-hero-live-copy h1 {
-  margin: 0 0 25px;
-  font-size: clamp(1rem, 2vw, 1.35rem);
-  line-height: 1.3;
-  letter-spacing: 0;
-  font-weight: 700;
+  margin: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.4em;
+  letter-spacing: normal;
+  font-weight: 600;
+  text-transform: uppercase;
   color: #fff;
 }
 
@@ -559,26 +561,41 @@ img { max-width: 100%; display: block; }
   border-radius: 999px;
 }
 
+.oc-hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 0 0 20px;
+}
+
 .oc-hero-pill-img {
   display: block;
-  max-width: 220px;
+  height: 36px;
   width: auto;
-  height: auto;
-  margin: 0 auto 15px;
+  margin: 0;
+}
+
+.oc-hero-logo-img {
+  display: block;
+  height: 28px;
+  width: auto;
+  margin: 0;
 }
 
 .oc-hero-kicker {
-  margin: 0 0 12px;
-  font-size: 1rem;
+  margin: 0 0 10px;
+  font-size: 16px;
+  line-height: 1em;
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: normal;
   text-transform: uppercase;
   color: #fff;
 }
 
-.oc-hero-live-copy h1 em {
-  font-style: italic;
-  font-weight: 700;
+.oc-hero-live-copy h1 em,
+.oc-hero-live-copy h1 strong {
+  font-style: normal;
+  font-weight: 800;
 }
 
 .oc-hero-sub {
@@ -588,14 +605,8 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-price-box {
-  display: inline-block;
-  width: auto;
-  border: 2px solid #fff;
-  border-radius: 8px;
-  padding: 12px 30px;
-  margin: 0 0 20px;
-  background: transparent;
-  color: #fff;
+  display: block;
+  margin: 0 0 14px;
 }
 
 .oc-price-box-label {
@@ -604,8 +615,11 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-price-box strong {
-  font-size: 2rem;
-  letter-spacing: -0.02em;
+  display: block;
+  font-size: 68px;
+  line-height: 1em;
+  font-weight: 800;
+  letter-spacing: -1.9px;
   color: #fff;
 }
 
@@ -616,29 +630,41 @@ img { max-width: 100%; display: block; }
 
 .oc-hero-cta-link {
   display: inline-block;
-  padding: 14px 28px;
+  font-size: 15px;
+  padding: 12px 24px;
   margin-bottom: 25px;
-  background: transparent;
+  background: #19c8fa;
   color: #fff;
-  border: 2px solid #fff;
-  border-radius: 8px;
+  border: none;
+  border-radius: 50px;
+  box-shadow: 0 0 9px -2px rgba(0, 0, 0, 0.5) inset;
   text-decoration: none;
   font-weight: 600;
   transition: background 0.25s ease;
 }
 
 .oc-hero-cta-link:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #000;
 }
 
 .oc-hero-foot {
   margin: 0;
   padding-top: 0;
   border-top: none;
-  font-size: 1rem;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.4em;
+  font-weight: 600;
+  text-transform: uppercase;
   color: #fff;
   opacity: 1;
+}
+
+.oc-hero-valores-img {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  margin: 15px 0 0;
 }
 
 .oc-utility-bar {
@@ -1564,6 +1590,10 @@ img { max-width: 100%; display: block; }
 
 .oc-section-head h2 {
   margin: 0;
+  font-size: 36px;
+  line-height: 36px;
+  font-weight: 600;
+  color: var(--oc-ink);
 }
 
 .oc-section-more {
@@ -3044,17 +3074,32 @@ img { max-width: 100%; display: block; }
   .oc-hero-live-grid {
     min-height: 480px;
   }
+  .oc-hero-live-bg {
+    object-position: center 15%;
+  }
+  .oc-hero-live-copy {
+    text-align: center;
+  }
+  .oc-hero-badges {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
   .oc-hero-pill-img {
-    max-width: 170px;
+    height: 37px;
+  }
+  .oc-hero-logo-img {
+    height: 33px;
   }
   .oc-price-box strong {
-    font-size: 1.6rem;
+    font-size: 43px;
   }
-  .oc-hero-live-copy h1 {
-    font-size: 1.1rem;
+  .oc-hero-live-copy h1,
+  .oc-hero-foot,
+  .oc-hero-valores-img {
+    display: none;
   }
-  .oc-hero-foot {
-    font-size: 0.9rem;
+  .oc-hero-kicker {
+    font-size: 12px;
   }
   .oc-hero-cta-link {
     padding: 12px 22px;
