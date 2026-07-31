@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { submitContactForm, type ContactSubmitStatus } from "@/lib/submit-contact-form";
 
 const TIENDAS = [
   "Rosario Centro",
@@ -24,32 +25,22 @@ const DEVICES = [
 ];
 
 export function ServicioTecnicoForm() {
-  const [status, setStatus] = useState<"idle" | "sent">("idle");
+  const [status, setStatus] = useState<ContactSubmitStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setStatus("loading");
+    setError(null);
     const fd = new FormData(e.currentTarget);
-    const get = (k: string) => String(fd.get(k) || "").trim();
-    const dispositivos = fd.getAll("dispositivo").map(String);
-
-    const body = [
-      `Nombre: ${get("nombre")}`,
-      `Teléfono: ${get("telefono")}`,
-      `Email: ${get("email")}`,
-      `Tipo de entrega: ${get("entrega")}`,
-      `Tienda: ${get("tienda")}`,
-      `Dispositivo(s): ${dispositivos.join(", ")}`,
-      `Modelo: ${get("modelo")}`,
-      `Nº de serie: ${get("serie")}`,
-      "",
-      "Detalle de la falla:",
-      get("falla"),
-    ].join("\n");
-
-    window.location.href = `mailto:info@oneclickstore.com?subject=${encodeURIComponent(
-      "Solicitud Servicio Técnico OneClick"
-    )}&body=${encodeURIComponent(body)}`;
+    const result = await submitContactForm("servicio-tecnico", fd);
+    if (!result.ok) {
+      setError(result.error);
+      setStatus("error");
+      return;
+    }
     setStatus("sent");
+    e.currentTarget.reset();
   }
 
   return (
@@ -116,14 +107,17 @@ export function ServicioTecnicoForm() {
             <textarea name="falla" rows={4} required />
           </label>
 
-          <button type="submit" className="oc-btn oc-btn-dark oc-st-submit">
-            SOLICITAR SERVICIO TÉCNICO →
+          <button
+            type="submit"
+            className="oc-btn oc-btn-dark oc-st-submit"
+            disabled={status === "loading"}
+          >
+            {status === "loading" ? "ENVIANDO…" : "SOLICITAR SERVICIO TÉCNICO →"}
           </button>
           {status === "sent" ? (
-            <p className="oc-st-form-ok">
-              Se abrió tu cliente de correo para enviar la solicitud.
-            </p>
+            <p className="oc-st-form-ok">Solicitud enviada. Te contactaremos a la brevedad.</p>
           ) : null}
+          {error ? <p className="oc-st-form-ok" style={{ color: "#c00" }}>{error}</p> : null}
         </form>
       </div>
 

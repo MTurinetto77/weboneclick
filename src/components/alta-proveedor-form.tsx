@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { submitContactForm, type ContactSubmitStatus } from "@/lib/submit-contact-form";
 
 const PROVINCIAS = [
   "Buenos Aires",
@@ -41,45 +42,22 @@ const IVA = [
 ];
 
 export function AltaProveedorForm() {
-  const [status, setStatus] = useState<"idle" | "sent">("idle");
+  const [status, setStatus] = useState<ContactSubmitStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setStatus("loading");
+    setError(null);
     const fd = new FormData(e.currentTarget);
-    const get = (k: string) => String(fd.get(k) || "").trim();
-    const body = [
-      "ALTA DE PROVEEDOR — OneClick",
-      "",
-      "Datos Generales",
-      `Razón social: ${get("razon_social")}`,
-      `Calle: ${get("calle")}`,
-      `Altura: ${get("altura")}`,
-      `Provincia: ${get("provincia")}`,
-      `CP: ${get("cp")}`,
-      `País: ${get("pais")}`,
-      `Teléfono: ${get("telefono")}`,
-      `Email pago: ${get("email_pago")}`,
-      `Método de pago: ${get("metodo_pago")}`,
-      "",
-      "Información Impositiva",
-      `CUIT: ${get("cuit")}`,
-      `IVA: ${get("iva")}`,
-      `Ganancias: ${get("ganancias")}`,
-      `IIBB: ${get("iibb")}`,
-      `Nro inscripción: ${get("nro_inscripcion")}`,
-      `Certificación exclusión: ${get("exclusion")}`,
-      "",
-      "Datos Bancarios",
-      `Banco: ${get("banco")}`,
-      `Titular: ${get("titular")}`,
-      `CBU: ${get("cbu")}`,
-      `Nro cuenta: ${get("nro_cuenta")}`,
-    ].join("\n");
-
-    window.location.href = `mailto:info@oneclickstore.com?subject=${encodeURIComponent(
-      "Alta de Proveedor OneClick"
-    )}&body=${encodeURIComponent(body)}`;
+    const result = await submitContactForm("alta-proveedor", fd);
+    if (!result.ok) {
+      setError(result.error);
+      setStatus("error");
+      return;
+    }
     setStatus("sent");
+    e.currentTarget.reset();
   }
 
   return (
@@ -179,12 +157,13 @@ export function AltaProveedorForm() {
       <input name="cbu" placeholder="CBU" required />
       <input name="nro_cuenta" placeholder="Nro de Cuenta" required />
 
-      <button type="submit" className="oc-btn oc-btn-dark">
-        Solicitar Alta de Proveedor
+      <button type="submit" className="oc-btn oc-btn-dark" disabled={status === "loading"}>
+        {status === "loading" ? "Enviando…" : "Solicitar Alta de Proveedor"}
       </button>
       {status === "sent" ? (
-        <p className="muted">Se abrió tu cliente de correo para enviar la solicitud.</p>
+        <p className="muted">Solicitud enviada. Te contactaremos a la brevedad.</p>
       ) : null}
+      {error ? <p className="muted" style={{ color: "#c00" }}>{error}</p> : null}
     </form>
   );
 }

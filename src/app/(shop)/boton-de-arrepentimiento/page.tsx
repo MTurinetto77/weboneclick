@@ -1,3 +1,5 @@
+import { ArrepentimientoForm } from "@/components/arrepentimiento-form";
+
 export const metadata = { title: "Botón de Arrepentimiento" };
 
 const STEPS = [
@@ -78,43 +80,7 @@ export default function BotonDeArrepentimientoPage() {
         </h2>
         <hr className="oc-arrep-divider" />
 
-        <form className="oc-inst-form">
-          <input name="fullname" placeholder="Ingresa Nombre y Apellido" required />
-          <input name="telefono" placeholder="Teléfono de Contacto" required />
-          <input name="email" type="email" placeholder="Email" required />
-
-          <fieldset>
-            <legend>Motivo de Cambio</legend>
-            <label>
-              <input type="radio" name="tipocambio" value="Arrepentimiento de Compra" required />
-              Arrepentimiento de Compra
-            </label>
-            <label>
-              <input type="radio" name="tipocambio" value="Producto Dañado" required />
-              Producto Dañado
-            </label>
-            <label>
-              <input type="radio" name="tipocambio" value="Mal Funcionamiento" required />
-              Mal Funcionamiento
-            </label>
-            <label>
-              <input type="radio" name="tipocambio" value="Error en el Pedido" required />
-              Error en el Pedido
-            </label>
-          </fieldset>
-
-          <input name="nrofactura" placeholder="A/B-xxxx-xxxxxxxx" required />
-          <label className="oc-field-label">
-            Fecha del Comprobante
-            <input name="fechacomp" type="date" required />
-          </label>
-          <input name="importefinal" placeholder="Importe del comprobante" required />
-          <textarea name="detalles" placeholder="Detalles de la Devolución" rows={3} />
-
-          <button type="button" className="oc-btn oc-btn-dark">
-            Solicitar Devolución
-          </button>
-        </form>
+        <ArrepentimientoForm />
       </section>
     </div>
   );

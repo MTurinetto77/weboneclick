@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { submitContactForm, type ContactSubmitStatus } from "@/lib/submit-contact-form";
 
 type Props = {
   productTitle: string;
@@ -9,35 +10,33 @@ type Props = {
 };
 
 export function ProductReserveForm({ productTitle, productSku }: Props) {
-  const [status, setStatus] = useState<"idle" | "sent">("idle");
+  const [status, setStatus] = useState<ContactSubmitStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setStatus("loading");
+    setError(null);
     const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") || "").trim();
-    if (!email) return;
-
-    const subject = `Aviso de stock: ${productTitle}`;
-    const body = [
-      "Quiero que me avisen cuando este producto vuelva a estar disponible.",
-      "",
-      `Producto: ${productTitle}`,
-      productSku ? `SKU: ${productSku}` : null,
-      `Email: ${email}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    window.location.href = `mailto:info@oneclickstore.com?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
+    fd.set("productTitle", productTitle);
+    if (productSku) fd.set("productSku", productSku);
+    const result = await submitContactForm("aviso-stock", fd);
+    if (!result.ok) {
+      setError(result.error);
+      setStatus("error");
+      return;
+    }
     setStatus("sent");
+    e.currentTarget.reset();
   }
 
   return (
     <div className="oc-pdp-reserve">
       <h3>Reservá este producto antes que llegue!</h3>
-      <p>¡No te preocupes! Dejá tu correo electrónico y te avisaremos en cuanto vuelva a estar disponible.</p>
+      <p>
+        ¡No te preocupes! Dejá tu correo electrónico y te avisaremos en cuanto vuelva a estar
+        disponible.
+      </p>
       <form className="oc-pdp-reserve-form" onSubmit={onSubmit}>
         <input
           type="email"
@@ -46,8 +45,8 @@ export function ProductReserveForm({ productTitle, productSku }: Props) {
           required
           autoComplete="email"
         />
-        <button type="submit" className="oc-btn oc-btn-dark">
-          Reservar!
+        <button type="submit" className="oc-btn oc-btn-dark" disabled={status === "loading"}>
+          {status === "loading" ? "Enviando…" : "Reservar!"}
         </button>
         <label className="oc-pdp-reserve-privacy">
           <input type="checkbox" name="privacy" required />
@@ -60,8 +59,11 @@ export function ProductReserveForm({ productTitle, productSku }: Props) {
         </label>
       </form>
       {status === "sent" ? (
-        <p className="muted oc-pdp-reserve-ok">Se abrió tu cliente de correo para enviar la reserva.</p>
+        <p className="muted oc-pdp-reserve-ok">
+          Listo. Te avisaremos cuando el producto vuelva a estar disponible.
+        </p>
       ) : null}
+      {error ? <p className="muted oc-pdp-reserve-ok" style={{ color: "#c00" }}>{error}</p> : null}
     </div>
   );
 }
