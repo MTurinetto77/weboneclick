@@ -62,7 +62,18 @@ type Props = {
   onlineNote?: ReactNode;
   addressDefaults?: AddressDefaults | null;
   cartSubtotal: number;
+  envioDisponible: boolean;
+  retiroDisponible: boolean;
 };
+
+function defaultTipoEntrega(
+  envioDisponible: boolean,
+  retiroDisponible: boolean
+): "envio" | "retiro" {
+  if (envioDisponible) return "envio";
+  if (retiroDisponible) return "retiro";
+  return "envio";
+}
 
 function matchProvincia(raw?: string | null): string {
   if (!raw) return "";
@@ -243,8 +254,12 @@ export function CheckoutDeliveryFields({
   onlineNote,
   addressDefaults,
   cartSubtotal,
+  envioDisponible,
+  retiroDisponible,
 }: Props) {
-  const [tipoEntrega, setTipoEntrega] = useState<"envio" | "retiro">("envio");
+  const [tipoEntrega, setTipoEntrega] = useState<"envio" | "retiro">(() =>
+    defaultTipoEntrega(envioDisponible, retiroDisponible)
+  );
   const [cp, setCp] = useState(addressDefaults?.codigo_postal ?? "");
   const [localidad, setLocalidad] = useState(addressDefaults?.localidad ?? "");
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
@@ -260,11 +275,23 @@ export function CheckoutDeliveryFields({
   const provinciaDefault = matchProvincia(addressDefaults?.provincia);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const ningunaEntrega = !envioDisponible && !retiroDisponible;
 
-  const showEntrega = tipoEntrega === "envio";
+  const showEntrega = tipoEntrega === "envio" && envioDisponible;
   const showFacturacionSeparada =
-    tipoEntrega === "retiro" || (tipoEntrega === "envio" && !mismaFacturacion);
+    (tipoEntrega === "retiro" && retiroDisponible) ||
+    (tipoEntrega === "envio" && envioDisponible && !mismaFacturacion);
   const twoPanels = showEntrega && showFacturacionSeparada;
+
+  useEffect(() => {
+    if (tipoEntrega === "envio" && !envioDisponible && retiroDisponible) {
+      setTipoEntrega("retiro");
+      setMismaFacturacion(true);
+    } else if (tipoEntrega === "retiro" && !retiroDisponible && envioDisponible) {
+      setTipoEntrega("envio");
+      setMismaFacturacion(true);
+    }
+  }, [envioDisponible, retiroDisponible, tipoEntrega]);
 
   useEffect(() => {
     if (twoPanels) {
@@ -277,7 +304,7 @@ export function CheckoutDeliveryFields({
   }, [twoPanels]);
 
   useEffect(() => {
-    if (tipoEntrega !== "retiro") return;
+    if (tipoEntrega !== "retiro" || !retiroDisponible) return;
     let cancelled = false;
     setTiendasLoading(true);
     fetch("/api/checkout/tiendas-disponibles")
@@ -308,7 +335,7 @@ export function CheckoutDeliveryFields({
     return () => {
       cancelled = true;
     };
-  }, [tipoEntrega, cartSubtotal]);
+  }, [tipoEntrega, cartSubtotal, retiroDisponible]);
 
   const validateCp = useCallback(
     async (value: string, tipo: "envio" | "retiro") => {
@@ -409,9 +436,12 @@ export function CheckoutDeliveryFields({
   );
 
   useEffect(() => {
+    if (ningunaEntrega) return;
+    if (tipoEntrega === "envio" && !envioDisponible) return;
+    if (tipoEntrega === "retiro" && !retiroDisponible) return;
     void validateCp(cp, tipoEntrega);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tipoEntrega, cartSubtotal]);
+  }, [tipoEntrega, cartSubtotal, envioDisponible, retiroDisponible, ningunaEntrega]);
 
   useEffect(() => {
     return () => {
@@ -429,6 +459,8 @@ export function CheckoutDeliveryFields({
   }
 
   function onTipoChange(next: "envio" | "retiro") {
+    if (next === "envio" && !envioDisponible) return;
+    if (next === "retiro" && !retiroDisponible) return;
     setTipoEntrega(next);
     if (next === "envio") setMismaFacturacion(true);
   }
@@ -438,209 +470,229 @@ export function CheckoutDeliveryFields({
       <fieldset className="oc-checkout-fieldset">
         <legend>Tipo de entrega</legend>
 
-        <div className="oc-checkout-entrega-row">
-          <label className="oc-checkout-radio">
-            <input
-              type="radio"
-              name="tipo_entrega"
-              value="envio"
-              checked={tipoEntrega === "envio"}
-              onChange={() => onTipoChange("envio")}
-            />
-            Envío a domicilio
-          </label>
+        {ningunaEntrega ? (
+          <p className="oc-checkout-cp-msg is-error">
+            Tu carrito no tiene stock completo para envío a domicilio ni para retiro
+            en una sola tienda. Revisá el carrito o contactanos.
+          </p>
+        ) : (
+          <>
+            {envioDisponible && (
+              <>
+                <div className="oc-checkout-entrega-row">
+                  <label className="oc-checkout-radio">
+                    <input
+                      type="radio"
+                      name="tipo_entrega"
+                      value="envio"
+                      checked={tipoEntrega === "envio"}
+                      onChange={() => onTipoChange("envio")}
+                    />
+                    Envío a domicilio
+                  </label>
 
-          {tipoEntrega === "envio" && (
-            <div className="oc-checkout-cp-box">
-              <label htmlFor="checkout-cp">Código postal</label>
+                  {tipoEntrega === "envio" && (
+                    <div className="oc-checkout-cp-box">
+                      <label htmlFor="checkout-cp">Código postal</label>
+                      <input
+                        id="checkout-cp"
+                        name="codigo_postal"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        placeholder="Ej. 1001"
+                        required
+                        value={cp}
+                        onChange={(e) => onCpChange(e.target.value)}
+                        onBlur={() => void validateCp(cp, "envio")}
+                      />
+                      {status === "ok" && (
+                        <span
+                          className="oc-checkout-cp-check"
+                          aria-label="Código postal válido"
+                          title="Código postal válido"
+                        >
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {tipoEntrega === "envio" && status === "error" && message && (
+                  <p className="oc-checkout-cp-msg is-error">{message}</p>
+                )}
+                {tipoEntrega === "envio" && status === "loading" && (
+                  <p className="oc-checkout-cp-msg">Validando…</p>
+                )}
+              </>
+            )}
+
+            {retiroDisponible && (
+              <label className="oc-checkout-radio">
+                <input
+                  type="radio"
+                  name="tipo_entrega"
+                  value="retiro"
+                  checked={tipoEntrega === "retiro"}
+                  onChange={() => onTipoChange("retiro")}
+                />
+                Retiro en tienda
+              </label>
+            )}
+          </>
+        )}
+      </fieldset>
+
+      {!ningunaEntrega && (
+        <>
+          <div className="oc-checkout-otra-persona">
+            <label className="oc-checkout-check">
               <input
-                id="checkout-cp"
-                name="codigo_postal"
-                inputMode="numeric"
-                autoComplete="postal-code"
-                placeholder="Ej. 1001"
-                required
-                value={cp}
-                onChange={(e) => onCpChange(e.target.value)}
-                onBlur={() => void validateCp(cp, "envio")}
+                type="checkbox"
+                name="receptor_otra_persona"
+                value="1"
+                checked={otraPersona}
+                onChange={(e) => setOtraPersona(e.target.checked)}
               />
-              {status === "ok" && (
-                <span
-                  className="oc-checkout-cp-check"
-                  aria-label="Código postal válido"
-                  title="Código postal válido"
-                >
-                  ✓
+              <span>
+                <strong>¿Retira o recibe otra persona?</strong>{" "}
+                <span className="oc-checkout-optional">(opcional)</span>
+              </span>
+            </label>
+
+            {otraPersona && (
+              <div className="oc-checkout-grid-2 oc-checkout-otra-persona-fields">
+                <div className="oc-checkout-field">
+                  <label>
+                    Nombre y Apellido <abbr title="obligatorio">*</abbr>
+                  </label>
+                  <input name="receptor_nombre" required maxLength={200} />
+                </div>
+                <div className="oc-checkout-field">
+                  <label>
+                    DNI de la persona que retira/recibe <abbr title="obligatorio">*</abbr>
+                  </label>
+                  <input name="receptor_dni" required inputMode="numeric" maxLength={50} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {showEntrega && (
+            <div className="oc-checkout-misma-facturacion">
+              <label className="oc-checkout-check">
+                <input
+                  type="checkbox"
+                  name="misma_direccion_facturacion"
+                  value="1"
+                  checked={mismaFacturacion}
+                  onChange={(e) => setMismaFacturacion(e.target.checked)}
+                />
+                <span>
+                  <strong>Misma dirección de facturación</strong>
                 </span>
+              </label>
+            </div>
+          )}
+
+          {showEntrega && (
+            <CollapsiblePanel
+              title="Dirección de entrega"
+              open={openEntrega}
+              onToggle={() => setOpenEntrega((v) => !v)}
+              collapsible={twoPanels}
+            >
+              <AddressFields
+                prefix=""
+                defaults={addressDefaults}
+                localidad={localidad}
+                onLocalidadChange={setLocalidad}
+                includeCodigoPostal={false}
+                provinciaDefault={provinciaDefault}
+              />
+              {onlineNote}
+            </CollapsiblePanel>
+          )}
+
+          {showFacturacionSeparada && (
+            <CollapsiblePanel
+              title="Dirección de facturación"
+              open={openFacturacion}
+              onToggle={() => setOpenFacturacion((v) => !v)}
+              collapsible={twoPanels}
+            >
+              <AddressFields
+                prefix="fact"
+                defaults={tipoEntrega === "retiro" ? addressDefaults : null}
+                includeCodigoPostal
+                provinciaDefault={
+                  tipoEntrega === "retiro" ? provinciaDefault : ""
+                }
+              />
+            </CollapsiblePanel>
+          )}
+
+          {tipoEntrega === "retiro" && retiroDisponible && (
+            <div className="oc-checkout-tienda-retiro">
+              <div className="oc-checkout-field">
+                <label>
+                  Tienda de retiro <abbr title="obligatorio">*</abbr>
+                </label>
+                {tiendasLoading ? (
+                  <p className="oc-checkout-cp-msg">Cargando tiendas…</p>
+                ) : ningunaTienda ? (
+                  <p className="oc-checkout-cp-msg is-error">
+                    {envioDisponible
+                      ? "Ninguna tienda tiene stock completo de tu carrito. Probá con envío a domicilio."
+                      : "Ninguna tienda tiene stock completo de tu carrito."}
+                  </p>
+                ) : (
+                  <select
+                    name="tienda_retiro"
+                    required
+                    value={tiendaSeleccionada}
+                    onChange={(e) => setTiendaSeleccionada(e.target.value)}
+                  >
+                    <option value="" disabled>
+                      Seleccioná una tienda
+                    </option>
+                    {tiendas
+                      .filter((t) => t.disponible)
+                      .map((t) => (
+                        <option key={t.id_tienda} value={t.id_tienda}>
+                          {t.nombre} — {t.direccion}, {t.localidad}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+              {tiendaSeleccionada && (
+                <div className="oc-checkout-note">
+                  {(() => {
+                    const t = tiendas.find(
+                      (x) => String(x.id_tienda) === tiendaSeleccionada
+                    );
+                    if (!t) return null;
+                    return (
+                      <>
+                        <strong>{t.nombre}</strong>
+                        <br />
+                        {t.direccion}, {t.localidad}, {t.provincia}
+                        {t.horarios && (
+                          <>
+                            <br />
+                            <span className="muted">{t.horarios}</span>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
+                  {onlineNote}
+                </div>
               )}
             </div>
           )}
-        </div>
-
-        {tipoEntrega === "envio" && status === "error" && message && (
-          <p className="oc-checkout-cp-msg is-error">{message}</p>
-        )}
-        {tipoEntrega === "envio" && status === "loading" && (
-          <p className="oc-checkout-cp-msg">Validando…</p>
-        )}
-
-        <label className="oc-checkout-radio">
-          <input
-            type="radio"
-            name="tipo_entrega"
-            value="retiro"
-            checked={tipoEntrega === "retiro"}
-            onChange={() => onTipoChange("retiro")}
-          />
-          Retiro en tienda
-        </label>
-      </fieldset>
-
-      <div className="oc-checkout-otra-persona">
-        <label className="oc-checkout-check">
-          <input
-            type="checkbox"
-            name="receptor_otra_persona"
-            value="1"
-            checked={otraPersona}
-            onChange={(e) => setOtraPersona(e.target.checked)}
-          />
-          <span>
-            <strong>¿Retira o recibe otra persona?</strong>{" "}
-            <span className="oc-checkout-optional">(opcional)</span>
-          </span>
-        </label>
-
-        {otraPersona && (
-          <div className="oc-checkout-grid-2 oc-checkout-otra-persona-fields">
-            <div className="oc-checkout-field">
-              <label>
-                Nombre y Apellido <abbr title="obligatorio">*</abbr>
-              </label>
-              <input name="receptor_nombre" required maxLength={200} />
-            </div>
-            <div className="oc-checkout-field">
-              <label>
-                DNI de la persona que retira/recibe <abbr title="obligatorio">*</abbr>
-              </label>
-              <input name="receptor_dni" required inputMode="numeric" maxLength={50} />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {tipoEntrega === "envio" && (
-        <div className="oc-checkout-misma-facturacion">
-          <label className="oc-checkout-check">
-            <input
-              type="checkbox"
-              name="misma_direccion_facturacion"
-              value="1"
-              checked={mismaFacturacion}
-              onChange={(e) => setMismaFacturacion(e.target.checked)}
-            />
-            <span>
-              <strong>Misma dirección de facturación</strong>
-            </span>
-          </label>
-        </div>
-      )}
-
-      {showEntrega && (
-        <CollapsiblePanel
-          title="Dirección de entrega"
-          open={openEntrega}
-          onToggle={() => setOpenEntrega((v) => !v)}
-          collapsible={twoPanels}
-        >
-          <AddressFields
-            prefix=""
-            defaults={addressDefaults}
-            localidad={localidad}
-            onLocalidadChange={setLocalidad}
-            includeCodigoPostal={false}
-            provinciaDefault={provinciaDefault}
-          />
-          {onlineNote}
-        </CollapsiblePanel>
-      )}
-
-      {showFacturacionSeparada && (
-        <CollapsiblePanel
-          title="Dirección de facturación"
-          open={openFacturacion}
-          onToggle={() => setOpenFacturacion((v) => !v)}
-          collapsible={twoPanels}
-        >
-          <AddressFields
-            prefix="fact"
-            defaults={tipoEntrega === "retiro" ? addressDefaults : null}
-            includeCodigoPostal
-            provinciaDefault={
-              tipoEntrega === "retiro" ? provinciaDefault : ""
-            }
-          />
-        </CollapsiblePanel>
-      )}
-
-      {tipoEntrega === "retiro" && (
-        <div className="oc-checkout-tienda-retiro">
-          <div className="oc-checkout-field">
-            <label>
-              Tienda de retiro <abbr title="obligatorio">*</abbr>
-            </label>
-            {tiendasLoading ? (
-              <p className="oc-checkout-cp-msg">Cargando tiendas…</p>
-            ) : ningunaTienda ? (
-              <p className="oc-checkout-cp-msg is-error">
-                Ninguna tienda tiene stock completo de tu carrito. Probá con envío a
-                domicilio.
-              </p>
-            ) : (
-              <select
-                name="tienda_retiro"
-                required
-                value={tiendaSeleccionada}
-                onChange={(e) => setTiendaSeleccionada(e.target.value)}
-              >
-                <option value="" disabled>
-                  Seleccioná una tienda
-                </option>
-                {tiendas
-                  .filter((t) => t.disponible)
-                  .map((t) => (
-                    <option key={t.id_tienda} value={t.id_tienda}>
-                      {t.nombre} — {t.direccion}, {t.localidad}
-                    </option>
-                  ))}
-              </select>
-            )}
-          </div>
-          {tiendaSeleccionada && (
-            <div className="oc-checkout-note">
-              {(() => {
-                const t = tiendas.find(
-                  (x) => String(x.id_tienda) === tiendaSeleccionada
-                );
-                if (!t) return null;
-                return (
-                  <>
-                    <strong>{t.nombre}</strong>
-                    <br />
-                    {t.direccion}, {t.localidad}, {t.provincia}
-                    {t.horarios && (
-                      <>
-                        <br />
-                        <span className="muted">{t.horarios}</span>
-                      </>
-                    )}
-                  </>
-                );
-              })()}
-              {onlineNote}
-            </div>
-          )}
-        </div>
+        </>
       )}
     </>
   );

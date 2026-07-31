@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { cartHasStockInWarehouse, resolveCart } from "@/lib/cart";
+import {
+  cartHasStockInWarehouse,
+  resolveCart,
+  resolveCheckoutEntregaDisponibilidad,
+} from "@/lib/cart";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -9,8 +13,17 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const cart = await resolveCart();
   if (!cart.items.length) {
-    return NextResponse.json({ tiendas: [], ningunaDisponible: true });
+    return NextResponse.json({
+      tiendas: [],
+      disponibles: [],
+      ningunaDisponible: true,
+      envioDisponible: false,
+      retiroDisponible: false,
+    });
   }
+
+  const { envioDisponible, retiroDisponible } =
+    await resolveCheckoutEntregaDisponibilidad(cart.items);
 
   const tiendas = await prisma.tienda.findMany({
     where: { activo: true },
@@ -47,5 +60,7 @@ export async function GET() {
     tiendas: result,
     disponibles,
     ningunaDisponible: disponibles.length === 0,
+    envioDisponible,
+    retiroDisponible,
   });
 }

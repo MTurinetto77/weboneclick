@@ -51,13 +51,12 @@ export default async function AdminRegaloDetailPage({
   const searchResults = q
     ? await prisma.producto.findMany({
         where: {
-          activo: true,
           OR: [
             { titulo: { contains: q } },
             { sku: { contains: q } },
           ],
         },
-        select: { id_producto: true, titulo: true, slug: true, sku: true },
+        select: { id_producto: true, titulo: true, slug: true, sku: true, activo: true },
         take: 20,
         orderBy: { titulo: "asc" },
       })
@@ -193,7 +192,10 @@ export default async function AdminRegaloDetailPage({
                 <tr key={p.id_producto}>
                   <td>{p.id_producto}</td>
                   <td>{p.sku ?? "—"}</td>
-                  <td>{p.titulo}</td>
+                  <td>
+                    {p.titulo}
+                    {!p.activo && <span className="muted"> (inactivo)</span>}
+                  </td>
                   <td>
                     {linkedIds.has(p.id_producto) ? (
                       <span className="muted">Ya asociado</span>

@@ -3,7 +3,13 @@ import { Prisma } from "@prisma/client";
 import { shopCookieOptions } from "@/lib/cookie-options";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPrice, resolveStockAvailability } from "@/lib/products";
-import { ALMACEN_WEB_SELECT, stockByWarehouseOdooId, type StockRow } from "@/lib/almacenes";
+import {
+  ALMACEN_WEB_SELECT,
+  getShippingWarehouseOdooId,
+  getStoreWarehouseOdooIds,
+  stockByWarehouseOdooId,
+  type StockRow,
+} from "@/lib/almacenes";
 
 export const CART_COOKIE = "cart";
 export const CART_MAX_AGE = 60 * 60 * 24 * 14; // 14 días
@@ -235,4 +241,24 @@ export function cartHasStockInWarehouse(
     const qty = item.stockPorAlmacen.get(warehouseOdooId) ?? 0;
     return qty >= item.cantidad;
   });
+}
+
+/** Disponibilidad de envío a domicilio y retiro en tienda según stock por almacén. */
+export async function resolveCheckoutEntregaDisponibilidad(
+  items: ResolvedCartItem[]
+): Promise<{ envioDisponible: boolean; retiroDisponible: boolean }> {
+  let envioDisponible = false;
+  try {
+    const shippingWh = await getShippingWarehouseOdooId();
+    envioDisponible = cartHasStockInWarehouse(items, shippingWh);
+  } catch {
+    envioDisponible = false;
+  }
+
+  const storeWhIds = await getStoreWarehouseOdooIds();
+  const retiroDisponible = storeWhIds.some((id) =>
+    cartHasStockInWarehouse(items, id)
+  );
+
+  return { envioDisponible, retiroDisponible };
 }

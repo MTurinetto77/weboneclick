@@ -52,7 +52,6 @@ export async function getRegaloApplicable(
               titulo: true,
               sku: true,
               odoo_id: true,
-              activo: true,
               archivos: {
                 where: { archivo: { tipo: "imagen_principal" } },
                 take: 1,
@@ -69,18 +68,18 @@ export async function getRegaloApplicable(
   const regalo = candidates.find((r) => isVigente(r.vigencia_desde, r.vigencia_hasta, now));
   if (!regalo) return null;
 
-  const productos = regalo.productos
-    .filter((row) => row.producto.activo)
-    .map((row) => {
-      const link = row.producto.archivos[0]?.archivo.link ?? null;
-      return {
-        id_producto: row.producto.id_producto,
-        titulo: row.producto.titulo,
-        sku: row.producto.sku,
-        odoo_id: row.producto.odoo_id,
-        imagen: link ? uploadPublicUrl(link) : null,
-      };
-    });
+  // Los SKUs de obsequio pueden estar inactivos en catálogo (no se venden solos)
+  // y aun así deben mostrarse en el selector del checkout.
+  const productos = regalo.productos.map((row) => {
+    const link = row.producto.archivos[0]?.archivo.link ?? null;
+    return {
+      id_producto: row.producto.id_producto,
+      titulo: row.producto.titulo,
+      sku: row.producto.sku,
+      odoo_id: row.producto.odoo_id,
+      imagen: link ? uploadPublicUrl(link) : null,
+    };
+  });
 
   if (!productos.length) return null;
 

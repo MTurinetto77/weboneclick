@@ -8,7 +8,7 @@ import { CheckoutIdempotencyBootstrap } from "@/components/checkout-idempotency-
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { computeTotals } from "@/lib/checkout-venta";
-import { ivaIncluded, resolveCart } from "@/lib/cart";
+import { ivaIncluded, resolveCart, resolveCheckoutEntregaDisponibilidad } from "@/lib/cart";
 import { resolveAppliedCupon } from "@/lib/cupones";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
@@ -68,6 +68,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
 
   const addressDefaults =
     cliente?.direccion_principal ?? cliente?.direcciones[0] ?? null;
+
+  const { envioDisponible, retiroDisponible } =
+    await resolveCheckoutEntregaDisponibilidad(cart.items);
 
   // Si el cliente aún no tiene nombre real (alta Google), usar el de la sesión
   const sessionName = (session?.user?.name || "").trim();
@@ -182,6 +185,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
             <CheckoutDeliveryFields
               addressDefaults={addressDefaults}
               cartSubtotal={cart.subtotal}
+              envioDisponible={envioDisponible}
+              retiroDisponible={retiroDisponible}
             />
           </div>
 

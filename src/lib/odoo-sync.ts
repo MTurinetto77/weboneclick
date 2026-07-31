@@ -28,6 +28,7 @@ const PRODUCT_FIELDS = [
   "default_code",
   "list_price",
   "taxed_lst_price",
+  "x_studio_installments",
   "description_sale",
   "description_ecommerce",
   "website_description",
@@ -79,6 +80,8 @@ type OdooProduct = {
   list_price: number;
   /** Precio de venta con impuestos incluidos (campo Odoo `taxed_lst_price`). */
   taxed_lst_price?: number;
+  /** Límite de cuotas (Studio: "Límite de Cuotas"). Selection string p.ej. "12"|"18"|"24". */
+  x_studio_installments?: string | false;
   description_sale: string | false;
   /** UI es_AR: "Descripción para comercio electrónico" */
   description_ecommerce?: string | false;
@@ -151,6 +154,14 @@ function pickProductTitle(row: {
   // Por si algún registro trae el prefijo [SKU] en name
   const withoutSku = raw.replace(/^\[[^\]]+\]\s*/, "").trim();
   return withoutSku || `Producto ${row.id}`;
+}
+
+/** Límite de cuotas desde selection Odoo `x_studio_installments` ("12", "18", …). */
+function pickCuotasMax(row: { x_studio_installments?: string | false }): number | null {
+  const raw = row.x_studio_installments;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const n = Number.parseInt(raw.trim(), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 async function paginateAll<T extends Record<string, unknown>>(
@@ -611,6 +622,7 @@ async function upsertProductoRow(
   const descripcion = pickEcommerceDescription(row, titulo);
   const sku = typeof row.default_code === "string" ? row.default_code : null;
   const id_marca = maps.brandByOdoo.get(m2oId(row.product_brand_id) ?? -1) ?? null;
+  const cuotas_max = pickCuotasMax(row);
   const existing = await prisma.producto.findUnique({ where: { odoo_id: row.id } });
 
   if (stats.dryRun) {
@@ -624,7 +636,7 @@ async function upsertProductoRow(
     // No reactivar: si el producto está inactivo en el sitio, el sync no lo vuelve a activar.
     await prisma.producto.update({
       where: { id_producto: existing.id_producto },
-      data: { titulo, descripcion, sku, id_marca },
+      data: { titulo, descripcion, sku, id_marca, cuotas_max },
     });
     id_producto = existing.id_producto;
     stats.productos.updated += 1;
@@ -641,6 +653,7 @@ async function upsertProductoRow(
         descripcion,
         sku,
         id_marca,
+        cuotas_max,
         odoo_id: row.id,
         activo: true,
       },
