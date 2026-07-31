@@ -3798,10 +3798,10 @@ img { max-width: 100%; display: block; }
 }
 .oc-st-hero h1 {
   margin: 0 0 0.85rem;
-  font-size: clamp(1.85rem, 3.2vw, 2.6rem);
+  font-size: 42px;
   font-weight: 600;
   letter-spacing: -0.025em;
-  line-height: 1.15;
+  line-height: 42px;
 }
 .oc-st-hero p {
   margin: 0 auto 1.35rem;
@@ -3811,35 +3811,42 @@ img { max-width: 100%; display: block; }
 }
 .oc-st-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 283px));
+  justify-content: center;
+  gap: 16px;
   padding: 0.5rem 0 2.5rem;
 }
 .oc-st-card {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  background: #f2f2f2;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1.1rem;
+  background: #e8e8e8;
   border-radius: 16px;
-  padding: 1.5rem 1.35rem;
+  padding: 20px;
   text-decoration: none;
   color: inherit;
-  min-height: 180px;
+  width: 100%;
+  max-width: 283px;
+  aspect-ratio: 283 / 286;
   transition: background 0.15s ease;
 }
-.oc-st-card:hover { background: #ebebeb; }
-.oc-st-card-icon { color: #111; }
+.oc-st-card:hover { background: #dedede; }
+.oc-st-card-icon { color: #1d1d1f; }
+.oc-st-card-icon svg { display: block; width: 48px; height: 48px; }
 .oc-st-card h2 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 600;
-  line-height: 1.3;
-  flex: 1;
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 .oc-st-card-more {
-  color: #111;
-  font-weight: 600;
+  color: #0066cc;
+  font-weight: 400;
   font-size: 0.92rem;
+  text-decoration: underline;
 }
 .oc-st-devices {
   text-align: center;
@@ -3848,7 +3855,8 @@ img { max-width: 100%; display: block; }
 .oc-st-devices h2 {
   margin: 0 auto 1.75rem;
   max-width: 28ch;
-  font-size: clamp(1.45rem, 2.5vw, 1.9rem);
+  font-size: 42px;
+  line-height: 42px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -3871,7 +3879,8 @@ img { max-width: 100%; display: block; }
 .oc-st-value h2 {
   margin: 0 auto 0.75rem;
   max-width: 28ch;
-  font-size: clamp(1.45rem, 2.5vw, 1.9rem);
+  font-size: 42px;
+  line-height: 42px;
   font-weight: 600;
 }
 .oc-st-value-lead {
@@ -3889,7 +3898,8 @@ img { max-width: 100%; display: block; }
 .oc-st-features-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .oc-st-subpage-title {
   margin: 0 0 1.25rem;
-  font-size: clamp(1.45rem, 2.5vw, 1.9rem);
+  font-size: 42px;
+  line-height: 42px;
   font-weight: 600;
   text-align: center;
 }
@@ -3900,14 +3910,11 @@ img { max-width: 100%; display: block; }
   padding: 0.5rem;
 }
 .oc-st-feature-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 999px;
-  background: #f2f2f2;
   display: grid;
   place-items: center;
-  color: #111;
+  color: #1d1d1f;
 }
+.oc-st-feature-icon svg { display: block; width: 40px; height: 40px; }
 .oc-st-features-grid p {
   margin: 0;
   font-size: 0.88rem;
@@ -3915,37 +3922,46 @@ img { max-width: 100%; display: block; }
   font-weight: 600;
 }
 .oc-st-services { padding: 0 0 2.5rem; max-width: 900px; }
-.oc-st-accordion { display: grid; gap: 0.55rem; }
+.oc-st-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid var(--oc-border);
+}
 .oc-st-acc-item {
-  border: 1px solid var(--oc-border);
-  border-radius: 12px;
-  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--oc-border);
+  border-radius: 0;
+  background: transparent;
   padding: 0;
   overflow: hidden;
 }
 .oc-st-acc-item summary {
   list-style: none;
   cursor: pointer;
-  padding: 1rem 1.15rem;
-  font-weight: 600;
+  padding: 1.15rem 0;
+  font-weight: 500;
+  font-size: 30px;
+  line-height: 48px;
+  text-align: left;
   position: relative;
-  padding-right: 2.75rem;
+  padding-right: 2rem;
 }
 .oc-st-acc-item summary::-webkit-details-marker { display: none; }
 .oc-st-acc-item summary::after {
   content: "+";
   position: absolute;
-  right: 1.1rem;
+  right: 0.25rem;
   top: 50%;
   transform: translateY(-50%);
   font-size: 1.25rem;
   font-weight: 400;
-  color: #111;
+  color: #1d1d1f;
 }
 .oc-st-acc-item[open] summary::after { content: "−"; }
 .oc-st-acc-body {
-  padding: 0 1.15rem 1.1rem;
-  color: var(--oc-muted);
+  padding: 0 0 1.15rem;
+  color: #1d1d1f;
   line-height: 1.55;
   font-size: 0.95rem;
 }
@@ -3964,7 +3980,8 @@ img { max-width: 100%; display: block; }
 }
 .oc-st-steps-inner h2 {
   margin: 0 0 1.25rem;
-  font-size: clamp(1.45rem, 2.5vw, 1.9rem);
+  font-size: 42px;
+  line-height: 42px;
   font-weight: 600;
   text-align: center;
 }
@@ -4571,9 +4588,9 @@ img { max-width: 100%; display: block; }
   .oc-fact-tag { font-size: 0.68rem; padding: 0.3rem 0.55rem 0.3rem 0.35rem; }
   .oc-fact-tag svg { width: 14px; height: 14px; }
   .oc-promo-bank-grid,
-  .oc-st-cards,
   .oc-empresas-grid,
   .oc-fiscal-facts { grid-template-columns: 1fr; }
+  .oc-st-cards { grid-template-columns: minmax(0, 283px); }
   .oc-fiscal-info-grid,
   .oc-fiscal-info-grid-2 { grid-template-columns: 1fr; }
   .oc-st-features-grid,
