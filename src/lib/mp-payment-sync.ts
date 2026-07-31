@@ -6,10 +6,21 @@ import { prisma } from "@/lib/prisma";
 
 export type MpSyncResult = "approved" | "pending" | "rejected" | "ignored";
 
+const MP_TIPOS = ["mercado_pago", "tarjeta"] as const;
+
+function money(n: number | string | { toString(): string } | null | undefined) {
+  return Number(n ?? 0);
+}
+
+function almostEqual(a: number, b: number, tol = 0.01) {
+  return Math.abs(a - b) <= tol;
+}
+
 /**
- * Aplica el resultado de un pago de Mercado Pago sobre la venta local:
- * valida el monto, actualiza estados y descuenta stock solo al aprobarse.
- * Es idempotente bajo concurrencia: el claim atómico de pago evita doble descuento.
+ * Aplica el resultado de un pago de Mercado Pago sobre la venta local.
+ * Soporta pago con una o dos tarjetas: cada notification puede traer un
+ * parcial; la venta pasa a pagada recién cuando la suma de pagos aprobados
+ * cubre el total. Idempotente por transaction_id.
  */
 export async function applyMercadoPagoPayment(
   payment: PaymentResponse,
@@ -20,18 +31,20 @@ export async function applyMercadoPagoPayment(
 
   const venta = await prisma.venta.findUnique({
     where: { id_venta: idVenta },
-    include: { detalles: true, envios: true },
+    include: { detalles: true, envios: true, pagos: true },
   });
   if (!venta) return "ignored";
 
-  // Si ya está pagada, no degradar ni reprocesar.
   if (venta.estado === "pagada") return "approved";
 
-  const amount = Number(payment.transaction_amount ?? 0);
-  if (Math.abs(Number(venta.total) - amount) > 0.01) {
-    const motivo =
-      `MP monto inválido: cobrado ${amount} vs venta ${Number(venta.total)}` +
-      (payment.status_detail ? ` (${payment.status}/${payment.status_detail})` : "");
+  const amount = money(payment.transaction_amount);
+  const total = money(venta.total);
+  if (!(amount > 0)) {
+    throw new Error(`Monto MP inválido para la venta ${idVenta}`);
+  }
+  // Un parcial no puede superar el total de la venta (margen de redondeo).
+  if (amount > total + 0.01) {
+    const motivo = `MP monto inválido: cobrado ${amount} vs venta ${total}`;
     await prisma.venta
       .update({
         where: { id_venta: idVenta },
@@ -42,25 +55,101 @@ export async function applyMercadoPagoPayment(
   }
 
   const status = payment.status ?? "pending";
-  const transactionId = String(payment.id ?? "");
+  const transactionId = String(payment.id ?? "").trim();
+  if (!transactionId) return "ignored";
+
+  const statusDetail = payment.status_detail?.trim() || null;
+  const tipoPago =
+    venta.pagos.find((p) => MP_TIPOS.includes(p.tipo_pago as (typeof MP_TIPOS)[number]))
+      ?.tipo_pago ?? "mercado_pago";
 
   if (status === "approved") {
     let shouldSyncOdoo = false;
+    let covered = false;
 
     await prisma.$transaction(async (tx) => {
-      // Claim atómico: solo un worker gana si el pago aún no está aprobado.
-      const claimed = await tx.pago.updateMany({
+      const already = await tx.pago.findUnique({
+        where: { transaction_id: transactionId },
+      });
+
+      if (!already) {
+        const fullAmount = almostEqual(amount, total);
+        const shell = await tx.pago.findFirst({
+          where: {
+            id_venta: idVenta,
+            tipo_pago: { in: [...MP_TIPOS] },
+            transaction_id: null,
+            estado: { not: "aprobado" },
+          },
+          orderBy: { id_pago: "asc" },
+        });
+
+        if (shell && fullAmount) {
+          // Un solo pago por el total: reutiliza la fila creada en checkout.
+          await tx.pago.update({
+            where: { id_pago: shell.id_pago },
+            data: {
+              estado: "aprobado",
+              monto: amount,
+              transaction_id: transactionId,
+            },
+          });
+        } else {
+          // Parcial (p. ej. 2 tarjetas) u otra captura: nueva fila.
+          // Conserva la shell con preference id en `referencia`.
+          await tx.pago.create({
+            data: {
+              id_venta: idVenta,
+              tipo_pago: tipoPago,
+              estado: "aprobado",
+              monto: amount,
+              transaction_id: transactionId,
+              referencia: null,
+            },
+          });
+        }
+      } else if (already.estado !== "aprobado") {
+        await tx.pago.update({
+          where: { id_pago: already.id_pago },
+          data: { estado: "aprobado", monto: amount },
+        });
+      }
+
+      const aprobados = await tx.pago.findMany({
         where: {
           id_venta: idVenta,
-          tipo_pago: { in: ["mercado_pago", "tarjeta"] },
-          estado: { not: "aprobado" },
-        },
-        data: {
+          tipo_pago: { in: [...MP_TIPOS] },
           estado: "aprobado",
-          transaction_id: transactionId || null,
         },
       });
-      if (claimed.count === 0) return;
+      const sumApproved = aprobados.reduce((s, p) => s + money(p.monto), 0);
+
+      if (sumApproved + 0.01 < total) {
+        // Aún faltan parciales (segunda tarjeta, etc.).
+        await tx.venta.update({
+          where: { id_venta: idVenta },
+          data: {
+            odoo_sync_error: `MP parcial: acreditado ${sumApproved.toFixed(2)} / ${total.toFixed(2)}`,
+          },
+        });
+        return;
+      }
+
+      // Claim atómico de la venta: un solo worker descuenta stock.
+      const claimed = await tx.venta.updateMany({
+        where: {
+          id_venta: idVenta,
+          estado: { not: "pagada" },
+        },
+        data: {
+          estado: "pagada",
+          odoo_sync_error: null,
+        },
+      });
+      if (claimed.count === 0) {
+        covered = true;
+        return;
+      }
 
       const warehouseOdooId = venta.odoo_warehouse_id;
       if (!warehouseOdooId) {
@@ -68,7 +157,7 @@ export async function applyMercadoPagoPayment(
       }
 
       for (const item of venta.detalles) {
-        const cantidad = Number(item.cantidad);
+        const cantidad = money(item.cantidad);
         const stocks = await tx.stock.findMany({
           where: {
             id_producto: item.id_producto,
@@ -77,7 +166,7 @@ export async function applyMercadoPagoPayment(
         });
         if (stocks.length === 0) continue;
         const disponible = stocks.reduce(
-          (sum, row) => sum + Number(row.cantidad),
+          (sum, row) => sum + money(row.cantidad),
           0,
         );
         if (disponible < cantidad) {
@@ -86,11 +175,6 @@ export async function applyMercadoPagoPayment(
         await deductStock(tx, item.id_producto, cantidad, warehouseOdooId);
       }
 
-      await tx.venta.update({
-        where: { id_venta: idVenta },
-        data: { estado: "pagada" },
-      });
-
       if (venta.envios.length > 0) {
         await tx.envio.updateMany({
           where: { id_venta: idVenta },
@@ -98,6 +182,10 @@ export async function applyMercadoPagoPayment(
         });
       }
 
+      // La fila shell (preference id, sin transaction_id) no se marca aprobada
+      // para no inflar la suma si hay varios parciales (2 tarjetas).
+
+      covered = true;
       shouldSyncOdoo = true;
     });
 
@@ -107,51 +195,98 @@ export async function applyMercadoPagoPayment(
       });
     }
 
-    return "approved";
+    return covered ? "approved" : "pending";
   }
 
   const rejected = status === "rejected" || status === "cancelled";
-  const statusDetail = payment.status_detail?.trim() || null;
-  // Motivo MP en odoo_sync_error (campo texto existente en venta) para diagnóstico.
   const mpMotivo = statusDetail
     ? `MP ${status}: ${statusDetail}`
     : `MP ${status}`;
 
-  // Nunca degradar un pago ya aprobado (p. ej. notificación tardía rejected).
-  const updated = await prisma.pago.updateMany({
-    where: {
-      id_venta: idVenta,
-      tipo_pago: { in: ["mercado_pago", "tarjeta"] },
-      estado: { not: "aprobado" },
-    },
-    data: {
-      estado: rejected ? "rechazado" : "pendiente",
-      transaction_id: transactionId || null,
-    },
+  const existing = await prisma.pago.findUnique({
+    where: { transaction_id: transactionId },
   });
 
-  if (rejected && updated.count > 0) {
-    const ventaStill = await prisma.venta.findUnique({
-      where: { id_venta: idVenta },
-      select: { estado: true },
+  if (!existing) {
+    const fullAmount = almostEqual(amount, total);
+    const shell = await prisma.pago.findFirst({
+      where: {
+        id_venta: idVenta,
+        tipo_pago: { in: [...MP_TIPOS] },
+        transaction_id: null,
+        estado: { not: "aprobado" },
+      },
+      orderBy: { id_pago: "asc" },
     });
-    if (ventaStill && ventaStill.estado !== "pagada") {
-      await prisma.venta.update({
-        where: { id_venta: idVenta },
+
+    if (shell && fullAmount) {
+      await prisma.pago.update({
+        where: { id_pago: shell.id_pago },
         data: {
-          estado: "cancelada",
-          odoo_sync_error: mpMotivo,
+          estado: rejected ? "rechazado" : "pendiente",
+          transaction_id: transactionId,
+          monto: amount,
         },
       });
-      await releaseCuponForVenta(idVenta);
+    } else {
+      await prisma.pago.create({
+        data: {
+          id_venta: idVenta,
+          tipo_pago: tipoPago,
+          estado: rejected ? "rechazado" : "pendiente",
+          monto: amount,
+          transaction_id: transactionId,
+          referencia: null,
+        },
+      });
     }
-  } else if (!rejected && updated.count > 0 && statusDetail) {
-    // Pending / in_process: dejar rastro del detalle MP sin cancelar.
-    await prisma.venta.update({
-      where: { id_venta: idVenta },
-      data: { odoo_sync_error: mpMotivo },
+  } else if (existing.estado !== "aprobado") {
+    await prisma.pago.update({
+      where: { id_pago: existing.id_pago },
+      data: {
+        estado: rejected ? "rechazado" : "pendiente",
+        monto: amount,
+      },
     });
   }
 
-  return rejected ? "rejected" : "pending";
+  if (rejected) {
+    const aprobados = await prisma.pago.findMany({
+      where: {
+        id_venta: idVenta,
+        tipo_pago: { in: [...MP_TIPOS] },
+        estado: "aprobado",
+      },
+    });
+    const sumApproved = aprobados.reduce((s, p) => s + money(p.monto), 0);
+
+    // Con 2 tarjetas, el rechazo de un parcial no debe cancelar si ya hay
+    // acreditaciones; solo cancelamos cuando el rechazo es del total (1 tarjeta)
+    // o no hay ningún aprobado.
+    const shouldCancel =
+      sumApproved < 0.01 && almostEqual(amount, total);
+
+    await prisma.venta.update({
+      where: { id_venta: idVenta },
+      data: {
+        ...(shouldCancel && venta.estado !== "pagada"
+          ? { estado: "cancelada" as const }
+          : {}),
+        odoo_sync_error: mpMotivo,
+      },
+    });
+
+    if (shouldCancel && venta.estado !== "pagada") {
+      await releaseCuponForVenta(idVenta);
+    }
+
+    return "rejected";
+  }
+
+  await prisma.venta.update({
+    where: { id_venta: idVenta },
+    data: { odoo_sync_error: mpMotivo },
+  });
+
+  return "pending";
 }

@@ -49,7 +49,12 @@ export default async function ConfirmacionPage({
   });
   if (!venta || !tokensMatch(venta.access_token, t.trim())) notFound();
 
-  const pago = venta.pagos[0];
+  const pagosMp = venta.pagos.filter((p) =>
+    ["mercado_pago", "tarjeta"].includes(p.tipo_pago),
+  );
+  const pagoAprobado =
+    venta.estado === "pagada" ||
+    pagosMp.some((p) => p.estado === "aprobado");
   const envio = venta.envios[0];
 
   return (
@@ -57,7 +62,7 @@ export default async function ConfirmacionPage({
       <div className="container">
         <div className="admin-card confirmation-card">
           <h1 style={{ marginTop: 0 }}>
-            {pago?.estado === "aprobado"
+            {pagoAprobado
               ? "¡Pago aprobado!"
               : mp === "failure"
                 ? "No pudimos procesar el pago"
@@ -73,17 +78,19 @@ export default async function ConfirmacionPage({
             <strong>{formatPrice(venta.total)}</strong>.
           </p>
 
-          {pago && ["mercado_pago", "tarjeta"].includes(pago.tipo_pago) ? (
+          {pagosMp.length > 0 ? (
             <div className="alert alert-info">
-              {pago.estado === "aprobado"
+              {venta.estado === "pagada"
                 ? venta.odoo_sync_estado === "ok"
                   ? "Mercado Pago confirmó el pago. Tu pedido fue registrado en nuestro sistema."
                   : venta.odoo_sync_estado === "error"
                     ? "Mercado Pago confirmó el pago. Estamos procesando el registro interno; si el problema persiste contactanos."
                     : "Mercado Pago confirmó el pago. Estamos registrando tu pedido en nuestro sistema."
-                : mp === "failure"
-                  ? "El pago fue rechazado o cancelado. Podés volver al carrito para intentarlo nuevamente."
-                  : "Estamos verificando el pago con Mercado Pago. Actualizaremos el pedido cuando recibamos la confirmación."}
+                : pagoAprobado
+                  ? "Recibimos un pago parcial. Cuando Mercado Pago acredite el resto, confirmamos el pedido."
+                  : mp === "failure"
+                    ? "El pago fue rechazado o cancelado. Podés volver al carrito para intentarlo nuevamente."
+                    : "Estamos verificando el pago con Mercado Pago. Actualizaremos el pedido cuando recibamos la confirmación."}
             </div>
           ) : venta.tipo_entrega === "retiro" ? (
             <div className="alert alert-info">
@@ -143,11 +150,13 @@ export default async function ConfirmacionPage({
               <span>Total</span>
               <strong>{formatPrice(venta.total)}</strong>
             </div>
-            {pago && (
+            {pagosMp.length > 0 && (
               <div>
                 <span>Pago</span>
                 <strong>
-                  {pago.tipo_pago} · {pago.estado}
+                  {pagosMp
+                    .map((p) => `${p.estado} ${formatPrice(p.monto)}`)
+                    .join(" + ")}
                 </strong>
               </div>
             )}

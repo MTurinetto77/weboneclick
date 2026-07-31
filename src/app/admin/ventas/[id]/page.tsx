@@ -47,7 +47,9 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
   });
   if (!venta) notFound();
 
-  const pago = venta.pagos[0];
+  const pagosMp = venta.pagos.filter((p) =>
+    ["mercado_pago", "tarjeta"].includes(p.tipo_pago),
+  );
   const envio = venta.envios[0];
   const dir = envio?.direccion;
   const dirFact = venta.direccion_facturacion;
@@ -90,9 +92,26 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
           <Field label="Entrega" value={labelEntrega(venta.tipo_entrega)} />
           <Field
             label="Pago"
-            value={pago ? `${pago.tipo_pago} · ${pago.estado}` : null}
+            value={
+              pagosMp.length > 0
+                ? pagosMp
+                    .map(
+                      (p) =>
+                        `${p.tipo_pago} · ${p.estado} · ${formatPrice(p.monto)}`,
+                    )
+                    .join(" | ")
+                : null
+            }
           />
-          <Field label="MP transaction" value={pago?.transaction_id} />
+          <Field
+            label="MP transaction"
+            value={
+              pagosMp
+                .map((p) => p.transaction_id)
+                .filter(Boolean)
+                .join(", ") || null
+            }
+          />
           <Field label="Total" value={formatPrice(venta.total)} />
           {venta.odoo_sync_error?.startsWith("MP") && (
             <Field label="Motivo MP" value={venta.odoo_sync_error} />

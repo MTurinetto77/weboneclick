@@ -789,17 +789,19 @@ export async function syncVentaToOdoo(id_venta: number): Promise<OdooSyncResult>
       cfg
     );
 
-    const pago = venta.pagos.find(
-      (p) =>
-        (p.tipo_pago === "mercado_pago" || p.tipo_pago === "tarjeta") &&
-        p.estado === "aprobado"
-    );
-    const mpId = pago?.transaction_id;
-    if (!mpId) {
+    const mpIds = venta.pagos
+      .filter(
+        (p) =>
+          (p.tipo_pago === "mercado_pago" || p.tipo_pago === "tarjeta") &&
+          p.estado === "aprobado" &&
+          p.transaction_id,
+      )
+      .map((p) => p.transaction_id as string);
+    if (mpIds.length === 0) {
       throw new Error("Pago aprobado sin transaction_id de Mercado Pago");
     }
-
-    await createOdooReceipt(venta, partnerId, mpId, cfg);
+    // Una o más tarjetas: todos los payment id van en el memo del recibo.
+    await createOdooReceipt(venta, partnerId, mpIds.join(","), cfg);
 
     await prisma.venta.update({
       where: { id_venta },
