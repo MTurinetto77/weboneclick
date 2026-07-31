@@ -129,6 +129,42 @@ function partnerAddressValues(d: DireccionData, cfg: OdooConfig) {
   };
 }
 
+/**
+ * Normaliza documento AR para Odoo (l10n_ar).
+ * DNI: 7–8 dígitos. CUIT/CUIL: 11 dígitos. Si es inválido, no se envía
+ * (evita "Longitud invalida para DNI" y permite igual crear la orden).
+ */
+function resolvePartnerIdentification(
+  tipoDocumento: string | null | undefined,
+  numeroDocumento: string | null | undefined,
+  cfg: OdooConfig,
+): {
+  vat: string | false;
+  docType: number | false;
+  companyType: "person" | "company";
+} {
+  const tipo = (tipoDocumento ?? "").toUpperCase().trim();
+  const digits = String(numeroDocumento ?? "").replace(/\D/g, "");
+  const isCuit = tipo === "CUIT" || tipo === "CUIL";
+
+  if (isCuit && digits.length === 11) {
+    return {
+      vat: digits,
+      docType: cfg.identificationTypeCuit,
+      companyType: tipo === "CUIT" ? "company" : "person",
+    };
+  }
+  if (!isCuit && (digits.length === 7 || digits.length === 8)) {
+    return {
+      vat: digits,
+      docType: cfg.identificationTypeDni,
+      companyType: "person",
+    };
+  }
+
+  return { vat: false, docType: false, companyType: "person" };
+}
+
 async function upsertOdooPartner(
   venta: NonNullable<VentaFull>,
   cfg: OdooConfig
@@ -142,10 +178,11 @@ async function upsertOdooPartner(
     return cliente.odoo_partner_id;
   }
 
-  const docType =
-    cliente.tipo_documento?.toUpperCase() === "CUIT"
-      ? cfg.identificationTypeCuit
-      : cfg.identificationTypeDni;
+  const { vat, docType, companyType } = resolvePartnerIdentification(
+    cliente.tipo_documento,
+    cliente.numero_documento,
+    cfg,
+  );
   const afipType =
     cliente.responsabilidad_impositiva === "RI"
       ? cfg.afipResponsibilityRi
@@ -153,9 +190,9 @@ async function upsertOdooPartner(
 
   let partnerId: number | null = null;
 
-  if (cliente.numero_documento) {
+  if (vat && docType) {
     const ids = await odooSearch("res.partner", [
-      ["vat", "=", cliente.numero_documento],
+      ["vat", "=", vat],
       ["l10n_latam_identification_type_id", "=", docType],
       ["company_id", "in", [cfg.companyId, false]],
       ["parent_id", "=", false],
@@ -179,12 +216,11 @@ async function upsertOdooPartner(
     name: `${cliente.nombre} ${cliente.apellido}`.trim(),
     email: cliente.mail,
     phone: cliente.telefono || false,
-    vat: cliente.numero_documento || false,
-    l10n_latam_identification_type_id: cliente.numero_documento ? docType : false,
+    vat,
+    l10n_latam_identification_type_id: docType,
     l10n_ar_afip_responsibility_type_id: afipType,
     lang: "es_AR",
-    company_type:
-      cliente.tipo_documento?.toUpperCase() === "CUIT" ? "company" : "person",
+    company_type: companyType,
     customer_rank: 1,
     company_id: false,
     ...(factDir

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  getLastShippingQuote,
   SHIPPING_QUOTE_EVENT,
   type ShippingQuoteDetail,
 } from "@/lib/shipping-quote";
@@ -26,6 +27,22 @@ function formatArs(value: number): string {
   }).format(value);
 }
 
+function applyQuote(
+  detail: ShippingQuoteDetail,
+  setShippingCost: (n: number) => void,
+  setShippingOk: (ok: boolean) => void,
+  setDeliveryTipo: (t: "envio" | "retiro") => void,
+) {
+  setDeliveryTipo(detail.tipo);
+  if (detail.tipo === "retiro") {
+    setShippingCost(0);
+    setShippingOk(true);
+    return;
+  }
+  setShippingCost(detail.ok ? detail.costo : 0);
+  setShippingOk(detail.ok);
+}
+
 export function CheckoutPaymentOptions({
   totalTarjeta,
   totalContado,
@@ -36,23 +53,28 @@ export function CheckoutPaymentOptions({
   const [error, setError] = useState<string | null>(null);
   const [shippingCost, setShippingCost] = useState(0);
   const [shippingOk, setShippingOk] = useState(false);
+  const [deliveryTipo, setDeliveryTipo] = useState<"envio" | "retiro" | null>(
+    null,
+  );
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const brickEnabled = mpConfigured && !!publicKey;
   const payTarjeta = Math.round((totalTarjeta + shippingCost) * 100) / 100;
   const payContado = Math.round((totalContado + shippingCost) * 100) / 100;
+  // Retiro no exige CP; envío sí necesita cotización ok.
+  const canPayDelivery = deliveryTipo === "retiro" || shippingOk;
+  const needsCpWarning = deliveryTipo !== "retiro" && !shippingOk;
 
   useEffect(() => {
+    const last = getLastShippingQuote();
+    if (last) {
+      applyQuote(last, setShippingCost, setShippingOk, setDeliveryTipo);
+    }
+
     function onQuote(e: Event) {
       const detail = (e as CustomEvent<ShippingQuoteDetail>).detail;
       if (!detail) return;
-      if (detail.tipo === "retiro") {
-        setShippingCost(0);
-        setShippingOk(true);
-        return;
-      }
-      setShippingCost(detail.ok ? detail.costo : 0);
-      setShippingOk(detail.ok);
+      applyQuote(detail, setShippingCost, setShippingOk, setDeliveryTipo);
     }
     window.addEventListener(SHIPPING_QUOTE_EVENT, onQuote);
     return () => window.removeEventListener(SHIPPING_QUOTE_EVENT, onQuote);
@@ -71,18 +93,16 @@ export function CheckoutPaymentOptions({
       if (typeof value === "string") fields[key] = value;
     }
 
-    if (!shippingOk) {
-      const tipoEntrega = fields.tipo_entrega;
-      if (tipoEntrega === "envio") {
-        const message = "Ingresá un código postal con cobertura de envío";
-        setError(message);
-        throw new Error(message);
-      }
-      if (tipoEntrega === "retiro" && !fields.tienda_retiro) {
-        const message = "Seleccioná la tienda de retiro";
-        setError(message);
-        throw new Error(message);
-      }
+    const tipoEntrega = fields.tipo_entrega;
+    if (tipoEntrega === "envio" && !shippingOk) {
+      const message = "Ingresá un código postal con cobertura de envío";
+      setError(message);
+      throw new Error(message);
+    }
+    if (tipoEntrega === "retiro" && !fields.tienda_retiro) {
+      const message = "Seleccioná la tienda de retiro";
+      setError(message);
+      throw new Error(message);
     }
 
     const res = await fetch("/api/mercadopago/pay", {
@@ -175,7 +195,7 @@ export function CheckoutPaymentOptions({
 
       {error && <p className="oc-checkout-payment-warning">{error}</p>}
 
-      {!shippingOk && (
+      {needsCpWarning && (
         <p className="oc-checkout-payment-warning">
           Para envío a domicilio, validá un código postal con cobertura antes de pagar.
         </p>
@@ -198,7 +218,7 @@ export function CheckoutPaymentOptions({
         <button
           type="submit"
           className="oc-btn oc-btn-dark oc-checkout-submit"
-          disabled={!mpConfigured || !shippingOk}
+          disabled={!mpConfigured || !canPayDelivery}
         >
           Pagar con Mercado Pago
         </button>
