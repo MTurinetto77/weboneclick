@@ -14,6 +14,8 @@ type Props = {
   totalTarjeta: number;
   /** Total productos Mercado Pago contado (sin envío) */
   totalContado: number;
+  /** Tope de cuotas del carrito (menor cuotas_max de los productos). */
+  maxInstallments: number;
   mpConfigured: boolean;
   publicKey: string | null;
 };
@@ -46,6 +48,7 @@ function applyQuote(
 export function CheckoutPaymentOptions({
   totalTarjeta,
   totalContado,
+  maxInstallments,
   mpConfigured,
   publicKey,
 }: Props) {
@@ -147,8 +150,8 @@ export function CheckoutPaymentOptions({
             </span>
           </span>
           <small>
-            Paga en cuotas sin interés con tarjeta de crédito de{" "}
-            <strong>todos los bancos</strong>.
+            Paga en hasta <strong>{maxInstallments} cuotas</strong> sin interés con
+            tarjeta de crédito de <strong>todos los bancos</strong>.
           </small>
         </span>
       </label>
@@ -156,7 +159,12 @@ export function CheckoutPaymentOptions({
       {metodo === "tarjeta" && (
         <div className="oc-checkout-card-panel">
           {brickEnabled ? (
-            <CardBrick amount={payTarjeta} publicKey={publicKey!} onPay={payWithCard} />
+            <CardBrick
+              amount={payTarjeta}
+              maxInstallments={maxInstallments}
+              publicKey={publicKey!}
+              onPay={payWithCard}
+            />
           ) : (
             <CardPlaceholder />
           )}
@@ -235,15 +243,20 @@ export function CheckoutPaymentOptions({
 /** Card Payment Brick de Mercado Pago (tokeniza la tarjeta en el navegador). */
 function CardBrick({
   amount,
+  maxInstallments,
   publicKey,
   onPay,
 }: {
   amount: number;
+  maxInstallments: number;
   publicKey: string;
   onPay: (cardData: unknown) => Promise<void>;
 }) {
   const [Brick, setBrick] = useState<React.ComponentType<{
     initialization: { amount: number };
+    customization?: {
+      paymentMethods?: { maxInstallments?: number; minInstallments?: number };
+    };
     onSubmit: (data: unknown) => Promise<void>;
     onError?: (err: unknown) => void;
   }> | null>(null);
@@ -264,8 +277,14 @@ function CardBrick({
 
   return (
     <Brick
-      key={amount}
+      key={`${amount}-${maxInstallments}`}
       initialization={{ amount }}
+      customization={{
+        paymentMethods: {
+          minInstallments: 1,
+          maxInstallments,
+        },
+      }}
       onSubmit={onPay}
       onError={(err) => console.error("MP Brick error", err)}
     />

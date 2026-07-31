@@ -8,7 +8,12 @@ import { CheckoutIdempotencyBootstrap } from "@/components/checkout-idempotency-
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { computeTotals } from "@/lib/checkout-venta";
-import { ivaIncluded, resolveCart, resolveCheckoutEntregaDisponibilidad } from "@/lib/cart";
+import {
+  cartMaxInstallments,
+  ivaIncluded,
+  resolveCart,
+  resolveCheckoutEntregaDisponibilidad,
+} from "@/lib/cart";
 import { resolveAppliedCupon } from "@/lib/cupones";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
@@ -240,6 +245,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               <CheckoutPaymentOptions
                 totalTarjeta={totalTarjeta}
                 totalContado={totalContado}
+                maxInstallments={cartMaxInstallments(cart.items)}
                 mpConfigured={mercadoPagoConfigured}
                 publicKey={mpPublicKey}
               />

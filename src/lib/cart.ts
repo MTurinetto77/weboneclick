@@ -25,6 +25,8 @@ export type ResolvedCartItem = {
   slug: string | null;
   cantidad: number;
   precio: number | null;
+  /** Tope comercial de cuotas sin interés (Odoo x_studio_installments). */
+  cuotas_max: number | null;
   /** Alícuota IVA estimada (0.105 | 0.21) para el desglose del total */
   ivaRate: number;
   stockTotal: number;
@@ -35,6 +37,23 @@ export type ResolvedCartItem = {
   subtotal: number | null;
   disponible: boolean;
 };
+
+/** Default comercial cuando el producto no tiene tope cargado (paridad PDP). */
+export const DEFAULT_CUOTAS_MAX = 12;
+
+/**
+ * Máximo de cuotas del carrito: el menor `cuotas_max` entre ítems disponibles
+ * (carrito mixto no puede superar el producto más restrictivo).
+ */
+export function cartMaxInstallments(items: ResolvedCartItem[]): number {
+  const caps = items
+    .filter((i) => i.disponible)
+    .map((i) =>
+      i.cuotas_max != null && i.cuotas_max > 0 ? i.cuotas_max : DEFAULT_CUOTAS_MAX,
+    );
+  if (caps.length === 0) return DEFAULT_CUOTAS_MAX;
+  return Math.min(...caps);
+}
 
 /** Fallback si falta el parámetro valor_para_envio_gratis. */
 export const FREE_SHIPPING_THRESHOLD = 200_000;
@@ -142,6 +161,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
         slug: null,
         cantidad: line.cantidad,
         precio: null,
+        cuotas_max: null,
         ivaRate: 0.21,
         stockTotal: 0,
         stockTracked: false,
@@ -172,6 +192,7 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       slug: product.slug,
       cantidad: line.cantidad,
       precio,
+      cuotas_max: product.cuotas_max,
       ivaRate: estimateIvaRate(product.titulo),
       stockTotal: stock.stockTotal,
       stockTracked: stock.stockTracked,
