@@ -29,6 +29,15 @@ export async function applyMercadoPagoPayment(
 
   const amount = Number(payment.transaction_amount ?? 0);
   if (Math.abs(Number(venta.total) - amount) > 0.01) {
+    const motivo =
+      `MP monto inválido: cobrado ${amount} vs venta ${Number(venta.total)}` +
+      (payment.status_detail ? ` (${payment.status}/${payment.status_detail})` : "");
+    await prisma.venta
+      .update({
+        where: { id_venta: idVenta },
+        data: { odoo_sync_error: motivo },
+      })
+      .catch(() => undefined);
     throw new Error(`Monto inválido para la venta ${idVenta}`);
   }
 
