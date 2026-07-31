@@ -1,0 +1,171 @@
+import Link from "next/link";
+import { ProductCard } from "@/components/product-card";
+import { ShopSidebar } from "@/components/shop-sidebar";
+import { ShopToolbar } from "@/components/shop-toolbar";
+import { buildShopHref, type ShopQuery } from "@/lib/shop-query";
+import {
+  getActiveProducts,
+  getShopFacets,
+  resolveCategoryFilterIdsBySlug,
+  resolveCategoryProductIds,
+  type ShopOrder,
+} from "@/lib/products";
+import { prisma } from "@/lib/prisma";
+
+function param(sp: Record<string, string | string[] | undefined>, key: string) {
+  const v = sp[key];
+  return typeof v === "string" ? v : undefined;
+}
+
+function parseOrder(raw?: string): ShopOrder {
+  if (raw === "precio-asc" || raw === "precio-desc" || raw === "nombre" || raw === "ultimos") {
+    return raw;
+  }
+  return "ultimos";
+}
+
+function paginationWindow(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const items: (number | "…")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  if (start > 2) items.push("…");
+  for (let n = start; n <= end; n++) items.push(n);
+  if (end < total - 1) items.push("…");
+  items.push(total);
+  return items;
+}
+
+type CategoryRef = {
+  id_categoria: number;
+  nombre: string;
+  slug: string;
+};
+
+type Props = {
+  category: CategoryRef;
+  /** URL path segments, e.g. ["mac"] or ["mac", "macbook-air"] */
+  path: string[];
+  searchParams: Record<string, string | string[] | undefined>;
+};
+
+/** Listado de categoría con sidebar de filtros (precio, categoría, marca). */
+export async function CategoryShopListing({ category, path, searchParams }: Props) {
+  const basePath = `/${path.join("/")}`;
+  const query: ShopQuery = {
+    q: param(searchParams, "q"),
+    cat: param(searchParams, "cat"),
+    marca: param(searchParams, "marca"),
+    min: param(searchParams, "min"),
+    max: param(searchParams, "max"),
+    orden: param(searchParams, "orden"),
+    page: param(searchParams, "page"),
+  };
+
+  const page = Math.max(1, Number(query.page || 1) || 1);
+  const take = 20;
+  const skip = (page - 1) * take;
+  const orden = parseOrder(query.orden);
+  const minPrice = query.min != null && query.min !== "" ? Number(query.min) : undefined;
+  const maxPrice = query.max != null && query.max !== "" ? Number(query.max) : undefined;
+
+  const categoryIds = await resolveCategoryProductIds(category.id_categoria);
+
+  const [facets, catFilter, marca] = await Promise.all([
+    getShopFacets({ ids: categoryIds }),
+    query.cat ? resolveCategoryFilterIdsBySlug(query.cat) : Promise.resolve(null),
+    query.marca
+      ? prisma.marca.findUnique({
+          where: { slug: query.marca },
+          select: { id_marca: true, nombre: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const { items, total } = await getActiveProducts({
+    ids: categoryIds,
+    q: query.q,
+    categoriaId: catFilter?.id,
+    marcaId: marca?.id_marca,
+    take,
+    skip,
+    order: orden,
+    minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
+    maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+  });
+
+  const pages = Math.max(1, Math.ceil(total / take));
+  const from = total === 0 ? 0 : skip + 1;
+  const to = Math.min(skip + items.length, total);
+  const pageNumbers = paginationWindow(page, pages);
+
+  return (
+    <div className="oc-shop-page">
+      <div className="container">
+        <div className="oc-page-header">
+          <nav className="oc-breadcrumb">
+            <Link href="/">Inicio</Link>
+            <span>/</span>
+            <span>{category.nombre}</span>
+          </nav>
+          <h1>{category.nombre}</h1>
+        </div>
+
+        <div className="oc-shop-layout">
+          <ShopSidebar facets={facets} query={query} basePath={basePath} />
+
+          <div className="oc-shop-main">
+            <ShopToolbar
+              query={query}
+              from={from}
+              to={to}
+              total={total}
+              basePath={basePath}
+            />
+
+            <div className="oc-product-grid">
+              {items.map((p) => (
+                <ProductCard key={p.id_producto} product={p} />
+              ))}
+            </div>
+
+            {!items.length && (
+              <p className="oc-shop-empty">No hay productos para mostrar con estos filtros.</p>
+            )}
+
+            {pages > 1 && (
+              <nav className="oc-shop-pagination" aria-label="Paginación">
+                {page > 1 && (
+                  <Link href={buildShopHref(query, { page: String(page - 1) }, basePath)}>
+                    ←
+                  </Link>
+                )}
+                {pageNumbers.map((n, i) =>
+                  n === "…" ? (
+                    <span key={`e-${i}`} className="oc-shop-pagination-ellipsis">
+                      …
+                    </span>
+                  ) : (
+                    <Link
+                      key={n}
+                      href={buildShopHref(query, { page: String(n) }, basePath)}
+                      className={n === page ? "is-active" : undefined}
+                      aria-current={n === page ? "page" : undefined}
+                    >
+                      {n}
+                    </Link>
+                  )
+                )}
+                {page < pages && (
+                  <Link href={buildShopHref(query, { page: String(page + 1) }, basePath)}>
+                    →
+                  </Link>
+                )}
+              </nav>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -30,7 +30,6 @@ export default async function AdminConstanciasPage() {
         action={createConstancia}
         className="admin-card"
         style={{ display: "grid", gap: "0.55rem", marginBottom: "1.5rem" }}
-        encType="multipart/form-data"
       >
         <h3 style={{ margin: 0 }}>Nueva constancia</h3>
         <input name="titulo" placeholder="Título (ej. Legajo Impositivo 2026)" required />
@@ -62,7 +61,6 @@ export default async function AdminConstanciasPage() {
               <form
                 action={updateConstancia.bind(null, item.id_constancia)}
                 style={{ display: "grid", gap: "0.55rem" }}
-                encType="multipart/form-data"
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
                   <strong>

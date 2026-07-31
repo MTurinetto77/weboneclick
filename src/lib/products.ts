@@ -326,6 +326,22 @@ export async function resolveCategoryFilterIdsBySlug(
   return { id: cat.id_categoria, nombre: cat.nombre, slug: cat.slug };
 }
 
+/** IDs de productos activos en una categoría y sus descendientes. */
+export async function resolveCategoryProductIds(categoriaId: number): Promise<number[]> {
+  const catIds = await resolveCategoryFilterIds(categoriaId);
+  if (!catIds.length) return [];
+
+  const rows = await prisma.categoria_producto.findMany({
+    where: {
+      id_categoria: { in: catIds },
+      producto: { activo: true },
+    },
+    select: { id_producto: true },
+  });
+
+  return [...new Set(rows.map((r) => r.id_producto))];
+}
+
 /** Facetas del sidebar de /shop: categorías con conteo, marcas y rango de precios.
  *  Si se pasa `ids`, los conteos y rangos se restringen a ese conjunto de productos. */
 export async function getShopFacets(options?: { ids?: number[] }): Promise<ShopFacets> {

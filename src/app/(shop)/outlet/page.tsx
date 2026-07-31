@@ -1,9 +1,19 @@
-﻿import { StaticPage } from "@/components/static-page";
+﻿import { notFound } from "next/navigation";
+import { CategoryShopListing } from "@/components/category-shop-listing";
+import { getCategoryBySlugPath } from "@/lib/products";
 
-export default function Page() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function OutletPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const sp = await searchParams;
+  const category = await getCategoryBySlugPath(["outlet"]);
+  if (!category) notFound();
+
   return (
-    <StaticPage title="Outlet">
-      <p>Contenido informativo de OneClick Store — Outlet.</p>
-    </StaticPage>
+    <CategoryShopListing category={category} path={["outlet"]} searchParams={sp} />
   );
 }

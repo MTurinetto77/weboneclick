@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ProductCard } from "@/components/product-card";
+import { CategoryShopListing } from "@/components/category-shop-listing";
 import { PromoShopListing } from "@/components/promo-shop-listing";
-import { getActiveProducts, getCategoryBySlugPath } from "@/lib/products";
+import { getCategoryBySlugPath } from "@/lib/products";
 import { getPromoBySlug } from "@/lib/promos";
 
 type Params = Promise<{ path: string[] }>;
@@ -58,42 +57,11 @@ export default async function CategoryCatchAllPage({
   const category = await getCategoryBySlugPath(path);
   if (!category) notFound();
 
-  const page = Math.max(1, Number(sp.page || 1) || 1);
-  const take = 24;
-  const { items, total } = await getActiveProducts({
-    categoriaId: category.id_categoria,
-    take,
-    skip: (page - 1) * take,
-  });
-
   return (
-    <div className="container">
-      <div className="oc-page-header">
-        <nav className="oc-breadcrumb">
-          <Link href="/">Inicio</Link>
-          <span>/</span>
-          <span>{category.nombre}</span>
-        </nav>
-        <h1>{category.nombre}</h1>
-        <p className="muted">{total} productos</p>
-      </div>
-
-      {category.subcategorias?.length > 0 && (
-        <div className="oc-tabs" style={{ marginBottom: "1.25rem" }}>
-          {category.subcategorias.map((sub) => (
-            <Link key={sub.id_categoria} href={`/${[...path, sub.slug].join("/")}`}>
-              {sub.nombre}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <div className="oc-product-grid" style={{ paddingBottom: "2.5rem" }}>
-        {items.map((p) => (
-          <ProductCard key={p.id_producto} product={p} />
-        ))}
-      </div>
-      {!items.length && <p className="muted">No hay productos en esta categoría.</p>}
-    </div>
+    <CategoryShopListing
+      category={category}
+      path={path}
+      searchParams={sp}
+    />
   );
 }
