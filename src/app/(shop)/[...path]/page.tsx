@@ -32,6 +32,9 @@ const RESERVED = new Set([
   "faqs",
   "empresas",
   "servicio-tecnico",
+  "reemplazo-de-pantalla-o-bateria",
+  "programas-de-calidad",
+  "programa-exchange",
 ]);
 
 export default async function CategoryCatchAllPage({

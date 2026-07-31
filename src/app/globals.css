@@ -3885,6 +3885,14 @@ img { max-width: 100%; display: block; }
   grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
 }
+.oc-st-features-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.oc-st-features-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.oc-st-subpage-title {
+  margin: 0 0 1.25rem;
+  font-size: clamp(1.45rem, 2.5vw, 1.9rem);
+  font-weight: 600;
+  text-align: center;
+}
 .oc-st-features-grid article {
   display: grid;
   justify-items: center;
@@ -3984,6 +3992,194 @@ img { max-width: 100%; display: block; }
 .oc-st-form-section {
   padding: 2.75rem 0 3.5rem;
 }
+
+/* Programa Exchange — estilo oneclickstore.com/programa-exchange */
+.oc-exchange-hero {
+  text-align: center;
+  min-height: 450px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1.35rem;
+  padding: 3rem 0;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.oc-exchange-hero h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.625rem);
+  font-weight: 600;
+  letter-spacing: -0.7px;
+  line-height: 1.15;
+  color: #1d1d1f;
+}
+.oc-exchange-hero p {
+  margin: 0;
+  max-width: 42rem;
+  font-size: clamp(1.05rem, 2vw, 1.375rem);
+  font-weight: 400;
+  line-height: 1.4;
+  color: #1d1d1f;
+}
+.oc-exchange-disclaimer {
+  font-size: clamp(0.95rem, 1.6vw, 1.125rem) !important;
+  color: #6e6e73 !important;
+}
+.oc-exchange-how {
+  background: #1d1d1f;
+  color: #f5f5f7;
+  min-height: 512px;
+  display: flex;
+  align-items: center;
+  padding: 3.5rem 0;
+}
+.oc-exchange-how h2 {
+  margin: 0 0 2rem;
+  text-align: center;
+  font-size: clamp(1.75rem, 4vw, 2.625rem);
+  font-weight: 600;
+  letter-spacing: -0.7px;
+  color: #f5f5f7;
+}
+.oc-exchange-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+.oc-exchange-card {
+  background: #30302e;
+  border-radius: 10px;
+  padding: 1.875rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.65rem;
+  min-height: 100%;
+  position: relative;
+}
+.oc-exchange-tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  width: min(280px, 90vw);
+  padding: 0.65rem 0.8rem;
+  background: #000;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.4;
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 2;
+  text-align: left;
+}
+.oc-exchange-card:hover .oc-exchange-tip,
+.oc-exchange-card:focus-within .oc-exchange-tip {
+  opacity: 1;
+}
+.oc-exchange-card-icon {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.oc-exchange-card-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.oc-exchange-card p {
+  margin: 0;
+  color: #f5f5f7;
+  font-size: clamp(0.95rem, 1.5vw, 1.05rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.6px;
+}
+.oc-exchange-cta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 185px;
+  padding: 1.5rem 0;
+}
+.oc-exchange-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #1d1d1f;
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 0.85rem 1.75rem;
+  border-radius: 30px;
+  text-decoration: none;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.oc-exchange-btn:hover {
+  background: #000;
+  color: #fff;
+}
+.oc-exchange-info {
+  text-align: center;
+  padding: 1rem 0 2.5rem;
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.oc-exchange-info-icon {
+  display: grid;
+  place-items: center;
+  margin: 0 auto 1rem;
+  width: 3.25rem;
+  height: 3rem;
+  color: #ffd609;
+}
+.oc-exchange-info-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.oc-exchange-info h2 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(1.75rem, 4vw, 2.625rem);
+  font-weight: 600;
+  letter-spacing: -0.7px;
+  color: #1d1d1f;
+}
+.oc-exchange-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  text-align: left;
+}
+.oc-exchange-notes li {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.65rem;
+  align-items: start;
+}
+.oc-exchange-notes span {
+  font-size: 1.25rem;
+  line-height: 1.4;
+  color: #1d1d1f;
+}
+.oc-exchange-notes p {
+  margin: 0;
+  font-size: clamp(1.05rem, 2vw, 1.375rem);
+  font-weight: 400;
+  line-height: 1.5;
+  color: #1d1d1f;
+}
+
 .oc-st-request {
   display: grid;
   grid-template-columns: 1.4fr 0.8fr;
@@ -4380,7 +4576,10 @@ img { max-width: 100%; display: block; }
   .oc-fiscal-facts { grid-template-columns: 1fr; }
   .oc-fiscal-info-grid,
   .oc-fiscal-info-grid-2 { grid-template-columns: 1fr; }
-  .oc-st-features-grid { grid-template-columns: 1fr 1fr; }
+  .oc-st-features-grid,
+  .oc-st-features-grid-2,
+  .oc-st-features-grid-3 { grid-template-columns: 1fr 1fr; }
+  .oc-exchange-cards { grid-template-columns: 1fr; }
   .oc-st-form-row,
   .oc-st-request { grid-template-columns: 1fr; }
   .oc-beneficio-vigencia { grid-template-columns: 1fr; }

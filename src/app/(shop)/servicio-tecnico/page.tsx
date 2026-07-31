@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ServicioTecnicoForm } from "@/components/servicio-tecnico-form";
 
 export const metadata = { title: "Servicio Técnico" };
@@ -6,17 +7,17 @@ export const metadata = { title: "Servicio Técnico" };
 const HIGHLIGHTS = [
   {
     title: "Cambia tu batería y pantalla",
-    href: "https://www.oneclickstore.com/reemplazo-de-pantalla-o-bateria/",
+    href: "/reemplazo-de-pantalla-o-bateria",
     icon: "tools",
   },
   {
     title: "Programas de calidad Apple",
-    href: "https://www.oneclickstore.com/programas-de-calidad/",
+    href: "/programas-de-calidad",
     icon: "medal",
   },
   {
     title: "Programa Exchange",
-    href: "https://www.oneclickstore.com/programa-exchange/",
+    href: "/programa-exchange",
     icon: "exchange",
   },
 ] as const;
@@ -133,19 +134,13 @@ export default function ServicioTecnicoPage() {
 
       <section className="container oc-st-cards">
         {HIGHLIGHTS.map((item) => (
-          <a
-            key={item.title}
-            className="oc-st-card"
-            href={item.href}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <Link key={item.title} className="oc-st-card" href={item.href}>
             <span className="oc-st-card-icon" aria-hidden>
               <HighlightIcon name={item.icon} />
             </span>
             <h2>{item.title}</h2>
             <span className="oc-st-card-more">Ver más &gt;</span>
-          </a>
+          </Link>
         ))}
       </section>
 
