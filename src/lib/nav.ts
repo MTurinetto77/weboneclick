@@ -60,7 +60,7 @@ export const MAIN_NAV: NavItem[] = [
       { label: "iPad Pro", href: "/ipad/ipad-pro", badge: "Nuevos", variant: "product" },
       { label: "iPad Air", href: "/ipad/ipad-air", badge: "Nuevos", variant: "product" },
       { label: "iPad mini", href: "/ipad/ipad-mini", variant: "product" },
-      { label: "iPad", href: "/ipad/ipad-gen", variant: "product" },
+      { label: "iPad", href: "/ipad", variant: "product" },
       {
         label: "Teclado, mouse y pencil →",
         href: "/accesorios/teclados-mouse-y-pencil",
