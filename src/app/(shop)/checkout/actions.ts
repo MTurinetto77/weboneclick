@@ -100,6 +100,11 @@ export async function confirmarVenta(formData: FormData) {
         auto_return: "approved",
         notification_url: notificationUrl,
         statement_descriptor: "ONECLICK",
+        // Contado con 10% off: solo pago en 1 cuota (sin financiación).
+        payment_methods: {
+          installments: 1,
+          default_installments: 1,
+        },
       },
     });
   } catch (error) {
