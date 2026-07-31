@@ -21,7 +21,10 @@ export default async function PromoIndexPage() {
       <ul className="oc-promo-index-list">
         {promos.map((p) => (
           <li key={p.id_promocion}>
-            <Link href={`/${p.slug}`} className="oc-promo-index-item">
+            <Link
+              href={p.slug === "outlet-promo" ? "/outlet" : `/${p.slug}`}
+              className="oc-promo-index-item"
+            >
               {p.subtitulo ? <span className="oc-pill-badge">{p.subtitulo}</span> : null}
               <span className="oc-pill-panel-row">
                 <span className="oc-pill-panel-label">{p.nombre}</span>

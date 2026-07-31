@@ -45,7 +45,7 @@ export const MAIN_NAV: NavItem[] = [
       { label: "iPhone 17 Pro", href: "/iphone/iphone-17-pro", badge: "Nuevos", variant: "product" },
       { label: "iPhone Air", href: "/iphone/iphone-air", badge: "Nuevos", variant: "product" },
       { label: "iPhone 17", href: "/iphone/iphone-17", badge: "Nuevos", variant: "product" },
-      { label: "iPhone 17e", href: "/iphone/iphone-17e", variant: "product" },
+      { label: "iPhone 17e", href: "/iphone/iphone-17", variant: "product" },
       { label: "iPhone 16", href: "/iphone/iphone-16", variant: "product" },
       { label: "iPhone 15", href: "/iphone/iphone-15", variant: "product" },
       { label: "Cargadores →", href: "/accesorios/cargadores", variant: "link" },

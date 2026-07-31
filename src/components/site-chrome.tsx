@@ -33,7 +33,7 @@ export async function SiteHeader() {
     if (item.dynamicChildren !== "promociones") return item;
     const children: NavLink[] = promos.map((p) => ({
       label: p.nombre,
-      href: `/${p.slug}`,
+      href: p.slug === "outlet-promo" ? "/outlet" : `/${p.slug}`,
       badge: p.subtitulo ?? undefined,
       icon: p.icono ?? undefined,
       variant: "product" as const,

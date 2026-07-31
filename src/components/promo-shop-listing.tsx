@@ -39,11 +39,13 @@ function paginationWindow(current: number, total: number): (number | "…")[] {
 type Props = {
   promo: PromoDetail;
   searchParams: Record<string, string | string[] | undefined>;
+  /** Ruta canónica para filtros/paginación (default: `/${promo.slug}`) */
+  basePath?: string;
 };
 
 /** Listado de productos de una promoción con sidebar de filtros (como /shop). */
-export async function PromoShopListing({ promo, searchParams }: Props) {
-  const basePath = `/${promo.slug}`;
+export async function PromoShopListing({ promo, searchParams, basePath }: Props) {
+  const path = basePath ?? `/${promo.slug}`;
   const query: ShopQuery = {
     q: param(searchParams, "q"),
     cat: param(searchParams, "cat"),
@@ -107,7 +109,7 @@ export async function PromoShopListing({ promo, searchParams }: Props) {
         </div>
 
         <div className="oc-shop-layout">
-          <ShopSidebar facets={facets} query={query} basePath={basePath} />
+          <ShopSidebar facets={facets} query={query} basePath={path} />
 
           <div className="oc-shop-main">
             <ShopToolbar
@@ -115,7 +117,7 @@ export async function PromoShopListing({ promo, searchParams }: Props) {
               from={from}
               to={to}
               total={total}
-              basePath={basePath}
+              basePath={path}
             />
 
             <div className="oc-product-grid">
@@ -131,7 +133,7 @@ export async function PromoShopListing({ promo, searchParams }: Props) {
             {pages > 1 && (
               <nav className="oc-shop-pagination" aria-label="Paginación">
                 {page > 1 && (
-                  <Link href={buildShopHref(query, { page: String(page - 1) }, basePath)}>
+                  <Link href={buildShopHref(query, { page: String(page - 1) }, path)}>
                     ←
                   </Link>
                 )}
@@ -143,7 +145,7 @@ export async function PromoShopListing({ promo, searchParams }: Props) {
                   ) : (
                     <Link
                       key={n}
-                      href={buildShopHref(query, { page: String(n) }, basePath)}
+                      href={buildShopHref(query, { page: String(n) }, path)}
                       className={n === page ? "is-active" : undefined}
                       aria-current={n === page ? "page" : undefined}
                     >
@@ -152,7 +154,7 @@ export async function PromoShopListing({ promo, searchParams }: Props) {
                   )
                 )}
                 {page < pages && (
-                  <Link href={buildShopHref(query, { page: String(page + 1) }, basePath)}>
+                  <Link href={buildShopHref(query, { page: String(page + 1) }, path)}>
                     →
                   </Link>
                 )}
