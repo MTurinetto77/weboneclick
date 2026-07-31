@@ -3268,18 +3268,177 @@ img { max-width: 100%; display: block; }
   font-size: 0.92rem;
 }
 
-.oc-field-label {
+.oc-inst-form .oc-field-label {
   display: grid;
   gap: 0.35rem;
   font-size: 0.9rem;
   font-weight: 600;
 }
 
+.oc-inst-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.oc-inst-form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* Libro de quejas */
+.oc-quejas-page .oc-page-header {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 2rem;
+}
+.oc-quejas-page .oc-page-header h3 {
+  margin: 0.5rem 0 0;
+  font-weight: 500;
+  color: var(--oc-muted);
+}
+.oc-quejas-divider {
+  border: none;
+  border-top: 1px solid var(--oc-border);
+  margin: 1rem 0;
+}
+.oc-quejas-page .oc-inst-form {
+  margin: 0 auto;
+}
+
+/* Bases y condiciones */
+.oc-bases-page .oc-page-header {
+  max-width: 100%;
+  text-align: center;
+}
+.oc-bases-divider {
+  border: none;
+  border-top: 1px solid var(--oc-border);
+  margin: 1rem 0 0.5rem;
+}
+.oc-bases-sections {
+  display: grid;
+  gap: 2rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.oc-bases-section {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--oc-border);
+  text-align: center;
+}
+.oc-bases-section:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+.oc-bases-section h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+.oc-bases-body {
+  text-align: left;
+}
+.oc-bases-body p {
+  margin: 0 0 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--oc-ink);
+}
+.oc-bases-body p:last-child { margin-bottom: 0; }
+.oc-bases-postal {
+  color: var(--oc-muted);
+  font-size: 0.85rem;
+}
+.oc-bases-date {
+  font-size: 0.8rem;
+  color: var(--oc-muted);
+}
+
+/* Gestión de garantía post-venta */
+.oc-garantia-page .oc-page-header {
+  max-width: 720px;
+  margin: 0 auto 2rem;
+}
+.oc-garantia-page .oc-page-header h3 {
+  margin: 0.5rem 0 1rem;
+  font-weight: 500;
+}
+.oc-garantia-page .oc-page-header p {
+  margin: 0 0 0.6rem;
+  color: var(--oc-muted);
+  line-height: 1.5;
+}
+.oc-garantia-divider {
+  border: none;
+  border-top: 1px solid var(--oc-border);
+  margin: 1rem 0;
+}
+.oc-garantia-page .oc-inst-form {
+  margin: 0 auto;
+}
+
+/* Botón de arrepentimiento */
+.oc-arrep-page .oc-page-header {
+  text-align: center;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.oc-arrep-page .oc-page-header h3 {
+  margin: 0.25rem 0 1rem;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--oc-muted);
+}
+.oc-arrep-steps-section { padding: 2rem 0; }
+.oc-arrep-steps-section h2 {
+  margin: 0 0 1.5rem;
+  font-size: 1.4rem;
+  line-height: 1.3;
+}
+.oc-arrep-steps {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.75rem 2rem;
+}
+.oc-arrep-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.oc-arrep-step img {
+  width: 72px;
+  height: auto;
+  flex-shrink: 0;
+}
+.oc-arrep-step p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--oc-ink);
+}
+.oc-arrep-form-section {
+  padding: 2rem 0 3rem;
+  border-top: 1px solid var(--oc-border);
+  text-align: center;
+}
+.oc-arrep-form-section h2 { margin: 0 0 1rem; }
+.oc-arrep-form-section .oc-inst-form {
+  margin: 0 auto;
+  text-align: left;
+}
+.oc-arrep-divider {
+  border: none;
+  border-top: 1px solid var(--oc-border);
+  margin: 0 0 1.5rem;
+}
+
+@media (max-width: 720px) {
+  .oc-arrep-steps { grid-template-columns: 1fr; }
+  .oc-inst-form-row,
+  .oc-inst-form-row-3 { grid-template-columns: 1fr; }
+}
+
 /* Tiendas map layout */
 .oc-tiendas-page { background: #fff; }
 .oc-tiendas-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) 1fr;
+  grid-template-columns: minmax(300px, 380px) 1fr;
   min-height: calc(100vh - 140px);
 }
 .oc-tiendas-list {
@@ -3288,39 +3447,136 @@ img { max-width: 100%; display: block; }
   max-height: calc(100vh - 140px);
 }
 .oc-tiendas-item {
-  display: grid;
-  grid-template-columns: 1fr 88px;
-  gap: 0.75rem;
-  align-items: center;
-  padding: 1rem 1.1rem;
+  cursor: pointer;
+  padding: 0;
   border-bottom: 1px solid #ececef;
+  transition: background-color 0.15s ease;
+}
+.oc-tiendas-item:hover,
+.oc-tiendas-item--active {
+  background: #f7f7f9;
+}
+.oc-tiendas-item-media {
+  width: 100%;
+  height: 130px;
+  overflow: hidden;
+}
+.oc-tiendas-item-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.oc-tiendas-item-info {
+  padding: 0.9rem 1.1rem 1.1rem;
+}
+.oc-tiendas-item-titlebar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 .oc-tiendas-item h2 {
   margin: 0 0 0.25rem;
   font-size: 1rem;
   font-weight: 700;
 }
-.oc-tiendas-item p {
+.oc-tiendas-item-address {
   margin: 0 0 0.35rem;
   font-size: 0.85rem;
   color: #6e6e73;
   line-height: 1.35;
 }
-.oc-tiendas-item a {
+.oc-tiendas-item-directions,
+.oc-tiendas-item-email {
   font-size: 0.82rem;
   color: #0071e3;
 }
-.oc-tiendas-item-img {
-  width: 88px;
-  height: 72px;
-  object-fit: cover;
-  border-radius: 8px;
+.oc-tiendas-item-directions { white-space: nowrap; }
+.oc-tiendas-item-email { display: block; margin-bottom: 0.6rem; }
+.oc-tiendas-item-hours {
+  border-top: 1px solid #ececef;
+  padding-top: 0.6rem;
 }
-.oc-tiendas-map iframe {
+.oc-tiendas-map {
+  position: relative;
+  height: 100%;
+}
+.oc-tiendas-map-canvas {
   width: 100%;
   height: 100%;
   min-height: calc(100vh - 140px);
+}
+
+/* Tiendas hours (shared: sidebar list + map popup) */
+.oc-tp-hours-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.oc-tp-hours-line {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  color: #6e6e73;
+  line-height: 1.3;
+}
+
+/* Tiendas map custom pin */
+.oc-tiendas-pin span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #000;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Tiendas map popup (mimics store detail card) */
+.oc-tiendas-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.oc-tiendas-popup .leaflet-popup-content {
+  margin: 0;
+  width: 260px !important;
+}
+.oc-tiendas-popup .leaflet-popup-tip { background: #fff; }
+.oc-tp-img {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  display: block;
+}
+.oc-tp-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: #000;
+  color: #fff;
+  padding: 0.6rem 0.85rem;
+}
+.oc-tp-title { font-size: 0.95rem; font-weight: 600; }
+.oc-tp-directions {
+  font-size: 0.78rem;
+  color: #fff;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+.oc-tp-body { padding: 0.75rem 0.85rem 0.9rem; }
+.oc-tp-row {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  color: #1d1d1f;
+}
+.oc-tp-row a { color: #0071e3; }
+.oc-tp-sep {
   border: 0;
+  border-top: 1px solid #ececef;
+  margin: 0.5rem 0 0.65rem;
 }
 
 /* CV */
@@ -4112,7 +4368,7 @@ img { max-width: 100%; display: block; }
 @media (max-width: 960px) {
   .oc-tiendas-layout { grid-template-columns: 1fr; }
   .oc-tiendas-list { max-height: none; border-right: 0; }
-  .oc-tiendas-map iframe { min-height: 420px; }
+  .oc-tiendas-map-canvas { min-height: 420px; }
   .oc-cv-grid,
   .oc-empresas-hero-inner,
   .oc-facturacion-grid { grid-template-columns: 1fr; }
