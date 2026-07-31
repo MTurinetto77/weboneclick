@@ -23,7 +23,7 @@ const pages: Record<string, { title: string; body: string }> = {
   },
   "seguimiento-de-envios": {
     title: "Seguimiento de envíos",
-    body: "Ingresá el número de pedido o tracking que recibiste por email para conocer el estado de tu envío.",
+    body: "Ingresá el número de pedido (OCWN-XXXXX o OCW-XXXXX) que recibiste por email para conocer el estado de tu envío.",
   },
   fiscal: {
     title: "Información fiscal",

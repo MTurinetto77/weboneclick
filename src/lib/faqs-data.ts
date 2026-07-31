@@ -45,7 +45,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "¿Cómo puedo hacer seguimiento de mi pedido?",
-        a: "Podés contactar a nuestro equipo de atención al cliente y te brindaremos información actualizada y precisa sobre el estado y seguimiento de tu envío.",
+        a: "Ingresá tu número de pedido (OCWN-XXXXX o OCW-XXXXX) en la página de Seguimiento de envíos. Ahí vas a ver el estado actual y el historial del envío. Si no aparece información, contactá a atención al cliente.",
       },
       {
         q: "¿Cuánto cuesta el envío?",
