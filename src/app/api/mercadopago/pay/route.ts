@@ -137,10 +137,25 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     // El pago no se concretó: cancelar la venta pendiente y liberar el cupón
+    const raw =
+      error instanceof Error ? error.message : "error desconocido al pagar";
     await prisma.venta
       .update({
         where: { id_venta: venta.id_venta },
-        data: { estado: "cancelada" },
+        data: {
+          estado: "cancelada",
+          odoo_sync_error: `MP exception: ${raw}`.slice(0, 2000),
+        },
+      })
+      .catch(() => undefined);
+    await prisma.pago
+      .updateMany({
+        where: {
+          id_venta: venta.id_venta,
+          tipo_pago: { in: ["mercado_pago", "tarjeta"] },
+          estado: { not: "aprobado" },
+        },
+        data: { estado: "rechazado" },
       })
       .catch(() => undefined);
     await releaseCuponForVenta(venta.id_venta).catch(() => undefined);

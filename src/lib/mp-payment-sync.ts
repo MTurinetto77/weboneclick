@@ -102,6 +102,11 @@ export async function applyMercadoPagoPayment(
   }
 
   const rejected = status === "rejected" || status === "cancelled";
+  const statusDetail = payment.status_detail?.trim() || null;
+  // Motivo MP en odoo_sync_error (campo texto existente en venta) para diagnóstico.
+  const mpMotivo = statusDetail
+    ? `MP ${status}: ${statusDetail}`
+    : `MP ${status}`;
 
   // Nunca degradar un pago ya aprobado (p. ej. notificación tardía rejected).
   const updated = await prisma.pago.updateMany({
@@ -124,10 +129,19 @@ export async function applyMercadoPagoPayment(
     if (ventaStill && ventaStill.estado !== "pagada") {
       await prisma.venta.update({
         where: { id_venta: idVenta },
-        data: { estado: "cancelada" },
+        data: {
+          estado: "cancelada",
+          odoo_sync_error: mpMotivo,
+        },
       });
       await releaseCuponForVenta(idVenta);
     }
+  } else if (!rejected && updated.count > 0 && statusDetail) {
+    // Pending / in_process: dejar rastro del detalle MP sin cancelar.
+    await prisma.venta.update({
+      where: { id_venta: idVenta },
+      data: { odoo_sync_error: mpMotivo },
+    });
   }
 
   return rejected ? "rejected" : "pending";

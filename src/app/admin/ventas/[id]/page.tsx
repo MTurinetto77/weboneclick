@@ -92,7 +92,11 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
             label="Pago"
             value={pago ? `${pago.tipo_pago} · ${pago.estado}` : null}
           />
+          <Field label="MP transaction" value={pago?.transaction_id} />
           <Field label="Total" value={formatPrice(venta.total)} />
+          {venta.odoo_sync_error?.startsWith("MP") && (
+            <Field label="Motivo MP" value={venta.odoo_sync_error} />
+          )}
           {venta.receptor_nombre && (
             <Field
               label="Retira/recibe"
