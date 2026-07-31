@@ -61,15 +61,30 @@ export async function confirmarVenta(formData: FormData) {
 
   let preference;
   try {
+    const preferenceItems = [
+      ...venta.itemsCobro.map((item) => ({
+        id: String(item.id_producto),
+        title: item.titulo,
+        quantity: item.cantidad,
+        unit_price: item.unit_price,
+        currency_id: "ARS" as const,
+      })),
+    ];
+    // El envío debe ir en la preference: si no, MP cobra solo productos y la
+    // venta queda pendiente porque total local > transaction_amount.
+    if (venta.costo_envio > 0) {
+      preferenceItems.push({
+        id: "shipping",
+        title: "Costo de envío",
+        quantity: 1,
+        unit_price: venta.costo_envio,
+        currency_id: "ARS",
+      });
+    }
+
     preference = await mercadoPagoPreference().create({
       body: {
-        items: venta.itemsCobro.map((item) => ({
-          id: String(item.id_producto),
-          title: item.titulo,
-          quantity: item.cantidad,
-          unit_price: item.unit_price,
-          currency_id: "ARS",
-        })),
+        items: preferenceItems,
         payer: {
           name: venta.nombre,
           surname: venta.apellido,
