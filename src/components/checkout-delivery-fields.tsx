@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  SHIPPING_QUOTE_EVENT,
+  emitShippingQuote,
   type ShippingQuoteDetail,
 } from "@/lib/shipping-quote";
 
@@ -105,7 +105,7 @@ function matchProvincia(raw?: string | null): string {
 }
 
 function emitQuote(detail: ShippingQuoteDetail) {
-  window.dispatchEvent(new CustomEvent(SHIPPING_QUOTE_EVENT, { detail }));
+  emitShippingQuote(detail);
 }
 
 function AddressFields({

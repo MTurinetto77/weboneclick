@@ -23,6 +23,23 @@ function paymentId(req: NextRequest, body: unknown): string | null {
   );
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return "unknown error";
+  }
+}
+
+/** Errores de negocio / permanentes: no tiene sentido que MP reintente. */
+function isNonRetryable(message: string): boolean {
+  return /Monto inválido|Stock insuficiente|sin almacén|not found|404|Resource not found|invalid.?payment|no está configurado|Unique constraint|P2002/i.test(
+    message,
+  );
+}
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(rateLimitClientKey(req, "mp-webhook"), {
     limit: 60,
@@ -62,17 +79,26 @@ export async function POST(req: NextRequest) {
 
   if (!id) return NextResponse.json({ ok: true });
 
-  // Consultar el pago en Mercado Pago evita confiar en el contenido del webhook.
-  const payment = await mercadoPagoPayment().get({ id });
-
   try {
+    // Consultar el pago en Mercado Pago evita confiar en el contenido del webhook.
+    const payment = await mercadoPagoPayment().get({ id });
     await applyMercadoPagoPayment(payment);
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[mercadopago/webhook] apply failed:", error);
-    return NextResponse.json({ error: "Conflict" }, { status: 409 });
-  }
+    const message = errorMessage(error);
+    console.error("[mercadopago/webhook] failed:", { id, message, error });
 
-  return NextResponse.json({ ok: true });
+    // ACK para errores permanentes (evita reintentos infinitos de MP).
+    if (isNonRetryable(message)) {
+      return NextResponse.json({ ok: true, ignored: true, reason: message });
+    }
+
+    // Transitorio (timeout, red, 5xx de MP): pedimos reintento.
+    return NextResponse.json(
+      { error: "Webhook processing failed", detail: message },
+      { status: 500 },
+    );
+  }
 }
 
 export async function GET(req: NextRequest) {

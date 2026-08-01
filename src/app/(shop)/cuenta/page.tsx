@@ -5,11 +5,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Cuenta" };
 
-type SearchParams = Promise<{ callbackUrl?: string }>;
-
-export default async function CuentaPage({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
-  const callbackUrl = safeCallback(params.callbackUrl) || "/";
+export default async function CuentaPage() {
   const session = await auth();
   const googleConfigured = isGoogleAuthConfigured();
 
@@ -53,17 +49,22 @@ export default async function CuentaPage({ searchParams }: { searchParams: Searc
         <div className="cuenta-card admin-card">
           <h1 style={{ marginTop: 0 }}>Iniciar sesión</h1>
           <p className="muted">
-            Ingresá con Google para recuperar tus datos en el checkout o administrar la tienda.
+            Ingresá con Google para recuperar tus datos en el checkout.
           </p>
 
           {googleConfigured ? (
             <form
               action={async () => {
                 "use server";
-                await signIn("google", { redirectTo: callbackUrl });
+                await signIn("google", { redirectTo: "/" });
               }}
+              style={{ display: "flex", justifyContent: "center" }}
             >
-              <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>
+              <button
+                type="submit"
+                className="oc-btn oc-btn-dark"
+                style={{ padding: "0.4rem 1rem", fontSize: "0.875rem" }}
+              >
                 Continuar con Google
               </button>
             </form>
@@ -83,10 +84,4 @@ export default async function CuentaPage({ searchParams }: { searchParams: Searc
       </div>
     </section>
   );
-}
-
-function safeCallback(url?: string): string | null {
-  if (!url) return null;
-  if (!url.startsWith("/") || url.startsWith("//")) return null;
-  return url;
 }

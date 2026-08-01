@@ -37,6 +37,7 @@ export type VentaPendiente = {
   access_token: string;
   subtotal: number;
   descuento: number;
+  costo_envio: number;
   total: number;
   nombre: string;
   apellido: string;
@@ -82,6 +83,7 @@ export async function createPendingVenta(
         access_token: existing.access_token,
         subtotal: Number(existing.subtotal),
         descuento: Number(existing.descuento),
+        costo_envio: Number(existing.costo_envio),
         total: Number(existing.total),
         nombre: existing.cliente.nombre,
         apellido: existing.cliente.apellido,
@@ -521,6 +523,7 @@ export async function createPendingVenta(
     access_token,
     subtotal,
     descuento,
+    costo_envio,
     total,
     // Mostrar los datos del formulario (en invitado el cliente existente no se actualiza).
     nombre,

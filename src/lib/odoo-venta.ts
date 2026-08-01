@@ -129,33 +129,121 @@ function partnerAddressValues(d: DireccionData, cfg: OdooConfig) {
   };
 }
 
+function normAddr(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function addressesMatch(
+  a: DireccionData | null | undefined,
+  b: DireccionData | null | undefined,
+): boolean {
+  if (!a || !b) return false;
+  return (
+    normAddr(a.calle) === normAddr(b.calle) &&
+    normAddr(a.numero) === normAddr(b.numero) &&
+    normAddr(a.piso) === normAddr(b.piso) &&
+    normAddr(a.departamento) === normAddr(b.departamento) &&
+    normAddr(a.codigo_postal) === normAddr(b.codigo_postal) &&
+    normAddr(a.localidad) === normAddr(b.localidad)
+  );
+}
+
+/**
+ * Contacto hijo (invoice/delivery) con la dirección indicada.
+ * Si ya existe uno con misma calle+CP, lo reutiliza y actualiza datos.
+ */
+async function upsertChildAddressContact(
+  partnerId: number,
+  type: "invoice" | "delivery",
+  dir: DireccionData,
+  name: string,
+  cfg: OdooConfig,
+): Promise<number> {
+  const street = buildStreet(dir);
+  const zip = dir.codigo_postal || "";
+  const stateId = await resolveStateId(dir.provincia, cfg);
+  const values: Record<string, unknown> = {
+    name,
+    type,
+    parent_id: partnerId,
+    ...partnerAddressValues(dir, cfg),
+    state_id: stateId,
+    comment: dir.referencias || false,
+  };
+
+  const existing = await odooSearch("res.partner", [
+    ["parent_id", "=", partnerId],
+    ["type", "=", type],
+    ["street", "=", street],
+    ["zip", "=", zip],
+  ]);
+  if (existing[0]) {
+    await odooWrite("res.partner", [existing[0]], values);
+    return existing[0];
+  }
+  return odooCreate("res.partner", values);
+}
+
+/**
+ * Normaliza documento AR para Odoo (l10n_ar).
+ * DNI: 7–8 dígitos. CUIT/CUIL: 11 dígitos. Si es inválido, no se envía
+ * (evita "Longitud invalida para DNI" y permite igual crear la orden).
+ */
+function resolvePartnerIdentification(
+  tipoDocumento: string | null | undefined,
+  numeroDocumento: string | null | undefined,
+  cfg: OdooConfig,
+): {
+  vat: string | false;
+  docType: number | false;
+  companyType: "person" | "company";
+} {
+  const tipo = (tipoDocumento ?? "").toUpperCase().trim();
+  const digits = String(numeroDocumento ?? "").replace(/\D/g, "");
+  const isCuit = tipo === "CUIT" || tipo === "CUIL";
+
+  if (isCuit && digits.length === 11) {
+    return {
+      vat: digits,
+      docType: cfg.identificationTypeCuit,
+      companyType: tipo === "CUIT" ? "company" : "person",
+    };
+  }
+  if (!isCuit && (digits.length === 7 || digits.length === 8)) {
+    return {
+      vat: digits,
+      docType: cfg.identificationTypeDni,
+      companyType: "person",
+    };
+  }
+
+  return { vat: false, docType: false, companyType: "person" };
+}
+
 async function upsertOdooPartner(
   venta: NonNullable<VentaFull>,
   cfg: OdooConfig
 ): Promise<number> {
   const cliente = venta.cliente;
-  if (cliente.odoo_partner_id) {
-    await prisma.venta.update({
-      where: { id_venta: venta.id_venta },
-      data: { odoo_partner_id: cliente.odoo_partner_id },
-    });
-    return cliente.odoo_partner_id;
-  }
-
-  const docType =
-    cliente.tipo_documento?.toUpperCase() === "CUIT"
-      ? cfg.identificationTypeCuit
-      : cfg.identificationTypeDni;
+  const { vat, docType, companyType } = resolvePartnerIdentification(
+    cliente.tipo_documento,
+    cliente.numero_documento,
+    cfg,
+  );
   const afipType =
     cliente.responsabilidad_impositiva === "RI"
       ? cfg.afipResponsibilityRi
       : cfg.afipResponsibilityCf;
 
-  let partnerId: number | null = null;
+  let partnerId: number | null = cliente.odoo_partner_id ?? null;
 
-  if (cliente.numero_documento) {
+  if (!partnerId && vat && docType) {
     const ids = await odooSearch("res.partner", [
-      ["vat", "=", cliente.numero_documento],
+      ["vat", "=", vat],
       ["l10n_latam_identification_type_id", "=", docType],
       ["company_id", "in", [cfg.companyId, false]],
       ["parent_id", "=", false],
@@ -172,6 +260,7 @@ async function upsertOdooPartner(
     if (ids[0]) partnerId = ids[0];
   }
 
+  // Dirección comercial = facturación (nunca la de envío).
   const factDir = venta.direccion_facturacion;
   const stateId = factDir ? await resolveStateId(factDir.provincia, cfg) : false;
 
@@ -179,12 +268,11 @@ async function upsertOdooPartner(
     name: `${cliente.nombre} ${cliente.apellido}`.trim(),
     email: cliente.mail,
     phone: cliente.telefono || false,
-    vat: cliente.numero_documento || false,
-    l10n_latam_identification_type_id: cliente.numero_documento ? docType : false,
+    vat,
+    l10n_latam_identification_type_id: docType,
     l10n_ar_afip_responsibility_type_id: afipType,
     lang: "es_AR",
-    company_type:
-      cliente.tipo_documento?.toUpperCase() === "CUIT" ? "company" : "person",
+    company_type: companyType,
     customer_rank: 1,
     company_id: false,
     ...(factDir
@@ -196,18 +284,11 @@ async function upsertOdooPartner(
   };
 
   if (partnerId) {
-    const [existing] = await odooRead<Record<string, unknown>>(
-      "res.partner",
-      [partnerId],
-      ["phone", "vat", "street", "city", "zip"]
-    );
-    const patch: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(baseValues)) {
-      if (v === false || v == null) continue;
-      const cur = existing?.[k];
-      if (cur === false || cur == null || cur === "") {
-        patch[k] = v;
-      }
+    // Actualizar siempre identidad + dirección de facturación en el partner
+    // comercial (evita quedar con una dirección de envío vieja).
+    const patch: Record<string, unknown> = { ...baseValues };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === false || v == null) delete patch[k];
     }
     if (Object.keys(patch).length) {
       await odooWrite("res.partner", [partnerId], patch);
@@ -228,9 +309,22 @@ async function upsertOdooPartner(
   return partnerId;
 }
 
+async function upsertInvoiceContact(
+  venta: NonNullable<VentaFull>,
+  partnerId: number,
+  cfg: OdooConfig,
+): Promise<number> {
+  const factDir = venta.direccion_facturacion;
+  if (!factDir) return partnerId;
+
+  const name = `${venta.cliente.nombre} ${venta.cliente.apellido}`.trim();
+  return upsertChildAddressContact(partnerId, "invoice", factDir, name, cfg);
+}
+
 async function upsertDeliveryContact(
   venta: NonNullable<VentaFull>,
   partnerId: number,
+  invoicePartnerId: number,
   cfg: OdooConfig
 ): Promise<number> {
   if (venta.tipo_entrega !== "envio") return partnerId;
@@ -241,38 +335,22 @@ async function upsertDeliveryContact(
   const deliveryDir = envio.direccion;
   const factDir = venta.direccion_facturacion;
 
-  const sameAsBilling =
-    factDir &&
-    deliveryDir.calle === factDir.calle &&
-    deliveryDir.numero === factDir.numero &&
-    deliveryDir.codigo_postal === factDir.codigo_postal &&
-    deliveryDir.localidad === factDir.localidad;
+  // Misma dirección que facturación y sin receptor distinto → usar contacto invoice.
+  if (addressesMatch(deliveryDir, factDir) && !venta.receptor_nombre) {
+    return invoicePartnerId;
+  }
 
-  if (sameAsBilling && !venta.receptor_nombre) return partnerId;
-
-  const street = buildStreet(deliveryDir);
-  const zip = deliveryDir.codigo_postal || "";
   const deliveryName =
     venta.receptor_nombre ||
     `${venta.cliente.nombre} ${venta.cliente.apellido}`.trim();
 
-  const existing = await odooSearch("res.partner", [
-    ["parent_id", "=", partnerId],
-    ["type", "=", "delivery"],
-    ["street", "=", street],
-    ["zip", "=", zip],
-  ]);
-  if (existing[0]) return existing[0];
-
-  const stateId = await resolveStateId(deliveryDir.provincia, cfg);
-  return odooCreate("res.partner", {
-    name: deliveryName,
-    type: "delivery",
-    parent_id: partnerId,
-    ...partnerAddressValues(deliveryDir, cfg),
-    state_id: stateId,
-    comment: deliveryDir.referencias || false,
-  });
+  return upsertChildAddressContact(
+    partnerId,
+    "delivery",
+    deliveryDir,
+    deliveryName,
+    cfg,
+  );
 }
 
 // ─── Sale order ──────────────────────────────────────────────────────────────
@@ -340,6 +418,7 @@ function pickSaleTaxes(
 async function createOdooSaleOrder(
   venta: NonNullable<VentaFull>,
   partnerId: number,
+  invoicePartnerId: number,
   shippingPartnerId: number,
   warehouseOdooId: number,
   cfg: OdooConfig
@@ -470,7 +549,7 @@ async function createOdooSaleOrder(
   const orderId = await odooCreate("sale.order", {
     name: orderName,
     partner_id: partnerId,
-    partner_invoice_id: partnerId,
+    partner_invoice_id: invoicePartnerId,
     partner_shipping_id: shippingPartnerId,
     type_id: cfg.saleOrderTypeId,
     team_id: cfg.saleTeamId,
@@ -780,26 +859,35 @@ export async function syncVentaToOdoo(id_venta: number): Promise<OdooSyncResult>
     }
 
     const partnerId = await upsertOdooPartner(venta, cfg);
-    const shippingPartnerId = await upsertDeliveryContact(venta, partnerId, cfg);
+    const invoicePartnerId = await upsertInvoiceContact(venta, partnerId, cfg);
+    const shippingPartnerId = await upsertDeliveryContact(
+      venta,
+      partnerId,
+      invoicePartnerId,
+      cfg,
+    );
     await createOdooSaleOrder(
       venta,
       partnerId,
+      invoicePartnerId,
       shippingPartnerId,
       warehouseOdooId,
       cfg
     );
 
-    const pago = venta.pagos.find(
-      (p) =>
-        (p.tipo_pago === "mercado_pago" || p.tipo_pago === "tarjeta") &&
-        p.estado === "aprobado"
-    );
-    const mpId = pago?.transaction_id;
-    if (!mpId) {
+    const mpIds = venta.pagos
+      .filter(
+        (p) =>
+          (p.tipo_pago === "mercado_pago" || p.tipo_pago === "tarjeta") &&
+          p.estado === "aprobado" &&
+          p.transaction_id,
+      )
+      .map((p) => p.transaction_id as string);
+    if (mpIds.length === 0) {
       throw new Error("Pago aprobado sin transaction_id de Mercado Pago");
     }
-
-    await createOdooReceipt(venta, partnerId, mpId, cfg);
+    // Una o más tarjetas: todos los payment id van en el memo del recibo.
+    await createOdooReceipt(venta, partnerId, mpIds.join(","), cfg);
 
     await prisma.venta.update({
       where: { id_venta },

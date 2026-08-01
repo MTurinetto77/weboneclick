@@ -1,4 +1,6 @@
-﻿export const metadata = { title: "Cambio de facturación" };
+﻿import { CambioFacturacionForm } from "@/components/cambio-facturacion-form";
+
+export const metadata = { title: "Cambio de facturación" };
 
 export default function CambioFacturacionPage() {
   return (
@@ -14,7 +16,10 @@ export default function CambioFacturacionPage() {
               alt="Previsualización de factura OneClick con campos señalados"
             />
 
-            <span className="oc-fact-tag oc-fact-tag-nro" title="Número de Factura Completo (Formato: B/A-XXXX-XXXXXXXX)">
+            <span
+              className="oc-fact-tag oc-fact-tag-nro"
+              title="Número de Factura Completo (Formato: B/A-XXXX-XXXXXXXX)"
+            >
               <ArrowDownIcon />
               Número de Factura
             </span>
@@ -33,42 +38,7 @@ export default function CambioFacturacionPage() {
 
         <div>
           <h2>Cambios de Facturación</h2>
-          <form
-            className="oc-inst-form"
-            action="mailto:info@oneclickstore.com"
-            method="get"
-            encType="text/plain"
-          >
-            <input type="hidden" name="subject" value="Solicitud Cambio de Facturación" />
-            <input name="nombre" placeholder="Ingresa Nombre y Apellido" required />
-            <input name="telefono" placeholder="Teléfono de Contacto" required />
-            <input name="email" type="email" placeholder="Email" required />
-
-            <fieldset>
-              <legend>Tipo de Cambio</legend>
-              <label>
-                <input type="radio" name="tipo" value="Factura B → Factura A" required /> Factura B →
-                Factura A
-              </label>
-              <label>
-                <input type="radio" name="tipo" value="Factura A → Factura B" /> Factura A → Factura B
-              </label>
-            </fieldset>
-
-            <input name="nro_b" placeholder="B-xxxx-xxxxxxxx" />
-            <input name="nro_a" placeholder="A-xxxx-xxxxxxxx" />
-            <label className="oc-field-label">
-              Fecha del Comprobante
-              <input name="fecha" type="date" required />
-            </label>
-            <input name="importe" placeholder="Importe del comprobante" required />
-            <input name="cuit" placeholder="CUIT" />
-            <input name="dni" placeholder="DNI" />
-            <textarea name="observaciones" placeholder="Observaciones" rows={3} />
-            <button type="submit" className="oc-btn oc-btn-dark">
-              SOLICITAR CAMBIO DE FACTURACIÓN
-            </button>
-          </form>
+          <CambioFacturacionForm />
         </div>
       </div>
     </div>

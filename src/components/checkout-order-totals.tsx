@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  getLastShippingQuote,
   SHIPPING_QUOTE_EVENT,
   type ShippingQuoteDetail,
 } from "@/lib/shipping-quote";
@@ -22,16 +23,23 @@ type Props = {
 };
 
 export function CheckoutEnvioTotalRows({ subtotal, iva105, iva21 }: Props) {
-  const [quote, setQuote] = useState<ShippingQuoteDetail>({
-    tipo: "envio",
-    codigo_postal: "",
-    ok: false,
-    costo: 0,
-    gratis: false,
-    message: "Ingresá el código postal",
+  const [quote, setQuote] = useState<ShippingQuoteDetail>(() => {
+    return (
+      getLastShippingQuote() ?? {
+        tipo: "envio",
+        codigo_postal: "",
+        ok: false,
+        costo: 0,
+        gratis: false,
+        message: "Ingresá el código postal",
+      }
+    );
   });
 
   useEffect(() => {
+    const last = getLastShippingQuote();
+    if (last) setQuote(last);
+
     function onQuote(e: Event) {
       const detail = (e as CustomEvent<ShippingQuoteDetail>).detail;
       if (detail) setQuote(detail);

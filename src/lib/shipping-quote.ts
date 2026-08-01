@@ -11,3 +11,17 @@ export type ShippingQuoteDetail = {
   proveedor?: string;
   dias_entrega?: number;
 };
+
+let lastQuote: ShippingQuoteDetail | null = null;
+
+/** Emite la cotización a totals/pago y la guarda para listeners que monten después. */
+export function emitShippingQuote(detail: ShippingQuoteDetail) {
+  lastQuote = detail;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(SHIPPING_QUOTE_EVENT, { detail }));
+  }
+}
+
+export function getLastShippingQuote(): ShippingQuoteDetail | null {
+  return lastQuote;
+}

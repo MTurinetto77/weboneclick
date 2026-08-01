@@ -6,6 +6,7 @@ import { MAIN_NAV, type NavItem, type NavLink } from "@/lib/nav";
 import { getActivePromosNav, isPromoIconImage } from "@/lib/promos";
 import { CartDrawer, CartTrigger, type CartDrawerItem } from "@/components/cart-drawer";
 import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
+import { NewsletterForm } from "@/components/newsletter-form";
 import { SearchOverlay } from "@/components/search-overlay";
 import { uploadPublicUrl } from "@/lib/utils";
 
@@ -190,10 +191,7 @@ export function SiteFooter() {
       <div className="oc-footer-newsletter">
         <div className="container oc-footer-newsletter-inner">
           <h3>Suscribite a nuestro newsletter</h3>
-          <form className="oc-newsletter" action="#" method="post">
-            <input type="email" name="email" placeholder="Email" required />
-            <button type="submit">Enviar</button>
-          </form>
+          <NewsletterForm />
         </div>
       </div>
 
