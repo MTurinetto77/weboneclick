@@ -6611,6 +6611,7 @@ img { max-width: 100%; display: block; }
 
 .oc-atc-related-card {
   flex: 0 0 190px;
+  min-width: 0;
   border: 1px solid #ececee;
   border-radius: 8px;
   padding: 0.85rem;
