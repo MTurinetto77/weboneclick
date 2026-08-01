@@ -7,6 +7,7 @@ export const metadata = { title: "Login admin" };
 export default async function AdminLoginPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const denied = params.error === "AccessDenied" || params.error === "OAuthAccountNotLinked";
+  const configError = params.error === "Configuration";
   const googleConfigured = isGoogleAuthConfigured();
   const devBypass = isDevAuthBypassEnabled();
 
@@ -22,6 +23,13 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: S
         {denied && (
           <div className="alert">
             Acceso denegado. Tu cuenta no está registrada como administrador activo.
+          </div>
+        )}
+        {configError && (
+          <div className="alert">
+            Error de configuración de Auth. Verificá <code>AUTH_SECRET</code>,{" "}
+            <code>AUTH_URL</code> (mismo host que usás en el navegador) y el redirect de Google{" "}
+            <code>/api/auth/callback/google</code>.
           </div>
         )}
 
