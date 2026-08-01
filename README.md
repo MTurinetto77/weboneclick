@@ -160,11 +160,12 @@ UPLOADS_DIR="uploads"
 NEXT_PUBLIC_UPLOADS_BASE_URL="/api/uploads"
 ```
 
+`AUTH_URL` debe ser **exactamente** el dominio canónico (con o sin `www`, no mezclar). La app redirige el host alternativo a ese origen para que las cookies de Auth.js no se pierdan.  
 En Hostinger suele funcionar mejor `127.0.0.1` que `localhost` en `DATABASE_URL`.  
 Encodeá caracteres especiales del password (`+`→`%2B`, `$`→`%24`).
 
 5. Tras el deploy: `npx prisma migrate deploy` (o restaurar `db/oneclickstore.sql`) y sync Odoo si hace falta.
-6. Google OAuth redirect: `https://TU-DOMINIO/api/auth/callback/google`.
+6. Google OAuth redirect: `https://TU-DOMINIO/api/auth/callback/google` (mismo host que `AUTH_URL`).
 
 ### Imágenes
 

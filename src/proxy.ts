@@ -1,7 +1,36 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
+/**
+ * Auth.js usa cookies `__Host-*` (host-only). Si el usuario entra por www y
+ * AUTH_URL es apex (o al revés), el callback OAuth pierde las cookies y termina
+ * en error=Configuration. Unificamos al origen de AUTH_URL / SITE_URL.
+ */
+function redirectToCanonicalHost(req: { nextUrl: URL }) {
+  const raw = (process.env.AUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || "").trim();
+  if (!raw) return null;
+
+  let canonical: URL;
+  try {
+    canonical = new URL(raw);
+  } catch {
+    return null;
+  }
+
+  const host = canonical.hostname;
+  if (!host || host === "localhost" || host.startsWith("127.")) return null;
+  if (req.nextUrl.hostname === host) return null;
+
+  const url = new URL(req.nextUrl.href);
+  url.protocol = canonical.protocol;
+  url.host = canonical.host;
+  return NextResponse.redirect(url, 308);
+}
+
 export default auth((req) => {
+  const canonical = redirectToCanonicalHost(req);
+  if (canonical) return canonical;
+
   const { pathname } = req.nextUrl;
   const isLogin = pathname.startsWith("/admin/login");
   const isAdmin = pathname.startsWith("/admin");
@@ -21,5 +50,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|woff2?|otf|ttf)$).*)",
+  ],
 };

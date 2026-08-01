@@ -76,36 +76,41 @@ function splitDisplayName(name?: string | null): { nombre: string; apellido: str
 /** Asegura usuario (+ cliente si es nuevo) para login Google del shop. */
 async function ensureGoogleShopUser(email: string, displayName?: string | null) {
   const mail = email.toLowerCase();
-  let usuario = await prisma.usuario.findFirst({ where: { mail } });
-  if (!usuario) {
-    usuario = await prisma.usuario.create({
-      data: {
-        mail,
-        tipo_usuario: "cliente",
-        activo: true,
-      },
-    });
-  }
+  try {
+    let usuario = await prisma.usuario.findFirst({ where: { mail } });
+    if (!usuario) {
+      usuario = await prisma.usuario.create({
+        data: {
+          mail,
+          tipo_usuario: "cliente",
+          activo: true,
+        },
+      });
+    }
 
-  let cliente = await prisma.cliente.findUnique({ where: { mail } });
-  if (!cliente) {
-    const { nombre, apellido } = splitDisplayName(displayName);
-    cliente = await prisma.cliente.create({
-      data: {
-        id_usuario: usuario.id_usuario,
-        nombre,
-        apellido,
-        mail,
-      },
-    });
-  } else if (!cliente.id_usuario) {
-    cliente = await prisma.cliente.update({
-      where: { id_cliente: cliente.id_cliente },
-      data: { id_usuario: usuario.id_usuario },
-    });
-  }
+    let cliente = await prisma.cliente.findUnique({ where: { mail } });
+    if (!cliente) {
+      const { nombre, apellido } = splitDisplayName(displayName);
+      cliente = await prisma.cliente.create({
+        data: {
+          id_usuario: usuario.id_usuario,
+          nombre,
+          apellido,
+          mail,
+        },
+      });
+    } else if (!cliente.id_usuario) {
+      await prisma.cliente.update({
+        where: { id_cliente: cliente.id_cliente },
+        data: { id_usuario: usuario.id_usuario },
+      });
+    }
 
-  return usuario;
+    return usuario;
+  } catch (err) {
+    console.error("[auth] ensureGoogleShopUser failed", { mail, err });
+    throw err;
+  }
 }
 
 const providers = [];
@@ -140,9 +145,10 @@ if (isDevAuthBypassEnabled()) {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
+  secret: process.env.AUTH_SECRET,
   pages: {
-    signIn: "/admin/login",
-    error: "/admin/login",
+    signIn: "/cuenta",
+    error: "/auth/error",
   },
   callbacks: {
     async signIn({ user, account }) {
@@ -168,12 +174,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return token;
       }
 
-      const dbUser = await prisma.usuario.findFirst({ where: { mail: email } });
-      if (dbUser) {
-        token.userId = dbUser.id_usuario;
-        token.role = dbUser.tipo_usuario;
-        token.email = dbUser.mail;
-        token.name = token.name ?? dbUser.mail;
+      // Sesión ya hidratada (p. ej. middleware): no pegarle a la DB en cada request.
+      if (token.userId && token.role) {
+        return token;
+      }
+
+      try {
+        const dbUser = await prisma.usuario.findFirst({ where: { mail: email } });
+        if (dbUser) {
+          token.userId = dbUser.id_usuario;
+          token.role = dbUser.tipo_usuario;
+          token.email = dbUser.mail;
+          token.name = token.name ?? dbUser.mail;
+        }
+      } catch (err) {
+        console.error("[auth] jwt user lookup failed", { email, err });
       }
       return token;
     },
