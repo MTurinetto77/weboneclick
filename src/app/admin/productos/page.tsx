@@ -16,7 +16,11 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
 
   const where = q
     ? {
-        OR: [{ titulo: { contains: q } }, { descripcion: { contains: q } }],
+        OR: [
+          { titulo: { contains: q } },
+          { descripcion: { contains: q } },
+          { sku: { contains: q } },
+        ],
       }
     : undefined;
 
@@ -78,7 +82,7 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
       >
         <div className="form-field" style={{ margin: 0, minWidth: "12rem", flex: "1 1 12rem" }}>
           <label>Buscar</label>
-          <input name="q" defaultValue={q || ""} placeholder="Título o descripción…" />
+          <input name="q" defaultValue={q || ""} placeholder="Título, SKU o descripción…" />
         </div>
         <button type="submit" className="btn btn-secondary">
           Buscar
@@ -92,6 +96,7 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
         <thead>
           <tr>
             <th>ID</th>
+            <th>SKU</th>
             <th>Título</th>
             <th>Precio</th>
             <th>Activo</th>
@@ -101,7 +106,7 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
         <tbody>
           {productos.length === 0 ? (
             <tr>
-              <td colSpan={5} className="muted">
+              <td colSpan={6} className="muted">
                 No se encontraron productos.
               </td>
             </tr>
@@ -109,6 +114,7 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
             productos.map((p) => (
               <tr key={p.id_producto}>
                 <td>{p.id_producto}</td>
+                <td>{p.sku || "—"}</td>
                 <td>{p.titulo}</td>
                 <td>{formatPrice(pickCurrentPrice(p.precios))}</td>
                 <td>{p.activo ? "Sí" : "No"}</td>
