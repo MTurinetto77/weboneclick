@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPrice } from "@/lib/products";
 import { formatPrice } from "@/lib/utils";
+import { ProductoSyncModal } from "@/components/admin/producto-sync-modal";
 
 type SearchParams = Promise<{ q?: string; page?: string }>;
 
@@ -62,6 +63,7 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
             Catálogo de productos. Precio vigente según lista de precios.
           </p>
         </div>
+        <ProductoSyncModal />
         <Link href="/admin/productos/nuevo" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
           Crear
         </Link>

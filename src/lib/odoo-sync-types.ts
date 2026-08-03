@@ -26,3 +26,15 @@ export type SyncBatchResult = {
   stats: SyncStats;
   errors: string[];
 };
+
+/** Resultado de sincronizar un producto puntual por SKU (datos + stock + imágenes). */
+export type SyncProductoBySkuResult = {
+  ok: boolean;
+  sku: string;
+  id_producto?: number;
+  odoo_id?: number;
+  titulo?: string;
+  message: string;
+  stats: SyncStats;
+  errors: string[];
+};
