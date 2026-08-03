@@ -2881,6 +2881,28 @@ img { max-width: 100%; display: block; }
   padding: 1rem;
 }
 
+.order-summary-totals {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 0.4rem;
+  column-gap: 0.75rem;
+}
+
+.order-summary-totals > div {
+  display: contents;
+}
+
+.order-summary-totals > div > strong {
+  text-align: right;
+  justify-self: end;
+}
+
+.confirmation-card .actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
 .admin-shell {
   display: grid;
   grid-template-columns: 210px 1fr;

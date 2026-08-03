@@ -155,7 +155,7 @@ export default async function ConfirmacionPage({
                 <span>Pago</span>
                 <strong>
                   {pagosMp
-                    .map((p) => `${p.estado} ${formatPrice(p.monto)}`)
+                    .map((p) => `${p.tipo_pago} · ${p.estado}`)
                     .join(" + ")}
                 </strong>
               </div>
