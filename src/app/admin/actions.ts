@@ -162,7 +162,7 @@ export async function uploadProductoImagen(id_producto: number, formData: FormDa
   const archivo = await prisma.archivo.create({
     data: {
       link,
-      tipo: file.type || "image",
+      tipo: "imagen_principal",
       descripcion: String(formData.get("descripcion") || "Imagen producto"),
     },
   });
@@ -170,8 +170,14 @@ export async function uploadProductoImagen(id_producto: number, formData: FormDa
     data: { id_archivo: archivo.id_archivo, id_producto },
   });
 
+  const producto = await prisma.producto.findUnique({
+    where: { id_producto },
+    select: { slug: true },
+  });
   revalidatePath(`/admin/productos/${id_producto}`);
   revalidatePath(`/catalogo/${id_producto}`);
+  if (producto?.slug) revalidatePath(`/producto/${producto.slug}`);
+  revalidatePath("/", "layout");
 }
 
 export async function deleteProductoImagen(id_producto: number, id_archivo: number) {
