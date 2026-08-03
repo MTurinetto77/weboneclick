@@ -10,6 +10,7 @@ import {
   formatStockShortageMessage,
 } from "@/lib/odoo-stock";
 import { getOdooConfig, isOdooSyncEnabled, type OdooConfig } from "@/lib/odoo-config";
+import { grossToNet, round2 } from "@/lib/odoo-amount";
 import {
   odooCallMethod,
   odooCreate,
@@ -18,8 +19,6 @@ import {
   odooSearchRead,
   odooWrite,
 } from "@/lib/odoo-write";
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 type VentaFull = Awaited<ReturnType<typeof loadVentaForOdoo>>;
 
@@ -383,11 +382,6 @@ async function loadTaxRates(taxIds: number[]): Promise<Map<number, OdooTax>> {
   return map;
 }
 
-function grossToNet(gross: number, taxRate: number): number {
-  if (taxRate <= 0) return round2(gross);
-  return round2(gross / (1 + taxRate));
-}
-
 /**
  * En instancias de prueba a veces hay impuestos duplicados (ej. IVA 21% + 19%).
  * Nos quedamos con un solo IVA AR de venta (21 o 10.5).
@@ -632,35 +626,13 @@ async function createOdooSaleOrder(
   const odooTotal = Number(created?.amount_total ?? 0);
   const diff = round2(targetTotal - odooTotal);
 
+  // El total cobrado en MP ya se alinea en checkout al redondeo Odoo
+  // (alignGrossesToOdooTotal). No ajustar price_unit neto acá: sumar el
+  // diff bruto al neto empeora el desvío (p.ej. OCWN-42: 83→85).
   if (Math.abs(diff) > 1) {
     throw new Error(
       `Total Odoo (${odooTotal}) no coincide con venta (${targetTotal}), diff=${diff}`
     );
-  }
-
-  if (Math.abs(diff) >= 0.01 && created?.order_line?.length) {
-    const lineIds = created.order_line;
-    const lines = await odooRead<{
-      id: number;
-      price_unit: number;
-      product_uom_qty: number;
-    }>("sale.order.line", lineIds, ["id", "price_unit", "product_uom_qty"]);
-    // No ajustar líneas de regalo (price_unit 0) ni notas
-    const adjustable = lines.filter(
-      (ln) => Number(ln.price_unit) > 0.009 && Number(ln.product_uom_qty) > 0,
-    );
-    let maxLine = adjustable[0];
-    for (const ln of adjustable) {
-      const curVal = (maxLine?.price_unit ?? 0) * (maxLine?.product_uom_qty ?? 1);
-      const lnVal = ln.price_unit * ln.product_uom_qty;
-      if (lnVal > curVal) maxLine = ln;
-    }
-    if (maxLine && maxLine.product_uom_qty > 0) {
-      const adjustPerUnit = diff / Number(maxLine.product_uom_qty);
-      await odooWrite("sale.order.line", [maxLine.id], {
-        price_unit: round2(maxLine.price_unit + adjustPerUnit),
-      });
-    }
   }
 
   if (created?.state === "draft") {

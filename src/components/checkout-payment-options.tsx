@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  alignGrossesToOdooTotal,
+  type AlignGrossItem,
+} from "@/lib/odoo-amount";
 import {
   getLastShippingQuote,
   SHIPPING_QUOTE_EVENT,
@@ -10,10 +14,10 @@ import {
 type Metodo = "tarjeta" | "mercado_pago";
 
 type Props = {
-  /** Total productos pagando con tarjeta (sin envío) */
-  totalTarjeta: number;
-  /** Total productos Mercado Pago contado (sin envío) */
-  totalContado: number;
+  /** Líneas cobro tarjeta (con alícuota) para alinear total a Odoo. */
+  itemsTarjeta: AlignGrossItem[];
+  /** Líneas cobro contado MP (con alícuota). */
+  itemsContado: AlignGrossItem[];
   /** Tope de cuotas del carrito (menor cuotas_max de los productos). */
   maxInstallments: number;
   mpConfigured: boolean;
@@ -46,8 +50,8 @@ function applyQuote(
 }
 
 export function CheckoutPaymentOptions({
-  totalTarjeta,
-  totalContado,
+  itemsTarjeta,
+  itemsContado,
   maxInstallments,
   mpConfigured,
   publicKey,
@@ -62,8 +66,22 @@ export function CheckoutPaymentOptions({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const brickEnabled = mpConfigured && !!publicKey;
-  const payTarjeta = Math.round((totalTarjeta + shippingCost) * 100) / 100;
-  const payContado = Math.round((totalContado + shippingCost) * 100) / 100;
+  const payTarjeta = useMemo(
+    () =>
+      alignGrossesToOdooTotal({
+        items: itemsTarjeta,
+        costo_envio: shippingCost,
+      }).total,
+    [itemsTarjeta, shippingCost],
+  );
+  const payContado = useMemo(
+    () =>
+      alignGrossesToOdooTotal({
+        items: itemsContado,
+        costo_envio: shippingCost,
+      }).total,
+    [itemsContado, shippingCost],
+  );
   // Retiro no exige CP; envío sí necesita cotización ok.
   const canPayDelivery = deliveryTipo === "retiro" || shippingOk;
   const needsCpWarning = deliveryTipo !== "retiro" && !shippingOk;

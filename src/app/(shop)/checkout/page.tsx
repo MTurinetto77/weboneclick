@@ -10,11 +10,13 @@ import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { computeTotals } from "@/lib/checkout-venta";
 import {
   cartMaxInstallments,
+  estimateIvaRate,
   ivaIncluded,
   resolveCart,
   resolveCheckoutEntregaDisponibilidad,
 } from "@/lib/cart";
 import { resolveAppliedCupon } from "@/lib/cupones";
+import type { AlignGrossItem } from "@/lib/odoo-amount";
 import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
@@ -66,10 +68,17 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const cuponMonto = cupon?.monto ?? 0;
   const totalsContado = computeTotals(cart, "mercado_pago", cuponMonto);
   const totalsTarjeta = computeTotals(cart, "tarjeta", cuponMonto);
-  const totalContado = totalsContado.total;
-  const totalTarjeta = totalsTarjeta.total;
   const descuentoCupon = totalsTarjeta.descuentoCupon;
   const regalo = await getRegaloApplicable(cart.subtotal);
+
+  const itemsTarjeta: AlignGrossItem[] = totalsTarjeta.itemsCobro.map((i) => ({
+    ...i,
+    rate: estimateIvaRate(i.titulo),
+  }));
+  const itemsContado: AlignGrossItem[] = totalsContado.itemsCobro.map((i) => ({
+    ...i,
+    rate: estimateIvaRate(i.titulo),
+  }));
 
   const addressDefaults =
     cliente?.direccion_principal ?? cliente?.direcciones[0] ?? null;
@@ -228,7 +237,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                     </tr>
                   )}
                   <CheckoutEnvioTotalRows
-                    subtotal={totalTarjeta}
+                    items={itemsTarjeta}
                     iva105={iva105}
                     iva21={iva21}
                   />
@@ -243,8 +252,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               {regalo ? <CheckoutGiftSelector regalo={regalo} /> : null}
 
               <CheckoutPaymentOptions
-                totalTarjeta={totalTarjeta}
-                totalContado={totalContado}
+                itemsTarjeta={itemsTarjeta}
+                itemsContado={itemsContado}
                 maxInstallments={cartMaxInstallments(cart.items)}
                 mpConfigured={mercadoPagoConfigured}
                 publicKey={mpPublicKey}

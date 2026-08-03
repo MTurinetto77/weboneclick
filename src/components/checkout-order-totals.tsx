@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  alignGrossesToOdooTotal,
+  type AlignGrossItem,
+} from "@/lib/odoo-amount";
 import {
   getLastShippingQuote,
   SHIPPING_QUOTE_EVENT,
@@ -17,12 +21,13 @@ function formatArs(value: number): string {
 }
 
 type Props = {
-  subtotal: number;
+  /** Líneas de cobro (tarjeta) con alícuota para alinear al redondeo Odoo. */
+  items: AlignGrossItem[];
   iva105: number;
   iva21: number;
 };
 
-export function CheckoutEnvioTotalRows({ subtotal, iva105, iva21 }: Props) {
+export function CheckoutEnvioTotalRows({ items, iva105, iva21 }: Props) {
   const [quote, setQuote] = useState<ShippingQuoteDetail>(() => {
     return (
       getLastShippingQuote() ?? {
@@ -49,7 +54,16 @@ export function CheckoutEnvioTotalRows({ subtotal, iva105, iva21 }: Props) {
   }, []);
 
   const shippingCost = quote.tipo === "retiro" ? 0 : quote.ok ? quote.costo : 0;
-  const total = Math.round((subtotal + shippingCost) * 100) / 100;
+  const aligned = useMemo(
+    () =>
+      alignGrossesToOdooTotal({
+        items,
+        costo_envio: shippingCost,
+      }),
+    [items, shippingCost],
+  );
+  const total = aligned.total;
+  const displayShipping = aligned.costo_envio;
 
   let envioLabel: string;
   if (quote.tipo === "retiro") {
@@ -61,7 +75,7 @@ export function CheckoutEnvioTotalRows({ subtotal, iva105, iva21 }: Props) {
   } else if (quote.gratis) {
     envioLabel = "Envío gratis";
   } else {
-    envioLabel = formatArs(quote.costo);
+    envioLabel = formatArs(displayShipping);
   }
 
   return (

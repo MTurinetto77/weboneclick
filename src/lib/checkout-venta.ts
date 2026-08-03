@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { cartHasStockInWarehouse, deductStock, resolveCart, type ResolvedCart } from "@/lib/cart";
+import {
+  cartHasStockInWarehouse,
+  deductStock,
+  estimateIvaRate,
+  resolveCart,
+  type ResolvedCart,
+} from "@/lib/cart";
 import {
   ensureCheckoutIdempotencyKey,
   readCheckoutIdempotencyKey,
@@ -17,6 +23,7 @@ import {
   checkStockOdooWarehouse,
   formatStockShortageMessage,
 } from "@/lib/odoo-stock";
+import { alignGrossesToOdooTotal, round2 } from "@/lib/odoo-amount";
 import { resolveWarehouseOdooId } from "@/lib/odoo-venta";
 import { isOdooSyncEnabled } from "@/lib/odoo-config";
 import { CONTADO_DISCOUNT } from "@/lib/pricing";
@@ -25,8 +32,6 @@ import { ALMACEN_WEB_SELECT, sumSellableStock, type StockRow } from "@/lib/almac
 import { resolveSelectedRegaloProducto } from "@/lib/regalos";
 
 export type TipoPagoCheckout = "tarjeta" | "mercado_pago";
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 function field(fields: Record<string, string>, key: string): string {
   return String(fields[key] ?? "").trim();
@@ -183,8 +188,7 @@ export async function createPendingVenta(
   const {
     subtotal,
     descuento,
-    total: totalProductos,
-    itemsCobro,
+    itemsCobro: itemsCobroRaw,
     descuentoCupon,
   } = computeTotals(cart, tipo_pago, cupon?.monto ?? 0);
 
@@ -207,7 +211,25 @@ export async function createPendingVenta(
     costo_envio = quote.costo;
   }
 
-  const total = round2(totalProductos + costo_envio);
+  // Alinear brutos al total que Odoo calculará (IVA global), para que
+  // MP / venta.total / factura coincidan al centavo.
+  const aligned = alignGrossesToOdooTotal({
+    items: itemsCobroRaw.map((i) => ({
+      ...i,
+      rate: estimateIvaRate(i.titulo),
+    })),
+    costo_envio,
+  });
+  const itemsCobro = aligned.items.map(
+    ({ id_producto, titulo, cantidad, unit_price }) => ({
+      id_producto,
+      titulo,
+      cantidad,
+      unit_price,
+    }),
+  );
+  costo_envio = aligned.costo_envio;
+  const total = aligned.total;
 
   const warehouseOdooId = await resolveWarehouseOdooId(
     tipo_entrega,

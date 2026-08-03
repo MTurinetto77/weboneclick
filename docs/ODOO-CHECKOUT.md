@@ -195,7 +195,7 @@ Los precios de la web son **brutos** (IVA incluido). Al armar líneas:
 2. Se filtran a **un solo IVA AR** (21% o 10.5%) — en instancias de test a veces hay impuestos duplicados (21+19, 19+10.5).
 3. Se convierte a neto: `price_unit = bruto / (1 + tasa)`.
 4. La pricelist “Promociones Vigentes” puede aplicar descuentos; tras crear la orden se fuerza `discount = 0` y el `price_unit` cobrado.
-5. Se valida `|total_odoo − total_venta| ≤ 1`; si hay diferencia chica se ajusta la línea de mayor importe.
+5. Se valida `|total_odoo − total_venta| ≤ 1`. El total cobrado en MP ya se alinea en checkout al redondeo global de Odoo (`alignGrossesToOdooTotal` en `odoo-amount.ts`); no se ajusta el `price_unit` neto post-create.
 
 ### Cupón de descuento
 
