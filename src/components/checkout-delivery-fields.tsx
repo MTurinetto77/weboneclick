@@ -543,6 +543,67 @@ export function CheckoutDeliveryFields({
         )}
       </fieldset>
 
+      {!ningunaEntrega && tipoEntrega === "retiro" && retiroDisponible && (
+        <div className="oc-checkout-tienda-retiro">
+          <div className="oc-checkout-field">
+            <label>
+              Tienda de retiro <abbr title="obligatorio">*</abbr>
+            </label>
+            {tiendasLoading ? (
+              <p className="oc-checkout-cp-msg">Cargando tiendas…</p>
+            ) : ningunaTienda ? (
+              <p className="oc-checkout-cp-msg is-error">
+                {envioDisponible
+                  ? "Ninguna tienda tiene stock completo de tu carrito. Probá con envío a domicilio."
+                  : "Ninguna tienda tiene stock completo de tu carrito."}
+              </p>
+            ) : (
+              <select
+                name="tienda_retiro"
+                required
+                value={tiendaSeleccionada}
+                onChange={(e) => setTiendaSeleccionada(e.target.value)}
+              >
+                <option value="" disabled>
+                  Seleccioná una tienda
+                </option>
+                {tiendas
+                  .filter((t) => t.disponible)
+                  .map((t) => (
+                    <option key={t.id_tienda} value={t.id_tienda}>
+                      {t.nombre} — {t.direccion}, {t.localidad}
+                    </option>
+                  ))}
+              </select>
+            )}
+          </div>
+          {tiendaSeleccionada && (
+            <div className="oc-checkout-note">
+              {(() => {
+                const t = tiendas.find(
+                  (x) => String(x.id_tienda) === tiendaSeleccionada
+                );
+                if (!t) return null;
+                return (
+                  <>
+                    <strong>{t.nombre}</strong>
+                    <br />
+                    {t.direccion}, {t.localidad}, {t.provincia}
+                    {t.horarios && (
+                      <>
+                        <br />
+                        <span className="muted">{t.horarios}</span>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+              {onlineNote}
+            </div>
+          )}
+        </div>
+      )}
+
       {!ningunaEntrega && (
         <>
           <div className="oc-checkout-otra-persona">
@@ -630,67 +691,6 @@ export function CheckoutDeliveryFields({
                 }
               />
             </CollapsiblePanel>
-          )}
-
-          {tipoEntrega === "retiro" && retiroDisponible && (
-            <div className="oc-checkout-tienda-retiro">
-              <div className="oc-checkout-field">
-                <label>
-                  Tienda de retiro <abbr title="obligatorio">*</abbr>
-                </label>
-                {tiendasLoading ? (
-                  <p className="oc-checkout-cp-msg">Cargando tiendas…</p>
-                ) : ningunaTienda ? (
-                  <p className="oc-checkout-cp-msg is-error">
-                    {envioDisponible
-                      ? "Ninguna tienda tiene stock completo de tu carrito. Probá con envío a domicilio."
-                      : "Ninguna tienda tiene stock completo de tu carrito."}
-                  </p>
-                ) : (
-                  <select
-                    name="tienda_retiro"
-                    required
-                    value={tiendaSeleccionada}
-                    onChange={(e) => setTiendaSeleccionada(e.target.value)}
-                  >
-                    <option value="" disabled>
-                      Seleccioná una tienda
-                    </option>
-                    {tiendas
-                      .filter((t) => t.disponible)
-                      .map((t) => (
-                        <option key={t.id_tienda} value={t.id_tienda}>
-                          {t.nombre} — {t.direccion}, {t.localidad}
-                        </option>
-                      ))}
-                  </select>
-                )}
-              </div>
-              {tiendaSeleccionada && (
-                <div className="oc-checkout-note">
-                  {(() => {
-                    const t = tiendas.find(
-                      (x) => String(x.id_tienda) === tiendaSeleccionada
-                    );
-                    if (!t) return null;
-                    return (
-                      <>
-                        <strong>{t.nombre}</strong>
-                        <br />
-                        {t.direccion}, {t.localidad}, {t.provincia}
-                        {t.horarios && (
-                          <>
-                            <br />
-                            <span className="muted">{t.horarios}</span>
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
-                  {onlineNote}
-                </div>
-              )}
-            </div>
           )}
         </>
       )}
