@@ -1,6 +1,7 @@
 /**
- * Sincroniza stock por almacén desde Odoo (stock.quant).
- * Pensado para cron frecuente.
+ * Sincroniza stock por almacén vendible desde Odoo (stock.quant).
+ * Pensado para cron frecuente (recomendado: cada 1 min).
+ * Si ya hay un sync en curso, sale con skipped=true (no solapa).
  *
  *   npm run sync:stock
  *   npm run sync:stock -- --dry-run
@@ -15,6 +16,11 @@ async function main() {
 
   const stats = await runStockSync({ dryRun });
   console.log(JSON.stringify(stats, null, 2));
+
+  if (stats.skipped) {
+    console.log("Stock sync skipped (lock): already running");
+    return;
+  }
 
   if (!dryRun) {
     const stockRows = await prisma.stock.count();
@@ -46,8 +52,11 @@ async function main() {
     );
   }
 
-  if (stats.errors.length) {
-    console.error(`Completed with ${stats.errors.length} errors`);
+  const realErrors = stats.errors.filter(
+    (e) => !e.includes("omitido: ya hay una sincronización")
+  );
+  if (realErrors.length) {
+    console.error(`Completed with ${realErrors.length} errors`);
     process.exitCode = 1;
   } else {
     console.log("Stock sync OK");

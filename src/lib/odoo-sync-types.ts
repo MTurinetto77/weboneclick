@@ -12,6 +12,8 @@ export type SyncStats = {
   stock: { upserted: number };
   errors: string[];
   dryRun: boolean;
+  /** true si el sync no corrió porque ya había otro en curso (lock). */
+  skipped?: boolean;
 };
 
 export type SyncBatchResult = {

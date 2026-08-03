@@ -3,9 +3,11 @@ import { isCronAuthorized } from "@/lib/cron-auth";
 import { runStockSync } from "@/lib/odoo-sync";
 
 /**
- * Cron: sincroniza stock por almacén desde Odoo.
+ * Cron: sincroniza stock por almacén vendible desde Odoo.
  * Auth: Authorization: Bearer $CRON_SECRET
- * Uso frecuente (constante).
+ *
+ * Recomendado: cada 1 minuto desde la VPS de cron.
+ * Anti-solapamiento: si ya corre un sync, responde 200 con `{ skipped: true }`.
  */
 export async function POST(req: Request) {
   if (!isCronAuthorized(req)) {

@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   executeKw,
@@ -11,7 +12,7 @@ import {
   type OdooMany2One,
 } from "@/lib/odoo";
 import { slugify } from "@/lib/slug";
-import { getSellableWarehouseOdooIds } from "@/lib/almacenes";
+import { withCronLock } from "@/lib/cron-lock";
 import type { SyncBatchResult, SyncStats, SyncType } from "@/lib/odoo-sync-types";
 
 export type { SyncBatchResult, SyncStats, SyncType } from "@/lib/odoo-sync-types";
@@ -865,7 +866,7 @@ export async function syncProductos(stats: SyncStats, options?: { skipImages?: b
 }
 
 /**
- * Lote de stock: chunk de productos, read_group + persistir ese chunk.
+ * Lote de stock: chunk de productos, read_group (solo almacenes vendibles) + upsert.
  */
 export async function runStockSyncBatch(options?: {
   offset?: number;
@@ -896,24 +897,33 @@ export async function runStockSyncBatch(options?: {
     };
   }
 
-  const almacenes = await prisma.almacen.findMany({
-    where: { odoo_id: { not: null } },
+  /** Solo almacenes vendibles en la web (retiro con tienda o envío a domicilio). */
+  const sellableAlmacenes = await prisma.almacen.findMany({
+    where: {
+      odoo_id: { not: null },
+      OR: [{ id_tienda: { not: null } }, { es_envio_domicilio: true }],
+    },
     select: { id_almacen: true, odoo_id: true },
   });
   const almacenByOdoo = new Map(
-    almacenes
+    sellableAlmacenes
       .filter((a): a is { id_almacen: number; odoo_id: number } => a.odoo_id != null)
       .map((a) => [a.odoo_id, a.id_almacen])
   );
-  if (!almacenByOdoo.size) {
-    stats.errors.push("stock: no hay almacenes con odoo_id; corré sync de almacenes primero");
+  const sellableAlmacenIds = [...new Set(almacenByOdoo.values())];
+  const sellableWarehouseOdooIds = [...almacenByOdoo.keys()];
+
+  if (!sellableWarehouseOdooIds.length) {
+    stats.errors.push(
+      "stock: no hay almacenes vendibles con odoo_id (id_tienda o es_envio_domicilio)"
+    );
     return {
       type: "stock",
       processed: 0,
       total: productos.length,
       done: true,
       nextOffset: 0,
-      message: "Faltan almacenes sincronizados",
+      message: "Faltan almacenes vendibles sincronizados",
       stats,
       errors: stats.errors,
     };
@@ -921,7 +931,6 @@ export async function runStockSyncBatch(options?: {
 
   const total = productos.length;
   const chunk = productos.slice(offset, offset + STOCK_CHUNK);
-  const pdpWarehouseOdooIds = new Set(await getSellableWarehouseOdooIds());
   const productoByOdoo = new Map(chunk.map((p) => [p.odoo_id!, p.id_producto]));
   const odooIds = [...productoByOdoo.keys()];
 
@@ -936,7 +945,7 @@ export async function runStockSyncBatch(options?: {
         [
           ["product_id", "in", odooIds],
           ["location_id.usage", "=", "internal"],
-          ["warehouse_id", "!=", false],
+          ["warehouse_id", "in", sellableWarehouseOdooIds],
         ],
         ["quantity:sum", "reserved_quantity:sum", "product_id", "warehouse_id"],
         ["product_id", "warehouse_id"]
@@ -962,40 +971,50 @@ export async function runStockSyncBatch(options?: {
     }
   }
 
+  // Garantizar fila (qty 0) en cada almacén vendible para que el PDP no asuma "sin sync".
   for (const p of chunk) {
     const map = byProduct.get(p.id_producto)!;
-    for (const odooWh of pdpWarehouseOdooIds) {
-      const id_almacen = almacenByOdoo.get(odooWh);
-      if (id_almacen != null && !map.has(id_almacen)) map.set(id_almacen, 0);
+    for (const id_almacen of sellableAlmacenIds) {
+      if (!map.has(id_almacen)) map.set(id_almacen, 0);
     }
   }
 
   if (!stats.dryRun) {
+    const productIds = chunk.map((p) => p.id_producto);
+    const rows: { id_producto: number; id_almacen: number; cantidad: number }[] = [];
     for (const p of chunk) {
       const map = byProduct.get(p.id_producto)!;
-      try {
-        await prisma.stock.deleteMany({ where: { id_producto: p.id_producto } });
-        const data = [...map.entries()].map(([id_almacen, cantidad]) => ({
-          id_producto: p.id_producto,
-          id_almacen,
-          cantidad,
-        }));
-        if (data.length) {
-          await prisma.stock.createMany({ data });
-        } else {
-          const fallback = [...almacenByOdoo.values()][0];
-          if (fallback != null) {
-            await prisma.stock.create({
-              data: { id_producto: p.id_producto, id_almacen: fallback, cantidad: 0 },
-            });
-          }
-        }
-        stats.stock.upserted += 1;
-      } catch (e) {
-        stats.errors.push(
-          `stock producto ${p.id_producto}: ${e instanceof Error ? e.message : String(e)}`
-        );
+      for (const [id_almacen, cantidad] of map.entries()) {
+        rows.push({ id_producto: p.id_producto, id_almacen, cantidad });
       }
+    }
+
+    try {
+      if (rows.length) {
+        const values = rows.map(
+          (r) =>
+            Prisma.sql`(${r.id_producto}, ${r.id_almacen}, ${r.cantidad})`
+        );
+        await prisma.$executeRaw`
+          INSERT INTO stock (id_producto, id_almacen, cantidad)
+          VALUES ${Prisma.join(values)}
+          ON DUPLICATE KEY UPDATE cantidad = VALUES(cantidad)
+        `;
+      }
+
+      // Quitar filas de almacenes no vendibles (deja de mostrar Corp/etc. stale en admin).
+      await prisma.stock.deleteMany({
+        where: {
+          id_producto: { in: productIds },
+          id_almacen: { notIn: sellableAlmacenIds },
+        },
+      });
+
+      stats.stock.upserted += chunk.length;
+    } catch (e) {
+      stats.errors.push(
+        `stock chunk ${offset} persist: ${e instanceof Error ? e.message : String(e)}`
+      );
     }
   } else {
     stats.stock.upserted += chunk.length;
@@ -1018,8 +1037,8 @@ export async function runStockSyncBatch(options?: {
 }
 
 /**
- * Llena `stock` desde `stock.quant` agrupado por almacén (warehouse_id).
- * Persiste filas por depósito con cantidad disponible (quantity − reserved).
+ * Llena `stock` desde `stock.quant` agrupado por almacén vendible (warehouse_id).
+ * Persiste con upsert (quantity − reserved); no borra filas vendibles a mitad de sync.
  */
 export async function syncStock(stats: SyncStats) {
   let offset = 0;
@@ -1044,14 +1063,28 @@ export async function runFullSync(options?: {
       offset = batch.nextOffset;
     }
   }
-  if (!options?.skipStock) await syncStock(stats);
+  if (!options?.skipStock) {
+    const locked = await withCronLock("sync-stock", async () => {
+      await syncStock(stats);
+    });
+    if (!locked.acquired) {
+      stats.skipped = true;
+      stats.errors.push("stock sync omitido: ya hay una sincronización en curso");
+    }
+  }
   return stats;
 }
 
 /** Solo sincroniza stock por almacén desde Odoo (`stock.quant`). Para cron/CLI. */
 export async function runStockSync(options?: { dryRun?: boolean }): Promise<SyncStats> {
   const stats = emptyStats(Boolean(options?.dryRun));
-  await syncStock(stats);
+  const locked = await withCronLock("sync-stock", async () => {
+    await syncStock(stats);
+  });
+  if (!locked.acquired) {
+    stats.skipped = true;
+    stats.errors.push("stock sync omitido: ya hay una sincronización en curso");
+  }
   return stats;
 }
 
