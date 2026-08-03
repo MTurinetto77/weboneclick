@@ -35,6 +35,7 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
     marca: param(sp, "marca"),
     min: param(sp, "min"),
     max: param(sp, "max"),
+    stock: param(sp, "stock"),
     orden: param(sp, "orden"),
     page: param(sp, "page"),
   };
@@ -66,6 +67,7 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
     order: orden,
     minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
     maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+    inStockOnly: query.stock === "1",
   });
 
   const pages = Math.max(1, Math.ceil(total / take));

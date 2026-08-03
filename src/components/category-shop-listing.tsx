@@ -58,6 +58,7 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
     marca: param(searchParams, "marca"),
     min: param(searchParams, "min"),
     max: param(searchParams, "max"),
+    stock: param(searchParams, "stock"),
     orden: param(searchParams, "orden"),
     page: param(searchParams, "page"),
   };
@@ -92,6 +93,7 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
     order: orden,
     minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
     maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+    inStockOnly: query.stock === "1",
   });
 
   const pages = Math.max(1, Math.ceil(total / take));

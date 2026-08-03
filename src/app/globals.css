@@ -6740,6 +6740,47 @@ img { max-width: 100%; display: block; }
   letter-spacing: 0.03em;
 }
 
+.oc-shop-stock-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  color: #1d1d1f;
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.oc-shop-stock-filter:hover {
+  color: #000;
+}
+
+.oc-shop-stock-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 1px solid #c7c7cc;
+  border-radius: 3px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.oc-shop-stock-filter.is-active .oc-shop-stock-check {
+  border-color: #1d1d1f;
+  background: #1d1d1f;
+}
+
+.oc-shop-stock-filter.is-active .oc-shop-stock-check::after {
+  content: "";
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translateY(-1px);
+}
+
 .oc-shop-range {
   position: relative;
   height: 28px;

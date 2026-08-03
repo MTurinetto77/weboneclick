@@ -544,6 +544,35 @@ async function currentPricesByProductIds(
   return map;
 }
 
+const PRODUCT_LIST_SELECT = {
+  id_producto: true,
+  titulo: true,
+  slug: true,
+  cuotas_max: true,
+  precios: {
+    orderBy: { fecha_desde: "desc" as const },
+    take: 1,
+    select: { fecha_desde: true, precio: true },
+  },
+  archivos: {
+    where: { archivo: { tipo: "imagen_principal" } },
+    take: 1,
+    select: { archivo: { select: { link: true } } },
+  },
+  stocks: {
+    include: {
+      almacen: {
+        select: {
+          odoo_id: true,
+          descripcion: true,
+          id_tienda: true,
+          es_envio_domicilio: true,
+        },
+      },
+    },
+  },
+} as const;
+
 export async function getActiveProducts(options?: {
   q?: string;
   categoriaId?: number;
@@ -556,6 +585,8 @@ export async function getActiveProducts(options?: {
   order?: ShopOrder;
   minPrice?: number;
   maxPrice?: number;
+  /** Solo productos con stock (misma regla que resolveStockAvailability) */
+  inStockOnly?: boolean;
   /** Si false, no carga badges de promo (default true) */
   withPromoBadges?: boolean;
 }): Promise<{ items: ProductListItem[]; total: number }> {
@@ -611,7 +642,7 @@ export async function getActiveProducts(options?: {
   const take = options?.take ?? 24;
   const skip = options?.skip ?? 0;
   const order = options?.order ?? "ultimos";
-  const needsPricePass =
+  const needsPrice =
     order === "precio-asc" ||
     order === "precio-desc" ||
     options?.minPrice != null ||
@@ -627,76 +658,50 @@ export async function getActiveProducts(options?: {
     }));
   }
 
-  if (!needsPricePass) {
-    const [rows, total] = await Promise.all([
-      prisma.producto.findMany({
-        where,
-        select: {
-          id_producto: true,
-          titulo: true,
-          slug: true,
-          cuotas_max: true,
-          precios: {
-            orderBy: { fecha_desde: "desc" },
-            take: 1,
-            select: { fecha_desde: true, precio: true },
-          },
-          archivos: {
-            where: { archivo: { tipo: "imagen_principal" } },
-            take: 1,
-            select: { archivo: { select: { link: true } } },
-          },
-          stocks: {
-            include: {
-              almacen: {
-                select: {
-                  odoo_id: true,
-                  descripcion: true,
-                  id_tienda: true,
-                  es_envio_domicilio: true,
-                },
-              },
+  // Ranking en memoria: stock primero, luego criterio de orden; luego paginar
+  const candidates = await prisma.producto.findMany({
+    where,
+    select: {
+      id_producto: true,
+      titulo: true,
+      stocks: {
+        include: {
+          almacen: {
+            select: {
+              odoo_id: true,
+              id_tienda: true,
+              es_envio_domicilio: true,
             },
           },
         },
-        orderBy:
-          order === "nombre" ? { titulo: "asc" } : { id_producto: "desc" },
-        take,
-        skip,
-      }),
-      prisma.producto.count({ where }),
-    ]);
-
-    const items: ProductListItem[] = rows.map((p) => {
-      const stock = resolveStockAvailability(p.stocks);
-      return {
-        id_producto: p.id_producto,
-        titulo: p.titulo,
-        slug: p.slug,
-        descripcion: "",
-        precio: pickCurrentPrice(p.precios),
-        imagen: p.archivos[0]?.archivo.link ?? null,
-        stockTotal: stock.stockTotal,
-        stockTracked: stock.stockTracked,
-        cuotas_max: p.cuotas_max,
-      };
-    });
-
-    return { items: await attachBadges(items), total };
-  }
-
-  // Orden/filtro por precio: resolver IDs + precio actual, luego paginar
-  const candidates = await prisma.producto.findMany({
-    where,
-    select: { id_producto: true, titulo: true },
+      },
+    },
   });
-  const priceMap = await currentPricesByProductIds(candidates.map((c) => c.id_producto));
 
-  let ranked = candidates.map((c) => ({
-    id_producto: c.id_producto,
-    titulo: c.titulo,
-    precio: priceMap.get(c.id_producto) ?? null,
-  }));
+  const priceMap = needsPrice
+    ? await currentPricesByProductIds(candidates.map((c) => c.id_producto))
+    : null;
+
+  type Ranked = {
+    id_producto: number;
+    titulo: string;
+    inStock: boolean;
+    precio: number | null;
+  };
+
+  let ranked: Ranked[] = candidates.map((c) => {
+    const stock = resolveStockAvailability(c.stocks);
+    return {
+      id_producto: c.id_producto,
+      titulo: c.titulo,
+      inStock: stock.inStock,
+      precio: priceMap?.get(c.id_producto) ?? null,
+    };
+  });
+
+  if (options?.inStockOnly) {
+    ranked = ranked.filter((r) => r.inStock);
+  }
 
   if (options?.minPrice != null) {
     ranked = ranked.filter((r) => r.precio != null && r.precio >= options.minPrice!);
@@ -706,13 +711,18 @@ export async function getActiveProducts(options?: {
   }
 
   ranked.sort((a, b) => {
+    if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
     if (order === "precio-asc") {
       return (a.precio ?? Number.POSITIVE_INFINITY) - (b.precio ?? Number.POSITIVE_INFINITY);
     }
     if (order === "precio-desc") {
       return (b.precio ?? Number.NEGATIVE_INFINITY) - (a.precio ?? Number.NEGATIVE_INFINITY);
     }
-    return a.titulo.localeCompare(b.titulo, "es");
+    if (order === "nombre") {
+      return a.titulo.localeCompare(b.titulo, "es");
+    }
+    // ultimos: id desc
+    return b.id_producto - a.id_producto;
   });
 
   const total = ranked.length;
@@ -721,34 +731,7 @@ export async function getActiveProducts(options?: {
 
   const rows = await prisma.producto.findMany({
     where: { id_producto: { in: pageIds } },
-    select: {
-      id_producto: true,
-      titulo: true,
-      slug: true,
-      cuotas_max: true,
-      precios: {
-        orderBy: { fecha_desde: "desc" },
-        take: 1,
-        select: { fecha_desde: true, precio: true },
-      },
-      archivos: {
-        where: { archivo: { tipo: "imagen_principal" } },
-        take: 1,
-        select: { archivo: { select: { link: true } } },
-      },
-      stocks: {
-        include: {
-          almacen: {
-            select: {
-              odoo_id: true,
-              descripcion: true,
-              id_tienda: true,
-              es_envio_domicilio: true,
-            },
-          },
-        },
-      },
-    },
+    select: PRODUCT_LIST_SELECT,
   });
   const byId = new Map(rows.map((r) => [r.id_producto, r]));
   const items: ProductListItem[] = pageIds

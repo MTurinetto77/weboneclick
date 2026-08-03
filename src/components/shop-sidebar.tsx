@@ -22,9 +22,27 @@ export function ShopSidebar({ facets, query, basePath = "/shop" }: Props) {
         query={query}
         basePath={basePath}
       />
+      <StockFilter query={query} basePath={basePath} />
       <CategoryFilter categories={facets.categories} query={query} basePath={basePath} />
       <BrandFilter brands={facets.brands} query={query} basePath={basePath} />
     </aside>
+  );
+}
+
+function StockFilter({ query, basePath }: { query: ShopQuery; basePath: string }) {
+  const active = query.stock === "1";
+  return (
+    <section className="oc-shop-facet">
+      <h3>Disponibilidad</h3>
+      <Link
+        href={buildShopHref(query, { stock: active ? undefined : "1" }, basePath)}
+        className={`oc-shop-stock-filter${active ? " is-active" : ""}`}
+        aria-pressed={active}
+      >
+        <span className="oc-shop-stock-check" aria-hidden="true" />
+        <span>Productos con stock</span>
+      </Link>
+    </section>
   );
 }
 

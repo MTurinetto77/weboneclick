@@ -4,6 +4,8 @@ export type ShopQuery = {
   marca?: string;
   min?: string;
   max?: string;
+  /** "1" = solo productos con stock */
+  stock?: string;
   orden?: string;
   page?: string;
 };
