@@ -1,6 +1,7 @@
 import type { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import { deductStock } from "@/lib/cart";
 import { releaseCuponForVenta } from "@/lib/cupones";
+import { sendOrderConfirmationEmail } from "@/lib/order-mail";
 import { syncVentaToOdoo } from "@/lib/odoo-venta";
 import { prisma } from "@/lib/prisma";
 
@@ -189,10 +190,15 @@ export async function applyMercadoPagoPayment(
       shouldSyncOdoo = true;
     });
 
-    if (shouldSyncOdoo && options?.syncOdoo !== false) {
-      syncVentaToOdoo(idVenta).catch((err) => {
-        console.error(`Odoo sync failed for venta ${idVenta}:`, err);
+    if (shouldSyncOdoo) {
+      sendOrderConfirmationEmail(idVenta).catch((err) => {
+        console.error("[order-mail] failed", { idVenta, err });
       });
+      if (options?.syncOdoo !== false) {
+        syncVentaToOdoo(idVenta).catch((err) => {
+          console.error(`Odoo sync failed for venta ${idVenta}:`, err);
+        });
+      }
     }
 
     return covered ? "approved" : "pending";
