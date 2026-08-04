@@ -6096,6 +6096,12 @@ img { max-width: 100%; display: block; }
   text-decoration: none;
 }
 
+.oc-checkout-field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #8e8e93;
+}
+
 .oc-checkout-field input,
 .oc-checkout-field select {
   width: 100%;

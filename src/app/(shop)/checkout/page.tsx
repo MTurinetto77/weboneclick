@@ -7,6 +7,7 @@ import { CheckoutGiftSelector } from "@/components/checkout-gift-selector";
 import { CheckoutIdempotencyBootstrap } from "@/components/checkout-idempotency-bootstrap";
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
+import { CheckoutTaxDocumentFields } from "@/components/checkout-tax-document-fields";
 import { computeTotals } from "@/lib/checkout-venta";
 import {
   cartMaxInstallments,
@@ -142,45 +143,15 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               </div>
             </div>
 
-            <div className="oc-checkout-grid-2">
-              <div className="oc-checkout-field">
-                <label>Tipo de documento</label>
-                <select
-                  name="tipo_documento"
-                  defaultValue={cliente?.tipo_documento === "CUIT" ? "CUIT" : "DNI"}
-                >
-                  <option value="DNI">DNI</option>
-                  <option value="CUIT">CUIT</option>
-                </select>
-              </div>
-              <div className="oc-checkout-field">
-                <label>Número de documento</label>
-                <input
-                  name="numero_documento"
-                  defaultValue={cliente?.numero_documento ?? ""}
-                />
-              </div>
-            </div>
+            <CheckoutTaxDocumentFields
+              defaultResponsabilidad={cliente?.responsabilidad_impositiva}
+              defaultTipoDocumento={cliente?.tipo_documento}
+              defaultNumeroDocumento={cliente?.numero_documento}
+            />
 
             <div className="oc-checkout-field">
               <label>Teléfono</label>
               <input name="telefono" type="tel" defaultValue={cliente?.telefono ?? ""} />
-            </div>
-
-            <div className="oc-checkout-field">
-              <label>
-                Responsabilidad impositiva <abbr title="obligatorio">*</abbr>
-              </label>
-              <select
-                name="responsabilidad_impositiva"
-                required
-                defaultValue={
-                  cliente?.responsabilidad_impositiva === "RI" ? "RI" : "CF"
-                }
-              >
-                <option value="CF">Consumidor Final</option>
-                <option value="RI">IVA responsable inscripto</option>
-              </select>
             </div>
 
             <div className="oc-checkout-field">

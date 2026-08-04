@@ -115,8 +115,8 @@ export async function createPendingVenta(
   const apellido = field(fields, "apellido");
   let mail = field(fields, "mail").toLowerCase();
   const telefono = field(fields, "telefono") || null;
-  const tipo_documento = field(fields, "tipo_documento") || null;
-  const numero_documento = field(fields, "numero_documento") || null;
+  let tipo_documento = field(fields, "tipo_documento") || null;
+  let numero_documento = field(fields, "numero_documento") || null;
   const responsabilidadRaw = field(fields, "responsabilidad_impositiva").toUpperCase();
   const responsabilidad_impositiva =
     responsabilidadRaw === "RI" ? "RI" : "CF";
@@ -131,6 +131,16 @@ export async function createPendingVenta(
 
   if (!nombre || !apellido || !mail) {
     throw new Error("Completá nombre, apellido y mail");
+  }
+  if (responsabilidad_impositiva === "RI") {
+    const cuitDigits = String(numero_documento ?? "").replace(/\D/g, "");
+    if (cuitDigits.length !== 11) {
+      throw new Error(
+        "Como responsable inscripto debés ingresar un CUIT de 11 dígitos",
+      );
+    }
+    tipo_documento = "CUIT";
+    numero_documento = cuitDigits;
   }
   if (tipo_entrega !== "envio" && tipo_entrega !== "retiro") {
     throw new Error("Tipo de entrega inválido");
