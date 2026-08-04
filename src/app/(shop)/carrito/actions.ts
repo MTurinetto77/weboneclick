@@ -10,7 +10,7 @@ import {
   resolveCart,
   type CartLine,
 } from "@/lib/cart";
-import { getActiveProducts, pickCurrentPrice } from "@/lib/products";
+import { getActiveProducts, pickCurrentPriceInfo, precioEfectivo } from "@/lib/products";
 import { uploadPublicUrl } from "@/lib/utils";
 
 async function getStockState(id_producto: number): Promise<{
@@ -135,16 +135,17 @@ export async function addToCartWithSummary(input: {
         titulo: p.titulo,
         slug: p.slug,
         imagen: p.imagen ? uploadPublicUrl(p.imagen) : null,
-        precio: p.precio,
+        precio: precioEfectivo(p.precio, p.precio_con_desc),
       }));
   }
 
   const imagenLink = product.archivos[0]?.archivo.link ?? null;
+  const priceInfo = pickCurrentPriceInfo(product.precios);
   return {
     ok: true,
     titulo: product.titulo,
     imagen: imagenLink ? uploadPublicUrl(imagenLink) : null,
-    precio: pickCurrentPrice(product.precios),
+    precio: precioEfectivo(priceInfo.precio, priceInfo.precio_con_desc),
     cantidad,
     itemCount: cart.itemCount,
     subtotal: cart.subtotal,

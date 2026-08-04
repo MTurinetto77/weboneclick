@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/add-to-cart";
+import { ProductPrice } from "@/components/product-price";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
+import { precioEfectivo, type ProductListItem } from "@/lib/products";
 import { uploadPublicUrl } from "@/lib/utils";
-import type { ProductListItem } from "@/lib/products";
 
 /** Card de producto estilo OneClick (cuotas en rojo + CTA animado). */
 export function ProductCard({ product }: { product: ProductListItem }) {
-  const sinImp = precioSinImpuestos(product.precio);
+  const venta = precioEfectivo(product.precio, product.precio_con_desc);
+  const sinImp = precioSinImpuestos(venta);
   const cuotas = product.cuotas_max ?? 12;
   const outOfStock = product.stockTracked && product.stockTotal <= 0;
 
@@ -44,7 +46,11 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         <Link href={`/producto/${product.slug}`}>
           <h3>{product.titulo}</h3>
         </Link>
-        <p className="oc-price">{formatPriceArs(product.precio)}</p>
+        <ProductPrice
+          precio={product.precio}
+          porcentaje_desc={product.porcentaje_desc}
+          precio_con_desc={product.precio_con_desc}
+        />
         <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>
         <p className="oc-contado">Pagando contado 10% de descuento</p>
         {sinImp != null && (

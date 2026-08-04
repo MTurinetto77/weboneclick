@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
-import { pickCurrentPrice } from "@/lib/products";
+import { pickCurrentPriceInfo } from "@/lib/products";
 
 type Params = Promise<{ slug: string }>;
 
@@ -29,17 +29,22 @@ export default async function EtiquetaPage({ params }: { params: Params }) {
     take: 48,
   });
 
-  const items = rows.map((p) => ({
-    id_producto: p.id_producto,
-    titulo: p.titulo,
-    slug: p.slug,
-    descripcion: p.descripcion,
-    precio: pickCurrentPrice(p.precios),
-    imagen: p.archivos[0]?.archivo.link ?? null,
-    stockTotal: p.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
-    stockTracked: p.stocks.length > 0,
-    cuotas_max: p.cuotas_max,
-  }));
+  const items = rows.map((p) => {
+    const priceInfo = pickCurrentPriceInfo(p.precios);
+    return {
+      id_producto: p.id_producto,
+      titulo: p.titulo,
+      slug: p.slug,
+      descripcion: p.descripcion,
+      precio: priceInfo.precio,
+      porcentaje_desc: priceInfo.porcentaje_desc,
+      precio_con_desc: priceInfo.precio_con_desc,
+      imagen: p.archivos[0]?.archivo.link ?? null,
+      stockTotal: p.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
+      stockTracked: p.stocks.length > 0,
+      cuotas_max: p.cuotas_max,
+    };
+  });
 
   return (
     <div className="container">

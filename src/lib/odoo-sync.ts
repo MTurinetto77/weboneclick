@@ -11,6 +11,7 @@ import {
   searchRead,
   type OdooMany2One,
 } from "@/lib/odoo";
+import { getOdooConfig } from "@/lib/odoo-config";
 import { slugify } from "@/lib/slug";
 import { withCronLock } from "@/lib/cron-lock";
 import type {
@@ -113,6 +114,34 @@ type OdooCompanyPrice = {
   product_tmpl_id: OdooMany2One;
   company_id: OdooMany2One;
   price: number;
+};
+
+/** Regla de descuento de product.pricelist.item (Promociones Vigentes). */
+type OdooPricelistItem = {
+  id: number;
+  product_id: OdooMany2One;
+  product_tmpl_id: OdooMany2One;
+  compute_price: string;
+  percent_price: number;
+  fixed_price: number;
+  min_quantity: number;
+  date_start: string | false;
+  date_end: string | false;
+};
+
+type PromoRule = {
+  percent: number | null;
+  fixed: number | null;
+};
+
+type PromoMaps = {
+  byProductId: Map<number, PromoRule>;
+  byTmplId: Map<number, PromoRule>;
+};
+
+type ResolvedPromo = {
+  porcentaje_desc: number | null;
+  precio_con_desc: number | null;
 };
 
 function emptyStats(dryRun: boolean): SyncStats {
@@ -606,6 +635,143 @@ async function loadCompanyPriceMap(): Promise<Map<number, number>> {
   return priceByTmpl;
 }
 
+function todayIsoDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Carga ítems vigentes de la pricelist “Promociones Vigentes” (odoo_pricelist_id).
+ * Preferencia: regla por variante (product_id) sobre regla por template.
+ */
+async function loadPromoPricelistMap(pricelistId: number): Promise<PromoMaps> {
+  const today = todayIsoDate();
+  const domain: unknown[] = [
+    ["pricelist_id", "=", pricelistId],
+    ["min_quantity", "<=", 1],
+    "|",
+    ["date_start", "=", false],
+    ["date_start", "<=", today],
+    "|",
+    ["date_end", "=", false],
+    ["date_end", ">=", today],
+  ];
+  const items = await paginateAll<OdooPricelistItem>(
+    "product.pricelist.item",
+    domain,
+    [
+      "id",
+      "product_id",
+      "product_tmpl_id",
+      "compute_price",
+      "percent_price",
+      "fixed_price",
+      "min_quantity",
+      "date_start",
+      "date_end",
+    ]
+  );
+
+  const byProductId = new Map<number, PromoRule>();
+  const byTmplId = new Map<number, PromoRule>();
+
+  for (const item of items) {
+    const compute = String(item.compute_price || "");
+    let rule: PromoRule | null = null;
+    if (compute === "percentage") {
+      const percent = Number(item.percent_price);
+      if (Number.isFinite(percent) && percent > 0) {
+        rule = { percent, fixed: null };
+      }
+    } else if (compute === "fixed") {
+      const fixed = Number(item.fixed_price);
+      if (Number.isFinite(fixed) && fixed > 0) {
+        rule = { percent: null, fixed };
+      }
+    }
+    if (!rule) continue;
+
+    const productId = m2oId(item.product_id);
+    const tmplId = m2oId(item.product_tmpl_id);
+    if (productId) {
+      if (!byProductId.has(productId)) byProductId.set(productId, rule);
+    } else if (tmplId) {
+      if (!byTmplId.has(tmplId)) byTmplId.set(tmplId, rule);
+    }
+  }
+
+  return { byProductId, byTmplId };
+}
+
+function resolvePromoDiscount(
+  odooProductId: number,
+  tmplId: number,
+  precioLista: number,
+  promoMaps: PromoMaps
+): ResolvedPromo {
+  if (precioLista <= 0) {
+    return { porcentaje_desc: null, precio_con_desc: null };
+  }
+  const rule =
+    promoMaps.byProductId.get(odooProductId) ?? promoMaps.byTmplId.get(tmplId);
+  if (!rule) {
+    return { porcentaje_desc: null, precio_con_desc: null };
+  }
+
+  if (rule.percent != null && rule.percent > 0) {
+    const porcentaje_desc = Math.round(rule.percent * 100) / 100;
+    const precio_con_desc =
+      Math.round(precioLista * (1 - porcentaje_desc / 100) * 100) / 100;
+    if (precio_con_desc <= 0 || precio_con_desc >= precioLista) {
+      return { porcentaje_desc: null, precio_con_desc: null };
+    }
+    return { porcentaje_desc, precio_con_desc };
+  }
+
+  if (rule.fixed != null && rule.fixed > 0 && rule.fixed < precioLista) {
+    const precio_con_desc = Math.round(rule.fixed * 100) / 100;
+    const porcentaje_desc =
+      Math.round((1 - precio_con_desc / precioLista) * 10000) / 100;
+    return { porcentaje_desc, precio_con_desc };
+  }
+
+  return { porcentaje_desc: null, precio_con_desc: null };
+}
+
+function promoFieldsEqual(
+  latest: {
+    porcentaje_desc: Prisma.Decimal | null;
+    precio_con_desc: Prisma.Decimal | null;
+  } | null,
+  promo: ResolvedPromo
+): boolean {
+  if (!latest) return false;
+  const latestPct =
+    latest.porcentaje_desc != null && Number(latest.porcentaje_desc) > 0
+      ? Number(latest.porcentaje_desc)
+      : null;
+  const latestDesc =
+    latest.precio_con_desc != null && Number(latest.precio_con_desc) > 0
+      ? Number(latest.precio_con_desc)
+      : null;
+  const pctEqual =
+    latestPct == null && promo.porcentaje_desc == null
+      ? true
+      : latestPct != null &&
+        promo.porcentaje_desc != null &&
+        Math.abs(latestPct - promo.porcentaje_desc) < 0.005;
+  const descEqual =
+    latestDesc == null && promo.precio_con_desc == null
+      ? true
+      : latestDesc != null &&
+        promo.precio_con_desc != null &&
+        Math.abs(latestDesc - promo.precio_con_desc) < 0.015;
+  return pctEqual && descEqual;
+}
+
 async function loadProductLookupMaps() {
   const [brands, tags, cats] = await Promise.all([
     prisma.marca.findMany({ where: { odoo_id: { not: null } } }),
@@ -627,6 +793,7 @@ async function upsertProductoRow(
     tagByOdoo: Map<number, number>;
     catByOdoo: Map<number, number>;
     priceByTmpl: Map<number, number>;
+    promoMaps: PromoMaps;
   }
 ): Promise<number | null> {
   const titulo = pickProductTitle(row);
@@ -696,14 +863,41 @@ async function upsertProductoRow(
   }
 
   const tmplId = m2oId(row.product_tmpl_id) ?? row.id;
-  // Precio web = bruto (IVA incluido). Campo Odoo: taxed_lst_price
-  // ("(= $ X impuestos incluidos)"). price/list_price son netos.
+  const precio = computePrecioListaBruto(row, maps.priceByTmpl);
+  if (precio > 0) {
+    await upsertPrecioProductoFromOdoo({
+      id_producto,
+      odooProductId: row.id,
+      tmplId,
+      precio,
+      promoMaps: maps.promoMaps,
+      stats,
+      dryRun: stats.dryRun,
+    });
+  }
+
+  return id_producto;
+}
+
+/**
+ * Precio web bruto (IVA incluido) a partir de taxed_lst_price / company / list_price.
+ */
+function computePrecioListaBruto(
+  row: {
+    id: number;
+    taxed_lst_price?: number;
+    list_price: number;
+    product_tmpl_id: OdooMany2One;
+  },
+  priceByTmpl: Map<number, number>
+): number {
+  const tmplId = m2oId(row.product_tmpl_id) ?? row.id;
   const taxed =
     typeof row.taxed_lst_price === "number" && row.taxed_lst_price > 0
       ? Number(row.taxed_lst_price)
       : 0;
   const companyNet =
-    maps.priceByTmpl.get(tmplId) ?? maps.priceByTmpl.get(row.id) ?? 0;
+    priceByTmpl.get(tmplId) ?? priceByTmpl.get(row.id) ?? 0;
   const listNet = Number(row.list_price) > 0 ? Number(row.list_price) : 0;
   let precio = taxed;
   if (
@@ -712,27 +906,67 @@ async function upsertProductoRow(
     listNet > 0 &&
     Math.abs(companyNet - listNet) >= 0.02
   ) {
-    // Precio por compañía distinto del list_price: escalar el bruto.
     precio = Math.round(((companyNet * taxed) / listNet) * 100) / 100;
   } else if (!precio) {
     precio = companyNet || listNet;
   }
-  if (precio > 0) {
-    const latest = await prisma.precio_producto.findFirst({
-      where: { id_producto },
-      orderBy: { fecha_desde: "desc" },
-    });
-    if (!latest || Number(latest.precio) !== precio) {
-      await prisma.$executeRaw`
-        INSERT INTO precio_producto (id_producto, fecha_desde, precio)
-        VALUES (${id_producto}, CURDATE(), ${precio})
-        ON DUPLICATE KEY UPDATE precio = VALUES(precio)
-      `;
-      stats.precios.inserted += 1;
-    }
+  return precio;
+}
+
+/**
+ * Escribe precio de lista + descuento pricelist en la fila de hoy.
+ * Si el producto no está en la pricelist, limpia porcentaje_desc / precio_con_desc.
+ */
+async function upsertPrecioProductoFromOdoo(args: {
+  id_producto: number;
+  odooProductId: number;
+  tmplId: number;
+  precio: number;
+  promoMaps: PromoMaps;
+  stats: SyncStats;
+  dryRun: boolean;
+}): Promise<void> {
+  const { id_producto, odooProductId, tmplId, precio, promoMaps, stats, dryRun } =
+    args;
+  if (precio <= 0) return;
+
+  const promo = resolvePromoDiscount(odooProductId, tmplId, precio, promoMaps);
+  const latest = await prisma.precio_producto.findFirst({
+    where: { id_producto },
+    orderBy: { fecha_desde: "desc" },
+  });
+  const priceChanged = !latest || Number(latest.precio) !== precio;
+  const promoChanged = !promoFieldsEqual(latest, promo);
+  if (!priceChanged && !promoChanged) return;
+
+  if (dryRun) {
+    stats.precios.inserted += 1;
+    return;
   }
 
-  return id_producto;
+  const fechaHoy = new Date();
+  fechaHoy.setHours(0, 0, 0, 0);
+  await prisma.precio_producto.upsert({
+    where: {
+      id_producto_fecha_desde: {
+        id_producto,
+        fecha_desde: fechaHoy,
+      },
+    },
+    create: {
+      id_producto,
+      fecha_desde: fechaHoy,
+      precio,
+      porcentaje_desc: promo.porcentaje_desc,
+      precio_con_desc: promo.precio_con_desc,
+    },
+    update: {
+      precio,
+      porcentaje_desc: promo.porcentaje_desc,
+      precio_con_desc: promo.precio_con_desc,
+    },
+  });
+  stats.precios.inserted += 1;
 }
 
 async function deactivateUnpublishedProducts(stats: SyncStats) {
@@ -795,8 +1029,9 @@ export async function runProductosSyncBatch(options?: {
     };
   }
 
-  const [priceByTmpl, maps] = await Promise.all([
+  const [priceByTmpl, promoMaps, maps] = await Promise.all([
     loadCompanyPriceMap(),
+    getOdooConfig().then((cfg) => loadPromoPricelistMap(cfg.pricelistId)),
     loadProductLookupMaps(),
   ]);
 
@@ -811,7 +1046,7 @@ export async function runProductosSyncBatch(options?: {
 
   for (const row of rows) {
     try {
-      await upsertProductoRow(row, stats, { ...maps, priceByTmpl });
+      await upsertProductoRow(row, stats, { ...maps, priceByTmpl, promoMaps });
     } catch (e) {
       stats.errors.push(`producto ${row.id}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -1125,6 +1360,106 @@ export async function runStockSync(options?: { dryRun?: boolean }): Promise<Sync
   return stats;
 }
 
+const PRECIO_PROMO_FIELDS = [
+  "id",
+  "list_price",
+  "taxed_lst_price",
+  "product_tmpl_id",
+] as const;
+
+/**
+ * Solo precios de lista + descuentos de pricelist “Promociones Vigentes”.
+ * No toca títulos, categorías, stock ni imágenes. Pensado para cron diario.
+ */
+export async function runPreciosPromoSync(options?: {
+  dryRun?: boolean;
+}): Promise<SyncStats> {
+  const stats = emptyStats(Boolean(options?.dryRun));
+  // Catálogo completo puede tardar; stale > default de stock.
+  const locked = await withCronLock(
+    "sync-precios-promo",
+    async () => {
+      await syncPreciosPromo(stats);
+    },
+    { staleMs: 45 * 60 * 1000 }
+  );
+  if (!locked.acquired) {
+    stats.skipped = true;
+    stats.errors.push(
+      "sync precios/promo omitido: ya hay una sincronización en curso"
+    );
+  }
+  return stats;
+}
+
+async function syncPreciosPromo(stats: SyncStats) {
+  const locals = await prisma.producto.findMany({
+    where: { odoo_id: { not: null }, activo: true },
+    select: { id_producto: true, odoo_id: true },
+  });
+  if (!locals.length) return;
+
+  const byOdoo = new Map(
+    locals
+      .filter((p): p is { id_producto: number; odoo_id: number } => p.odoo_id != null)
+      .map((p) => [p.odoo_id, p.id_producto])
+  );
+  const odooIds = [...byOdoo.keys()];
+
+  const [priceByTmpl, promoMaps] = await Promise.all([
+    loadCompanyPriceMap(),
+    getOdooConfig().then((cfg) => loadPromoPricelistMap(cfg.pricelistId)),
+  ]);
+
+  for (let i = 0; i < odooIds.length; i += PAGE) {
+    const chunk = odooIds.slice(i, i + PAGE);
+    let rows: OdooProduct[];
+    try {
+      rows = await searchRead<OdooProduct>(
+        "product.product",
+        [["id", "in", chunk]],
+        [...PRECIO_PROMO_FIELDS],
+        { limit: PAGE, order: "id asc" }
+      );
+    } catch (e) {
+      stats.errors.push(
+        `precios chunk ${i}: ${e instanceof Error ? e.message : String(e)}`
+      );
+      continue;
+    }
+
+    const seen = new Set<number>();
+    for (const row of rows) {
+      seen.add(row.id);
+      const id_producto = byOdoo.get(row.id);
+      if (!id_producto) continue;
+      try {
+        const tmplId = m2oId(row.product_tmpl_id) ?? row.id;
+        const precio = computePrecioListaBruto(row, priceByTmpl);
+        await upsertPrecioProductoFromOdoo({
+          id_producto,
+          odooProductId: row.id,
+          tmplId,
+          precio,
+          promoMaps,
+          stats,
+          dryRun: stats.dryRun,
+        });
+      } catch (e) {
+        stats.errors.push(
+          `precio odoo_id=${row.id}: ${e instanceof Error ? e.message : String(e)}`
+        );
+      }
+    }
+
+    for (const oid of chunk) {
+      if (!seen.has(oid)) {
+        stats.errors.push(`precio odoo_id=${oid}: no encontrado en Odoo`);
+      }
+    }
+  }
+}
+
 /** Sincroniza imagen principal + galería para un conjunto de odoo_id de product.product. */
 export async function syncProductImagesForOdooIds(
   odooIds: number[],
@@ -1289,11 +1624,16 @@ export async function syncProductoBySku(
   const titulo = pickProductTitle(row);
 
   try {
-    const [priceByTmpl, maps] = await Promise.all([
+    const [priceByTmpl, promoMaps, maps] = await Promise.all([
       loadCompanyPriceMap(),
+      getOdooConfig().then((cfg) => loadPromoPricelistMap(cfg.pricelistId)),
       loadProductLookupMaps(),
     ]);
-    const id_producto = await upsertProductoRow(row, stats, { ...maps, priceByTmpl });
+    const id_producto = await upsertProductoRow(row, stats, {
+      ...maps,
+      priceByTmpl,
+      promoMaps,
+    });
 
     if (!id_producto && !stats.dryRun) {
       return {

@@ -162,7 +162,26 @@ export default async function CarritoPage() {
                               </div>
                             </td>
                             <td className="oc-cart-price">
-                              {formatPriceArs(item.precio)}
+                              {item.porcentajeDesc != null &&
+                              item.precioLista != null &&
+                              item.precio != null &&
+                              item.precioLista > item.precio ? (
+                                <div className="oc-price-block">
+                                  <p className="oc-price-old">
+                                    {formatPriceArs(item.precioLista)}
+                                  </p>
+                                  <p className="oc-price-row">
+                                    <span className="oc-price-pct">
+                                      −{Math.round(item.porcentajeDesc)}%
+                                    </span>
+                                    <span className="oc-price oc-price-sale">
+                                      {formatPriceArs(item.precio)}
+                                    </span>
+                                  </p>
+                                </div>
+                              ) : (
+                                formatPriceArs(item.precio)
+                              )}
                             </td>
                             <td>
                               <CartQtyControl

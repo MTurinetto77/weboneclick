@@ -11,7 +11,12 @@ export type ProductListItem = {
   titulo: string;
   slug: string;
   descripcion: string;
+  /** Precio de lista bruto (IVA incluido). */
   precio: number | null;
+  /** % descuento pricelist Promociones Vigentes; null si no aplica. */
+  porcentaje_desc: number | null;
+  /** Precio bruto con descuento; null si no aplica. */
+  precio_con_desc: number | null;
   imagen: string | null;
   stockTotal: number;
   /** true si hay filas de stock en DB (sincronizado); false = stock desconocido */
@@ -20,6 +25,25 @@ export type ProductListItem = {
   /** Ruta de imagen de etiqueta de promo (esquina superior derecha de la card) */
   promoBadge?: string | null;
 };
+
+export type CurrentPriceInfo = {
+  /** Precio de lista bruto. */
+  precio: number | null;
+  porcentaje_desc: number | null;
+  precio_con_desc: number | null;
+};
+
+/** Precio de venta: con descuento de pricelist si existe. */
+export function precioEfectivo(
+  precio: number | null | undefined,
+  precioConDesc?: number | null
+): number | null {
+  if (precioConDesc != null && Number(precioConDesc) > 0) {
+    return Number(precioConDesc);
+  }
+  if (precio == null) return null;
+  return Number(precio);
+}
 
 /**
  * Disponibilidad de stock (solo almacenes vendibles).
@@ -125,15 +149,46 @@ export type AppliedCharacteristicFilter = {
   max?: number;
 };
 
-function pickCurrentPrice(
-  precios: { fecha_desde: Date; precio: Prisma.Decimal }[],
+function pickCurrentPriceInfo(
+  precios: {
+    fecha_desde: Date;
+    precio: Prisma.Decimal;
+    porcentaje_desc?: Prisma.Decimal | null;
+    precio_con_desc?: Prisma.Decimal | null;
+  }[],
   today = new Date()
-): number | null {
+): CurrentPriceInfo {
   const eligible = precios
     .filter((p) => p.fecha_desde <= today)
     .sort((a, b) => b.fecha_desde.getTime() - a.fecha_desde.getTime());
-  if (!eligible.length) return null;
-  return Number(eligible[0].precio);
+  if (!eligible.length) {
+    return { precio: null, porcentaje_desc: null, precio_con_desc: null };
+  }
+  const row = eligible[0];
+  const porcentaje_desc =
+    row.porcentaje_desc != null ? Number(row.porcentaje_desc) : null;
+  const precio_con_desc =
+    row.precio_con_desc != null ? Number(row.precio_con_desc) : null;
+  return {
+    precio: Number(row.precio),
+    porcentaje_desc:
+      porcentaje_desc != null && porcentaje_desc > 0 ? porcentaje_desc : null,
+    precio_con_desc:
+      precio_con_desc != null && precio_con_desc > 0 ? precio_con_desc : null,
+  };
+}
+
+/** Precio de lista vigente (max fecha_desde ≤ hoy). */
+function pickCurrentPrice(
+  precios: {
+    fecha_desde: Date;
+    precio: Prisma.Decimal;
+    porcentaje_desc?: Prisma.Decimal | null;
+    precio_con_desc?: Prisma.Decimal | null;
+  }[],
+  today = new Date()
+): number | null {
+  return pickCurrentPriceInfo(precios, today).precio;
 }
 
 let categoryTreeCache: { id_categoria: number; id_cat_superior: number | null }[] | null = null;
@@ -381,7 +436,9 @@ export async function getShopFacets(options?: { ids?: number[] }): Promise<ShopF
     }),
     ids
       ? prisma.$queryRaw<{ min_p: Prisma.Decimal | null; max_p: Prisma.Decimal | null }[]>`
-          SELECT MIN(pp.precio) AS min_p, MAX(pp.precio) AS max_p
+          SELECT
+            MIN(COALESCE(pp.precio_con_desc, pp.precio)) AS min_p,
+            MAX(COALESCE(pp.precio_con_desc, pp.precio)) AS max_p
           FROM precio_producto pp
           INNER JOIN producto p ON p.id_producto = pp.id_producto
           WHERE p.activo = 1
@@ -394,7 +451,9 @@ export async function getShopFacets(options?: { ids?: number[] }): Promise<ShopF
             )
         `
       : prisma.$queryRaw<{ min_p: Prisma.Decimal | null; max_p: Prisma.Decimal | null }[]>`
-          SELECT MIN(pp.precio) AS min_p, MAX(pp.precio) AS max_p
+          SELECT
+            MIN(COALESCE(pp.precio_con_desc, pp.precio)) AS min_p,
+            MAX(COALESCE(pp.precio_con_desc, pp.precio)) AS max_p
           FROM precio_producto pp
           INNER JOIN producto p ON p.id_producto = pp.id_producto
           WHERE p.activo = 1
@@ -533,12 +592,20 @@ async function currentPricesByProductIds(
       fecha_desde: { lte: new Date() },
     },
     orderBy: { fecha_desde: "desc" },
-    select: { id_producto: true, precio: true },
+    select: {
+      id_producto: true,
+      precio: true,
+      precio_con_desc: true,
+    },
   });
   const map = new Map<number, number>();
   for (const row of rows) {
     if (!map.has(row.id_producto)) {
-      map.set(row.id_producto, Number(row.precio));
+      const efectivo = precioEfectivo(
+        Number(row.precio),
+        row.precio_con_desc != null ? Number(row.precio_con_desc) : null
+      );
+      if (efectivo != null) map.set(row.id_producto, efectivo);
     }
   }
   return map;
@@ -552,7 +619,12 @@ const PRODUCT_LIST_SELECT = {
   precios: {
     orderBy: { fecha_desde: "desc" as const },
     take: 1,
-    select: { fecha_desde: true, precio: true },
+    select: {
+      fecha_desde: true,
+      precio: true,
+      porcentaje_desc: true,
+      precio_con_desc: true,
+    },
   },
   archivos: {
     where: { archivo: { tipo: "imagen_principal" } },
@@ -739,12 +811,15 @@ export async function getActiveProducts(options?: {
     .filter(Boolean)
     .map((p) => {
       const stock = resolveStockAvailability(p!.stocks);
+      const priceInfo = pickCurrentPriceInfo(p!.precios);
       return {
         id_producto: p!.id_producto,
         titulo: p!.titulo,
         slug: p!.slug,
         descripcion: "",
-        precio: pickCurrentPrice(p!.precios),
+        precio: priceInfo.precio,
+        porcentaje_desc: priceInfo.porcentaje_desc,
+        precio_con_desc: priceInfo.precio_con_desc,
         imagen: p!.archivos[0]?.archivo.link ?? null,
         stockTotal: stock.stockTotal,
         stockTracked: stock.stockTracked,
@@ -771,9 +846,12 @@ export async function getProductById(id: number) {
   if (!product) return null;
 
   const stock = resolveStockAvailability(product.stocks);
+  const priceInfo = pickCurrentPriceInfo(product.precios);
   return {
     ...product,
-    precio: pickCurrentPrice(product.precios),
+    precio: priceInfo.precio,
+    porcentaje_desc: priceInfo.porcentaje_desc,
+    precio_con_desc: priceInfo.precio_con_desc,
     stockTotal: stock.stockTotal,
     stockTracked: stock.stockTracked,
     inStock: stock.inStock,
@@ -796,9 +874,12 @@ export async function getProductBySlug(slug: string) {
   if (!product) return null;
 
   const stock = resolveStockAvailability(product.stocks);
+  const priceInfo = pickCurrentPriceInfo(product.precios);
   return {
     ...product,
-    precio: pickCurrentPrice(product.precios),
+    precio: priceInfo.precio,
+    porcentaje_desc: priceInfo.porcentaje_desc,
+    precio_con_desc: priceInfo.precio_con_desc,
     stockTotal: stock.stockTotal,
     stockTracked: stock.stockTracked,
     inStock: stock.inStock,
@@ -939,4 +1020,4 @@ export function parseCharacteristicFilters(
   return applied;
 }
 
-export { pickCurrentPrice };
+export { pickCurrentPrice, pickCurrentPriceInfo };

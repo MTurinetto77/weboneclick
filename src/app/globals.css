@@ -1822,6 +1822,28 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-price { margin: 0.5rem 0 0; font-size: 0.875rem; font-weight: 600; color: #1d1d1f; }
+.oc-price-block { margin: 0.5rem 0 0; }
+.oc-price-block .oc-price { margin: 0; }
+.oc-price-old {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--oc-muted);
+  text-decoration: line-through;
+}
+.oc-price-row {
+  margin: 0.15rem 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.oc-price-pct {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--oc-red);
+}
+.oc-price-sale { color: var(--oc-red); }
 .oc-cuotas { margin: 0; color: var(--oc-red); font-size: 0.6875rem; font-weight: 400; }
 .oc-contado, .oc-sin-imp { margin: 0; font-size: 0.6875rem; color: var(--oc-muted); }
 .muted { color: var(--oc-muted); }

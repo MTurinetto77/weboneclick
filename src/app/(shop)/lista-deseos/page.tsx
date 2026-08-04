@@ -2,7 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/product-card";
-import { pickCurrentPrice } from "@/lib/products";
+import { pickCurrentPriceInfo } from "@/lib/products";
 
 export default async function ListaDeseosPage() {
   const session = await auth();
@@ -54,17 +54,22 @@ export default async function ListaDeseosPage() {
   const items =
     lista?.items
       .filter((i) => i.producto.activo)
-      .map((i) => ({
-        id_producto: i.producto.id_producto,
-        titulo: i.producto.titulo,
-        slug: i.producto.slug,
-        descripcion: i.producto.descripcion,
-        precio: pickCurrentPrice(i.producto.precios),
-        imagen: i.producto.archivos[0]?.archivo.link ?? null,
-        stockTotal: i.producto.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
-        stockTracked: i.producto.stocks.length > 0,
-        cuotas_max: i.producto.cuotas_max,
-      })) ?? [];
+      .map((i) => {
+        const priceInfo = pickCurrentPriceInfo(i.producto.precios);
+        return {
+          id_producto: i.producto.id_producto,
+          titulo: i.producto.titulo,
+          slug: i.producto.slug,
+          descripcion: i.producto.descripcion,
+          precio: priceInfo.precio,
+          porcentaje_desc: priceInfo.porcentaje_desc,
+          precio_con_desc: priceInfo.precio_con_desc,
+          imagen: i.producto.archivos[0]?.archivo.link ?? null,
+          stockTotal: i.producto.stocks.reduce((a, s) => a + Number(s.cantidad), 0),
+          stockTracked: i.producto.stocks.length > 0,
+          cuotas_max: i.producto.cuotas_max,
+        };
+      }) ?? [];
 
   return (
     <div className="container">

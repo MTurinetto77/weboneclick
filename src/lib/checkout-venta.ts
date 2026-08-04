@@ -484,7 +484,7 @@ export async function createPendingVenta(
               id_producto: item.id_producto,
               nombre_producto: item.titulo,
               cantidad: item.cantidad,
-              precio_unitario: item.precio!,
+              precio_unitario: item.precioLista ?? item.precio!,
               precio_cobrado: cobroByProduct.get(item.id_producto) ?? item.precio!,
               subtotal: item.subtotal!,
             })),

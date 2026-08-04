@@ -3,11 +3,13 @@ import Link from "next/link";
 import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
+import { ProductPrice } from "@/components/product-price";
 import { ProductReserveForm } from "@/components/product-reserve-form";
 import { ProductStoreAvailability } from "@/components/product-store-availability";
 import {
   getActiveProducts,
   getProductBySlug,
+  precioEfectivo,
   resolveStoreAvailability,
   sortProductImageLinks,
 } from "@/lib/products";
@@ -107,11 +109,12 @@ export default async function ProductoPage({ params }: { params: Params }) {
     }))
   );
   const cuotas = product.cuotas_max ?? 12;
-  const sinImp = precioSinImpuestos(product.precio);
+  const venta = precioEfectivo(product.precio, product.precio_con_desc);
+  const sinImp = precioSinImpuestos(venta);
   const inStock = product.inStock;
   const storeAvailability = resolveStoreAvailability(product.stocks);
   const cuotaMonto =
-    product.precio != null && cuotas > 0 ? Number(product.precio) / cuotas : null;
+    venta != null && cuotas > 0 ? Number(venta) / cuotas : null;
   const waReserve = whatsappUrl(product.titulo, product.id_producto, "reserva");
   const maxQty =
     product.stockTracked && product.stockTotal > 0
@@ -156,7 +159,11 @@ export default async function ProductoPage({ params }: { params: Params }) {
             </p>
           )}
           <h1>{product.titulo}</h1>
-          <p className="oc-price">{formatPriceArs(product.precio)}</p>
+          <ProductPrice
+            precio={product.precio}
+            porcentaje_desc={product.porcentaje_desc}
+            precio_con_desc={product.precio_con_desc}
+          />
 
           {inStock ? (
             <>

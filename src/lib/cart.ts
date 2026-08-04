@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { shopCookieOptions } from "@/lib/cookie-options";
 import { prisma } from "@/lib/prisma";
-import { pickCurrentPrice, resolveStockAvailability } from "@/lib/products";
+import { pickCurrentPriceInfo, precioEfectivo, resolveStockAvailability } from "@/lib/products";
 import {
   ALMACEN_WEB_SELECT,
   getShippingWarehouseOdooId,
@@ -24,7 +24,12 @@ export type ResolvedCartItem = {
   titulo: string;
   slug: string | null;
   cantidad: number;
+  /** Precio de venta (con descuento pricelist si aplica). */
   precio: number | null;
+  /** Precio de lista original; distinto de `precio` solo si hay promo. */
+  precioLista: number | null;
+  /** % descuento pricelist; null si no aplica. */
+  porcentajeDesc: number | null;
   /** Tope comercial de cuotas sin interés (Odoo x_studio_installments). */
   cuotas_max: number | null;
   /** Alícuota IVA estimada (0.105 | 0.21) para el desglose del total */
@@ -161,6 +166,8 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
         slug: null,
         cantidad: line.cantidad,
         precio: null,
+        precioLista: null,
+        porcentajeDesc: null,
         cuotas_max: null,
         ivaRate: 0.21,
         stockTotal: 0,
@@ -174,7 +181,13 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       continue;
     }
 
-    const precio = pickCurrentPrice(product.precios);
+    const priceInfo = pickCurrentPriceInfo(product.precios);
+    const precio = precioEfectivo(priceInfo.precio, priceInfo.precio_con_desc);
+    const precioLista = priceInfo.precio;
+    const porcentajeDesc =
+      priceInfo.precio_con_desc != null && priceInfo.porcentaje_desc != null
+        ? priceInfo.porcentaje_desc
+        : null;
     const stock = resolveStockAvailability(product.stocks as StockRow[]);
     const stockPorAlmacen = stockByWarehouseOdooId(product.stocks as StockRow[]);
     const disponible =
@@ -192,6 +205,8 @@ export async function resolveCart(lines?: CartLine[]): Promise<ResolvedCart> {
       slug: product.slug,
       cantidad: line.cantidad,
       precio,
+      precioLista,
+      porcentajeDesc,
       cuotas_max: product.cuotas_max,
       ivaRate: estimateIvaRate(product.titulo),
       stockTotal: stock.stockTotal,
