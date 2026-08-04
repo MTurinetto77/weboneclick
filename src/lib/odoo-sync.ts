@@ -55,10 +55,10 @@ const PRODUCT_FIELDS = [
 const TIENDA_SLUG_BY_WAREHOUSE_ODOO_ID: Record<number, string> = {
   1: "alto-rosario",
   7: "rosario-centro",
-  8: "palermo-soho",
+  8: "palermo",
   9: "dot-baires",
   10: "cordoba-shopping",
-  11: "solar-shopping",
+  11: "el-solar",
 };
 
 type OdooCategory = {
