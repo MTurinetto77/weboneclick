@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdminApi } from "@/lib/auth-guard";
+import { requireVentasApi } from "@/lib/auth-guard";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { syncVentaToOdoo } from "@/lib/odoo-venta";
 
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 /** POST /api/admin/odoo/sync-venta { id_venta: number } */
 export async function POST(req: Request) {
-  const session = await requireAdminApi();
+  const session = await requireVentasApi();
   if (!session && !isCronAuthorized(req)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

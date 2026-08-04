@@ -22,7 +22,7 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: S
         </p>
         {denied && (
           <div className="alert">
-            Acceso denegado. Tu cuenta no está registrada como administrador activo.
+            Acceso denegado. Tu cuenta no está autorizada para el panel.
           </div>
         )}
         {configError && (

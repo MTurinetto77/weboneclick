@@ -22,6 +22,7 @@ export default async function AdminNuevoUsuarioPage() {
             <label>Tipo usuario</label>
             <select name="tipo_usuario" defaultValue="admin">
               <option value="admin">admin</option>
+              <option value="vendedor">vendedor</option>
               <option value="cliente">cliente</option>
             </select>
           </div>

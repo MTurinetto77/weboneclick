@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireVentasAccess } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ type SearchParams = Promise<{
   hasta?: string;
   tipo_entrega?: string;
   estado?: string;
+  id_tienda?: string;
   page?: string;
 }>;
 
@@ -59,13 +60,14 @@ function formatDateTime(value: Date) {
 }
 
 export default async function AdminVentasPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requireVentasAccess();
   const params = await searchParams;
   const defaults = defaultDateRange();
   const desde = params.desde || defaults.desde;
   const hasta = params.hasta || defaults.hasta;
   const tipo_entrega = params.tipo_entrega?.trim() || "";
   const estado = params.estado?.trim() || "";
+  const id_tienda = Number(params.id_tienda || 0) || 0;
   const page = Math.max(1, Number(params.page || 1) || 1);
 
   const where: Prisma.ventaWhereInput = {
@@ -80,19 +82,28 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
   if (estado) {
     where.estado = estado;
   }
+  if (id_tienda > 0) {
+    where.id_tienda_retiro = id_tienda;
+  }
 
-  const [ventas, total] = await Promise.all([
+  const [ventas, total, tiendas] = await Promise.all([
     prisma.venta.findMany({
       where,
       include: {
         cliente: true,
         pagos: true,
+        tienda_retiro: true,
       },
       orderBy: { fecha_hora: "desc" },
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
     }),
     prisma.venta.count({ where }),
+    prisma.tienda.findMany({
+      where: { activo: true },
+      orderBy: { nombre: "asc" },
+      select: { id_tienda: true, nombre: true },
+    }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -103,6 +114,7 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
     sp.set("hasta", hasta);
     if (tipo_entrega) sp.set("tipo_entrega", tipo_entrega);
     if (estado) sp.set("estado", estado);
+    if (id_tienda > 0) sp.set("id_tienda", String(id_tienda));
     if (nextPage > 1) sp.set("page", String(nextPage));
     return `/admin/ventas?${sp.toString()}`;
   }
@@ -169,6 +181,17 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
             ))}
           </select>
         </div>
+        <div className="form-field" style={{ margin: 0, minWidth: "10rem" }}>
+          <label>Tienda</label>
+          <select name="id_tienda" defaultValue={id_tienda > 0 ? String(id_tienda) : ""}>
+            <option value="">Todas</option>
+            {tiendas.map((t) => (
+              <option key={t.id_tienda} value={t.id_tienda}>
+                {t.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
         <button className="btn btn-secondary" type="submit">
           Filtrar
         </button>
@@ -184,6 +207,7 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
             <th>Fecha</th>
             <th>Cliente</th>
             <th>Entrega</th>
+            <th>Tienda</th>
             <th>Estado</th>
             <th>Pago</th>
             <th>Total</th>
@@ -193,7 +217,7 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
         <tbody>
           {ventas.length === 0 ? (
             <tr>
-              <td colSpan={8} className="muted">
+              <td colSpan={9} className="muted">
                 No hay ventas en el período seleccionado.
               </td>
             </tr>
@@ -210,6 +234,7 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
                     <span className="muted">{v.cliente.mail}</span>
                   </td>
                   <td>{labelEntrega(v.tipo_entrega)}</td>
+                  <td>{v.tienda_retiro?.nombre ?? "—"}</td>
                   <td>{v.estado}</td>
                   <td>
                     {pago ? (

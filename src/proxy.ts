@@ -1,4 +1,5 @@
 import { auth } from "@/auth";
+import { canAccessAdminPanel, isAdmin, VENDEDOR_ROLE } from "@/lib/auth-guard";
 import { NextResponse } from "next/server";
 
 /**
@@ -33,17 +34,28 @@ export default auth((req) => {
 
   const { pathname } = req.nextUrl;
   const isLogin = pathname.startsWith("/admin/login");
-  const isAdmin = pathname.startsWith("/admin");
+  const isAdminPath = pathname.startsWith("/admin");
 
-  if (!isAdmin || isLogin) {
+  if (!isAdminPath || isLogin) {
     return NextResponse.next();
   }
 
   const role = req.auth?.user?.role;
-  if (!req.auth || role !== "admin") {
+  if (!req.auth || !canAccessAdminPanel(role)) {
     const url = new URL("/admin/login", req.nextUrl.origin);
     url.searchParams.set("error", "AccessDenied");
     return NextResponse.redirect(url);
+  }
+
+  if (isAdmin(role)) {
+    return NextResponse.next();
+  }
+
+  // Vendedor: solo /admin/ventas*
+  const isVentasPath =
+    pathname === "/admin/ventas" || pathname.startsWith("/admin/ventas/");
+  if (role === VENDEDOR_ROLE && !isVentasPath) {
+    return NextResponse.redirect(new URL("/admin/ventas", req.nextUrl.origin));
   }
 
   return NextResponse.next();

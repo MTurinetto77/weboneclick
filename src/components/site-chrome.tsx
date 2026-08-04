@@ -9,6 +9,7 @@ import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { SearchOverlay } from "@/components/search-overlay";
 import { uploadPublicUrl } from "@/lib/utils";
+import { canAccessAdminPanel, isAdmin } from "@/lib/auth-guard";
 
 export async function SiteHeader() {
   const [cart, session, valorEnvioGratis, promos] = await Promise.all([
@@ -18,7 +19,8 @@ export async function SiteHeader() {
     getActivePromosNav(),
   ]);
   const email = session?.user?.email;
-  const isAdmin = session?.user?.role === "admin";
+  const hasPanelAccess = canAccessAdminPanel(session?.user?.role);
+  const panelHref = isAdmin(session?.user?.role) ? "/admin" : "/admin/ventas";
 
   const drawerItems: CartDrawerItem[] = cart.items.map((i) => ({
     id_producto: i.id_producto,
@@ -152,8 +154,8 @@ export async function SiteHeader() {
                   <Link href="/lista-deseos" className="user-menu-item">
                     Lista de deseos
                   </Link>
-                  {isAdmin && (
-                    <Link href="/admin" className="user-menu-item">
+                  {hasPanelAccess && (
+                    <Link href={panelHref} className="user-menu-item">
                       Panel admin
                     </Link>
                   )}

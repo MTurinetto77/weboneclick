@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
+import { canAccessAdminPanel, isAdmin } from "@/lib/auth-guard";
 
 /** Evita prerender en build sin credenciales de DB. */
 export const dynamic = "force-dynamic";
@@ -28,9 +29,13 @@ const links = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
 
-  if (!session || session.user.role !== "admin") {
+  if (!session || !canAccessAdminPanel(session.user.role)) {
     return <>{children}</>;
   }
+
+  const visibleLinks = isAdmin(session.user.role)
+    ? links
+    : links.filter((l) => l.href === "/admin/ventas");
 
   return (
     <div className="admin-shell">
@@ -39,7 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           OneClick Admin
           <span>Panel</span>
         </div>
-        {links.map((link) => (
+        {visibleLinks.map((link) => (
           <Link key={link.href} href={link.href}>
             {link.label}
           </Link>

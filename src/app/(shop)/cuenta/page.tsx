@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth, isGoogleAuthConfigured, signIn, signOut } from "@/auth";
+import { canAccessAdminPanel, isAdmin } from "@/lib/auth-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,8 @@ export default async function CuentaPage() {
   const googleConfigured = isGoogleAuthConfigured();
 
   if (session?.user?.email) {
-    const isAdmin = session.user.role === "admin";
+    const hasPanelAccess = canAccessAdminPanel(session.user.role);
+    const panelHref = isAdmin(session.user.role) ? "/admin" : "/admin/ventas";
     return (
       <section className="section">
         <div className="container">
@@ -18,8 +20,8 @@ export default async function CuentaPage() {
             <h1 style={{ marginTop: 0 }}>Tu cuenta</h1>
             <p className="muted">{session.user.email}</p>
             <div className="actions">
-              {isAdmin && (
-                <Link href="/admin" className="btn btn-secondary">
+              {hasPanelAccess && (
+                <Link href={panelHref} className="btn btn-secondary">
                   Ir al panel admin
                 </Link>
               )}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OdooSyncRetryButton } from "@/components/admin/odoo-sync-retry-button";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireVentasAccess } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 
@@ -29,7 +29,7 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 }
 
 export default async function AdminVentaDetailPage({ params }: { params: Params }) {
-  await requireAdmin();
+  await requireVentasAccess();
   const { id } = await params;
   const id_venta = Number(id);
   if (!id_venta) notFound();

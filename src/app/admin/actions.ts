@@ -317,9 +317,9 @@ export async function deleteCaracteristica(id_caracteristica: number) {
 export async function createUsuario(formData: FormData) {
   await guard();
   const data = userFromForm(formData);
-  const usuario = await prisma.usuario.create({ data });
+  await prisma.usuario.create({ data });
   revalidatePath("/admin/usuarios");
-  redirect(`/admin/usuarios/${usuario.id_usuario}`);
+  redirect("/admin/usuarios");
 }
 
 export async function updateUsuario(id_usuario: number, formData: FormData) {

@@ -31,6 +31,7 @@ export default async function AdminUsuarioDetailPage({ params }: { params: Param
             <label>Tipo usuario</label>
             <select name="tipo_usuario" defaultValue={usuario.tipo_usuario}>
               <option value="admin">admin</option>
+              <option value="vendedor">vendedor</option>
               <option value="cliente">cliente</option>
             </select>
           </div>
