@@ -480,6 +480,10 @@ model venta {
   odoo_sync_error          String?   @db.Text
   odoo_sync_intentos       Int       @default(0)
   odoo_sync_at             DateTime?
+  /// Seguimiento comercial: si el cliente ya fue contactado
+  contactado               Boolean   @default(false)
+  /// Nota / comentario interno del vendedor
+  comentario               String?   @db.Text
 
   cliente  cliente         @relation(fields: [id_cliente], references: [id_cliente])
   detalles venta_detalle[]

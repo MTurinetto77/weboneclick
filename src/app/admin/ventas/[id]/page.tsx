@@ -4,8 +4,10 @@ import { OdooSyncRetryButton } from "@/components/admin/odoo-sync-retry-button";
 import { requireVentasAccess } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatPrice } from "@/lib/utils";
+import { updateVentaContacto } from "../actions";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ ok?: string }>;
 
 function labelEntrega(tipo: string) {
   return tipo === "retiro" ? "Retiro en tienda" : tipo === "envio" ? "Envío a domicilio" : tipo;
@@ -21,9 +23,16 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-export default async function AdminVentaDetailPage({ params }: { params: Params }) {
+export default async function AdminVentaDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
+}) {
   await requireVentasAccess();
   const { id } = await params;
+  const { ok } = await searchParams;
   const id_venta = Number(id);
   if (!id_venta) notFound();
 
@@ -49,6 +58,7 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
   const dirFact = venta.direccion_facturacion;
   const mismaFact =
     dirFact && dir && dirFact.id_direccion === dir.id_direccion;
+  const guardadoOk = ok === "1";
 
   return (
     <div>
@@ -63,6 +73,44 @@ export default async function AdminVentaDetailPage({ params }: { params: Params 
       </h1>
 
       <div className="admin-edit-grid">
+        <div className="admin-card admin-detail-span">
+          <h2>Seguimiento</h2>
+          {guardadoOk && (
+            <p className="admin-save-ok" style={{ margin: "0 0 0.55rem" }}>
+              Seguimiento guardado
+            </p>
+          )}
+          <form
+            action={updateVentaContacto.bind(null, venta.id_venta)}
+            className="admin-edit-inline"
+            style={{ alignItems: "flex-end" }}
+          >
+            <div className="form-field form-field-check" style={{ marginBottom: 0 }}>
+              <label>
+                <input
+                  type="checkbox"
+                  name="contactado"
+                  defaultChecked={venta.contactado}
+                />{" "}
+                Contactado
+              </label>
+            </div>
+            <div className="form-field" style={{ marginBottom: 0, flex: "1 1 16rem" }}>
+              <label htmlFor="comentario">Comentario</label>
+              <textarea
+                id="comentario"
+                name="comentario"
+                rows={2}
+                defaultValue={venta.comentario ?? ""}
+                placeholder="Notas internas sobre el contacto…"
+              />
+            </div>
+            <button className="btn btn-primary" type="submit">
+              Guardar
+            </button>
+          </form>
+        </div>
+
         <div className="admin-card">
           <h2>Cliente</h2>
           <div className="admin-detail-fields">

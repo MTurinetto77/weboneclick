@@ -40,6 +40,13 @@ function labelEntrega(tipo: string) {
   return tipo === "retiro" ? "Retiro" : tipo === "envio" ? "Envío" : tipo;
 }
 
+function truncateComentario(value: string | null | undefined, max = 60) {
+  if (!value) return "—";
+  const text = value.trim();
+  if (!text) return "—";
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 export default async function AdminVentasPage({ searchParams }: { searchParams: SearchParams }) {
   await requireVentasAccess();
   const params = await searchParams;
@@ -192,13 +199,15 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
             <th>Estado</th>
             <th>Pago</th>
             <th>Total</th>
+            <th>Contactado</th>
+            <th>Comentario</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {ventas.length === 0 ? (
             <tr>
-              <td colSpan={9} className="muted">
+              <td colSpan={11} className="muted">
                 No hay ventas en el período seleccionado.
               </td>
             </tr>
@@ -229,6 +238,10 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
                     )}
                   </td>
                   <td>{formatPrice(v.total)}</td>
+                  <td>{v.contactado ? "Sí" : "No"}</td>
+                  <td title={v.comentario?.trim() || undefined}>
+                    {truncateComentario(v.comentario)}
+                  </td>
                   <td>
                     <Link href={`/admin/ventas/${v.id_venta}`}>Ver</Link>
                   </td>
