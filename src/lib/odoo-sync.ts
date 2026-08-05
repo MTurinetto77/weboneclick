@@ -505,43 +505,8 @@ async function replaceGalleryImages(
 
 /** Productos que se muestran hoy en la home (destacados Apple/JBL/Accesorios + JBL + Potenciá). */
 export async function getHomeVisibleProductIds(): Promise<number[]> {
-  const [apple, jbl, accesoriosCat, fundasCat] = await Promise.all([
-    prisma.marca.findFirst({ where: { slug: "apple" }, select: { id_marca: true } }),
-    prisma.marca.findFirst({ where: { slug: "jbl" }, select: { id_marca: true } }),
-    prisma.categoria.findFirst({ where: { slug: "accesorios" }, select: { id_categoria: true } }),
-    prisma.categoria.findFirst({
-      where: { slug: "accesorios-fundas-y-cobertores" },
-      select: { id_categoria: true },
-    }),
-  ]);
-
-  const { getActiveProducts } = await import("@/lib/products");
-  const empty = { items: [] as { id_producto: number }[] };
-  const [destacadosApple, destacadosJbl, destacadosAccesorios, potencia] = await Promise.all([
-    apple ? getActiveProducts({ marcaId: apple.id_marca, take: 8 }) : Promise.resolve(empty),
-    jbl ? getActiveProducts({ marcaId: jbl.id_marca, take: 8 }) : Promise.resolve(empty),
-    accesoriosCat
-      ? getActiveProducts({ categoriaId: accesoriosCat.id_categoria, take: 8 })
-      : Promise.resolve(empty),
-    fundasCat
-      ? getActiveProducts({
-          categoriaId: fundasCat.id_categoria,
-          q: "iPhone 17",
-          take: 6,
-        })
-      : getActiveProducts({ q: "Funda", take: 6 }),
-  ]);
-
-  const ids = new Set<number>();
-  for (const p of [
-    ...destacadosApple.items,
-    ...destacadosJbl.items,
-    ...destacadosAccesorios.items,
-    ...potencia.items,
-  ]) {
-    ids.add(p.id_producto);
-  }
-  return [...ids];
+  const { getHomeSeccionProductIds } = await import("@/lib/secciones");
+  return getHomeSeccionProductIds();
 }
 
 /**

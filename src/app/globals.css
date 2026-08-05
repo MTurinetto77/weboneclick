@@ -3002,6 +3002,46 @@ img { max-width: 100%; display: block; }
   align-items: start;
 }
 
+.admin-secciones-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.admin-secciones-grid-flat {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 52rem;
+}
+
+.admin-secciones-grid > .admin-card {
+  margin: 0;
+  padding: 0.75rem;
+}
+
+.admin-secciones-grid h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.admin-secciones-grid .admin-table,
+.admin-secciones-grid .table {
+  font-size: 0.85rem;
+}
+
+.admin-secciones-grid .admin-table th,
+.admin-secciones-grid .admin-table td,
+.admin-secciones-grid .table th,
+.admin-secciones-grid .table td {
+  padding: 0.3rem 0.45rem;
+}
+
+@media (max-width: 1100px) {
+  .admin-secciones-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-edit-grid > .admin-card {
   margin: 0;
   padding: 0.75rem;

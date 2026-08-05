@@ -485,6 +485,19 @@ async function main() {
 
   const { seedOdooParametros } = await import("../src/lib/odoo-config");
   await seedOdooParametros();
+
+  // Slots fijos de secciones de productos en la home
+  for (const d of [
+    { clave: "destacados", nombre: "Destacados", orden: 1 },
+    { clave: "fiesta", nombre: "¡Llevá la fiesta a donde quieras!", orden: 2 },
+    { clave: "potencia", nombre: "Potenciá tu iPhone", orden: 3 },
+  ] as const) {
+    await prisma.seccion.upsert({
+      where: { clave: d.clave },
+      create: { clave: d.clave, nombre: d.nombre, activo: true, orden: d.orden },
+      update: {},
+    });
+  }
 }
 
 main()

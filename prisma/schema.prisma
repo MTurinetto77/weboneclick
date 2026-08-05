@@ -218,6 +218,35 @@ model producto {
   wishlist_items  lista_deseos_item[]
   promociones     promocion_producto[]
   regalos         regalo_producto[]
+  secciones       seccion_producto[]
+}
+
+/// Secciones de productos de la home (Destacados, Fiesta, Potenciá iPhone)
+model seccion {
+  id_seccion Int     @id @default(autoincrement())
+  /// Slot fijo en home: destacados | fiesta | potencia
+  clave      String  @unique @db.VarChar(50)
+  nombre     String  @db.VarChar(255)
+  activo     Boolean @default(true)
+  orden      Int     @default(0)
+
+  productos seccion_producto[]
+
+  @@map("secciones")
+}
+
+model seccion_producto {
+  id_seccion  Int
+  id_producto Int
+  /// Destacados: apple | jbl | accesorios. Otras secciones: ''
+  pestana     String @default("") @db.VarChar(50)
+  orden       Int    @default(0)
+
+  seccion  seccion  @relation(fields: [id_seccion], references: [id_seccion], onDelete: Cascade)
+  producto producto @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_seccion, id_producto, pestana])
+  @@map("secciones_productos")
 }
 
 model almacen {

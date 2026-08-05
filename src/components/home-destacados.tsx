@@ -3,30 +3,28 @@
 import { useState } from "react";
 import { ProductCard } from "@/components/product-card";
 import type { ProductListItem } from "@/lib/products";
-
-export type DestacadosTab = "apple" | "jbl" | "accesorios";
-
-const TABS: { id: DestacadosTab; label: string }[] = [
-  { id: "apple", label: "Apple" },
-  { id: "jbl", label: "JBL" },
-  { id: "accesorios", label: "Accesorios" },
-];
+import {
+  DESTACADOS_PESTANAS,
+  type DestacadosPestana,
+} from "@/lib/secciones-constants";
 
 export function HomeDestacados({
+  title,
   products,
 }: {
-  products: Record<DestacadosTab, ProductListItem[]>;
+  title: string;
+  products: Record<DestacadosPestana, ProductListItem[]>;
 }) {
-  const [tab, setTab] = useState<DestacadosTab>("apple");
+  const [tab, setTab] = useState<DestacadosPestana>("apple");
   const items = products[tab];
 
   return (
     <section className="oc-section oc-destacados">
       <div className="container">
         <div className="oc-destacados-head">
-          <h2>Destacados</h2>
+          <h2>{title}</h2>
           <div className="oc-seg" role="tablist" aria-label="Categorías destacadas">
-            {TABS.map((t) => {
+            {DESTACADOS_PESTANAS.map((t) => {
               const active = tab === t.id;
               return (
                 <button
