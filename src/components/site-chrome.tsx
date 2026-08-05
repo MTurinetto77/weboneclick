@@ -56,7 +56,10 @@ export async function SiteHeader() {
             className="oc-footer-apple"
           />
         </Link>
-        <CartTrigger itemCount={cart.itemCount} className="oc-header-mobile-cart" />
+        <div className="oc-header-mobile-actions">
+          <SearchOverlay />
+          <CartTrigger itemCount={cart.itemCount} className="oc-header-mobile-cart" />
+        </div>
       </div>
 
       <CartDrawer

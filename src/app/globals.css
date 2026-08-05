@@ -5551,6 +5551,12 @@ img { max-width: 100%; display: block; }
   display: none;
 }
 
+.oc-header-mobile-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .oc-logo-float-mobile img {
   height: 30px;
   width: auto;
