@@ -2,16 +2,15 @@
  * Escritura en Odoo (Oneclick Argentino SRL, company_id=1).
  */
 
-import { executeKw, searchRead } from "@/lib/odoo";
+import { executeKw, getOdooReadContext, searchRead } from "@/lib/odoo";
 import { getOdooConfig } from "@/lib/odoo-config";
 
 async function getWriteContext() {
   const cfg = await getOdooConfig();
-  return {
+  return getOdooReadContext({
     allowed_company_ids: [cfg.companyId],
     company_id: cfg.companyId,
-    lang: "es_AR",
-  };
+  });
 }
 
 export async function odooCreate(

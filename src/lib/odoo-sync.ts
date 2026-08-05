@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   executeKw,
+  getOdooReadContext,
   m2oId,
   readGroup,
   searchCount,
@@ -474,6 +475,7 @@ async function replaceGalleryImages(
     { id: number; name?: string; image_1920?: string | false; sequence?: number }[]
   >("product.image", "read", [imageIds], {
     fields: ["id", "name", "image_1920", "sequence"],
+    context: getOdooReadContext(),
   });
 
   // Preservar orden de imageIds / sequence
@@ -548,6 +550,7 @@ export async function syncImagesForProducts(options?: {
     { id: number; image_1920?: string | false; display_name?: string; name?: string }[]
   >("product.product", "read", [odooIds], {
     fields: ["id", "image_1920", "display_name", "name"],
+    context: getOdooReadContext(),
   });
 
   const byOdoo = new Map(products.map((p) => [p.odoo_id!, p]));
@@ -1451,6 +1454,7 @@ export async function syncProductImagesForOdooIds(
         }[]
       >("product.product", "read", [chunk], {
         fields: ["id", "name", "image_1920", "product_template_image_ids"],
+        context: getOdooReadContext(),
       });
 
       for (const row of rows) {

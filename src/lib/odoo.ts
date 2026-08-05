@@ -97,6 +97,16 @@ async function authenticate(): Promise<number> {
   return cachedUid;
 }
 
+/** Idioma de traducciones Odoo (label Spanish (AR) / Español (AR)). */
+export const ODOO_LANG = "es_AR";
+
+/** Contexto de lectura para campos traducibles (`name`, `display_name`, etc.). */
+export function getOdooReadContext(
+  extra: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return { lang: ODOO_LANG, ...extra };
+}
+
 export async function executeKw<T>(
   model: string,
   method: string,
@@ -127,11 +137,14 @@ export async function searchRead<T extends Record<string, unknown>>(
     limit: options.limit ?? 500,
     offset: options.offset ?? 0,
     order: options.order ?? "id asc",
+    context: getOdooReadContext(),
   });
 }
 
 export async function searchCount(model: string, domain: unknown[] = []): Promise<number> {
-  return executeKw<number>(model, "search_count", [domain]);
+  return executeKw<number>(model, "search_count", [domain], {
+    context: getOdooReadContext(),
+  });
 }
 
 export async function readGroup(
@@ -143,6 +156,7 @@ export async function readGroup(
 ): Promise<Record<string, unknown>[]> {
   return executeKw(model, "read_group", [domain, fields, groupby], {
     lazy: options.lazy ?? false,
+    context: getOdooReadContext(),
   });
 }
 
