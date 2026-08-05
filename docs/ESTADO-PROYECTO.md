@@ -56,6 +56,14 @@ No commitear secretos. Lo esperado:
 | `NEXT_PUBLIC_WHATSAPP_PHONE` | wa.me flotante y CTAs |
 | `NEXT_PUBLIC_UPLOADS_BASE_URL` | opcional; URLs públicas de imágenes |
 | `MERCADOPAGO_*` / `NEXT_PUBLIC_MERCADOPAGO_*` | cobro (ver checkout) |
+| `NEXT_PUBLIC_GA4_MEASUREMENT_ID` | GA4 (opcional) |
+| `NEXT_PUBLIC_META_PIXEL_ID` | Meta Pixel (opcional) |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID` | Google Ads conversion ID sin `AW-` (opcional) |
+| `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL` | Etiqueta conversión Purchase (opcional) |
+
+Analytics (GA4 / Meta Pixel / Google Ads) se cargan solo en `(shop)` vía `AnalyticsProvider`. Sin IDs en env no se inyectan scripts. Purchase + conversión Ads solo en `/checkout/confirmacion/[id]` con pago aprobado (dedupe `sessionStorage` por `id_venta`).
+
+**Verificación manual:** DevTools Network (`collect`, `fbevents`); Meta Pixel Helper / Tag Assistant; flujo PDP → cart → checkout → confirmación OK (una sola Purchase); fallo MP sin Purchase; `/admin` sin scripts marketing.
 
 IDs de journals / tipo pedido / producto envío, etc.: **tabla `parametro` grupo `odoo`** (no van en `.env`). Ver [ODOO-CHECKOUT.md](./ODOO-CHECKOUT.md).
 

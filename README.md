@@ -50,6 +50,10 @@ Editar `.env`:
 | `NEXT_PUBLIC_UPLOADS_BASE_URL` | Base pública de imágenes. Default `/api/uploads` |
 | `SEED_ADMIN_EMAIL` | Mail Google del admin (debe coincidir con la cuenta OAuth) |
 | `ODOO_URL` / `ODOO_DB` / `ODOO_UID` / `ODOO_API_KEY` | Sync de catálogo |
+| `NEXT_PUBLIC_GA4_MEASUREMENT_ID` | GA4 (ej. `G-XXXX`). Opcional |
+| `NEXT_PUBLIC_META_PIXEL_ID` | Meta Pixel ID. Opcional |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID` | ID de conversión Ads (número, sin `AW-`). Opcional |
+| `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL` | Etiqueta de conversión Purchase. Opcional |
 
 3. Crear la base y cargar datos:
 

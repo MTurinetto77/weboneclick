@@ -8,6 +8,7 @@ import { CheckoutIdempotencyBootstrap } from "@/components/checkout-idempotency-
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { CheckoutTaxDocumentFields } from "@/components/checkout-tax-document-fields";
+import { BeginCheckoutTracker } from "@/components/funnel-trackers";
 import { computeTotals } from "@/lib/checkout-venta";
 import {
   cartMaxInstallments,
@@ -112,8 +113,18 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     else iva21 += tax;
   }
 
+  const beginCheckoutItems = cart.items
+    .filter((i) => i.disponible && i.precio != null)
+    .map((i) => ({
+      item_id: String(i.id_producto),
+      item_name: i.titulo,
+      quantity: i.cantidad,
+      price: i.precio ?? undefined,
+    }));
+
   return (
     <div className="oc-checkout-page">
+      <BeginCheckoutTracker value={cart.subtotal} items={beginCheckoutItems} />
       <div className="container">
         <h1 className="oc-checkout-title">Finalizar compra</h1>
 

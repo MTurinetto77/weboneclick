@@ -154,6 +154,10 @@ Ver `.env.example`.
 | `SEED_ADMIN_EMAIL` | Mail del admin del seed / bypass |
 | `NEXT_PUBLIC_WHATSAPP_PHONE` | Número wa.me |
 | `UPLOADS_DIR` | Carpeta de imágenes (default `uploads`) |
+| `NEXT_PUBLIC_GA4_MEASUREMENT_ID` | GA4 (opcional) |
+| `NEXT_PUBLIC_META_PIXEL_ID` | Meta Pixel (opcional) |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID` | Ads conversion ID sin `AW-` (opcional) |
+| `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL` | Etiqueta Purchase (opcional) |
 
 ---
 

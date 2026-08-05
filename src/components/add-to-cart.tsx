@@ -8,6 +8,7 @@ import {
   addToCartWithSummary,
   type AddToCartSummary,
 } from "@/app/(shop)/carrito/actions";
+import { trackAddToCart } from "@/lib/analytics";
 
 function formatArs(value: number | null): string {
   if (value == null) return "Consultar";
@@ -28,6 +29,14 @@ export function useAddToCart() {
   function add(id_producto: number, cantidad = 1) {
     startTransition(async () => {
       const res = await addToCartWithSummary({ id_producto, cantidad });
+      if (res.ok) {
+        trackAddToCart({
+          item_id: String(res.id_producto),
+          item_name: res.titulo,
+          quantity: res.cantidad,
+          price: res.precio,
+        });
+      }
       setSummary(res);
       router.refresh();
     });

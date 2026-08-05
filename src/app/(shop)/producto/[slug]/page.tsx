@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ViewItemTracker } from "@/components/funnel-trackers";
 import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
@@ -133,6 +134,12 @@ export default async function ProductoPage({ params }: { params: Params }) {
 
   return (
     <div className="container oc-pdp">
+      <ViewItemTracker
+        itemId={String(product.id_producto)}
+        itemName={product.titulo}
+        price={venta}
+        itemCategory={product.categorias[0]?.categoria.nombre}
+      />
       <div className="oc-page-header">
         <nav className="oc-breadcrumb">
           <Link href="/">Inicio</Link>

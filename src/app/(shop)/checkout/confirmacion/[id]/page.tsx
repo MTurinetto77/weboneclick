@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { timingSafeEqual } from "crypto";
+import { PurchaseTracker } from "@/components/purchase-tracker";
 import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 
@@ -56,10 +57,24 @@ export default async function ConfirmacionPage({
     venta.estado === "pagada" ||
     pagosMp.some((p) => p.estado === "aprobado");
   const envio = venta.envios[0];
+  const purchaseItems = venta.detalles.map((d) => ({
+    item_id: String(d.id_producto),
+    item_name: d.nombre_producto,
+    quantity: Number(d.cantidad),
+    price: Number(d.precio_unitario),
+  }));
 
   return (
     <section className="section">
       <div className="container">
+        {pagoAprobado ? (
+          <PurchaseTracker
+            idVenta={venta.id_venta}
+            total={Number(venta.total)}
+            items={purchaseItems}
+            pagoAprobado={pagoAprobado}
+          />
+        ) : null}
         <div className="admin-card confirmation-card">
           <h1 style={{ marginTop: 0 }}>
             {pagoAprobado

@@ -66,6 +66,7 @@ export type AddToCartSummary =
   | { ok: false; error: string }
   | {
       ok: true;
+      id_producto: number;
       titulo: string;
       imagen: string | null;
       precio: number | null;
@@ -143,6 +144,7 @@ export async function addToCartWithSummary(input: {
   const priceInfo = pickCurrentPriceInfo(product.precios);
   return {
     ok: true,
+    id_producto,
     titulo: product.titulo,
     imagen: imagenLink ? uploadPublicUrl(imagenLink) : null,
     precio: precioEfectivo(priceInfo.precio, priceInfo.precio_con_desc),
