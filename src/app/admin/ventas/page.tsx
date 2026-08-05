@@ -2,7 +2,13 @@ import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { requireVentasAccess } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
+import {
+  endOfDayAr,
+  formatDateTime,
+  formatPrice,
+  startOfDayAr,
+  toDateInputValueAr,
+} from "@/lib/utils";
 
 type SearchParams = Promise<{
   desde?: string;
@@ -21,42 +27,17 @@ const TIPOS_ENTREGA = [
   { value: "retiro", label: "Retiro" },
 ] as const;
 
-function toDateInputValue(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function startOfDay(isoDate: string): Date {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
-}
-
-function endOfDay(isoDate: string): Date {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  return new Date(y, m - 1, d, 23, 59, 59, 999);
-}
-
 function defaultDateRange() {
-  const hasta = new Date();
-  const desde = new Date();
-  desde.setDate(desde.getDate() - 7);
+  const now = new Date();
+  const desde = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   return {
-    desde: toDateInputValue(desde),
-    hasta: toDateInputValue(hasta),
+    desde: toDateInputValueAr(desde),
+    hasta: toDateInputValueAr(now),
   };
 }
 
 function labelEntrega(tipo: string) {
   return tipo === "retiro" ? "Retiro" : tipo === "envio" ? "Envío" : tipo;
-}
-
-function formatDateTime(value: Date) {
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(value);
 }
 
 export default async function AdminVentasPage({ searchParams }: { searchParams: SearchParams }) {
@@ -72,8 +53,8 @@ export default async function AdminVentasPage({ searchParams }: { searchParams: 
 
   const where: Prisma.ventaWhereInput = {
     fecha_hora: {
-      gte: startOfDay(desde),
-      lte: endOfDay(hasta),
+      gte: startOfDayAr(desde),
+      lte: endOfDayAr(hasta),
     },
   };
   if (tipo_entrega === "envio" || tipo_entrega === "retiro") {

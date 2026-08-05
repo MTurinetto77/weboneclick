@@ -3,16 +3,9 @@ import { notFound } from "next/navigation";
 import { OdooSyncRetryButton } from "@/components/admin/odoo-sync-retry-button";
 import { requireVentasAccess } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import { formatPrice } from "@/lib/utils";
+import { formatDateTime, formatPrice } from "@/lib/utils";
 
 type Params = Promise<{ id: string }>;
-
-function formatDateTime(value: Date) {
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(value);
-}
 
 function labelEntrega(tipo: string) {
   return tipo === "retiro" ? "Retiro en tienda" : tipo === "envio" ? "Envío a domicilio" : tipo;

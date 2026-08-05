@@ -1,5 +1,37 @@
 import { Decimal } from "@prisma/client/runtime/library";
 
+/** Zona horaria de visualización admin (DB guarda UTC). */
+export const ARGENTINA_TZ = "America/Argentina/Buenos_Aires";
+
+/** Fecha/hora en horario argentino (UTC-3). */
+export function formatDateTime(value: Date): string {
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: ARGENTINA_TZ,
+  }).format(value);
+}
+
+/** YYYY-MM-DD del calendario en Argentina. */
+export function toDateInputValueAr(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: ARGENTINA_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+/** Inicio del día civil argentino → Instant UTC. */
+export function startOfDayAr(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00-03:00`);
+}
+
+/** Fin del día civil argentino → Instant UTC. */
+export function endOfDayAr(isoDate: string): Date {
+  return new Date(`${isoDate}T23:59:59.999-03:00`);
+}
+
 export function formatPrice(value: Decimal | number | string | null | undefined): string {
   if (value == null) return "Consultar";
   const num = typeof value === "object" && "toNumber" in value ? value.toNumber() : Number(value);
