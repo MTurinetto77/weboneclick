@@ -21,6 +21,20 @@ export function isContactFormId(value: string): value is ContactFormId {
 const INFO = "info@oneclickstore.com";
 const CORPORATIVO = "corporativo@oneclickstore.com";
 
+/** Destinatario de servicio técnico según la tienda elegida en el formulario. */
+const SERVICIO_TECNICO_MAIL_BY_TIENDA: Record<string, string> = {
+  "Palermo Soho": "rep.ps@oneclickstore.com",
+  "Dot Baires Shopping": "rep.dot@oneclickstore.com",
+  "Córdoba Shopping": "Rep.cs@oneclickstore.com",
+  "Rosario Centro": "Rep.rc@oneclickstore.com",
+  "Alto Rosario": "Rep.ar@oneclickstore.com",
+  "Solar Shopping": "rep.sol@oneclickstore.com",
+};
+
+function servicioTecnicoTo(tienda: string): string | null {
+  return SERVICIO_TECNICO_MAIL_BY_TIENDA[tienda] ?? null;
+}
+
 export type ContactPayload = {
   to: string;
   subject: string;
@@ -84,21 +98,24 @@ export async function buildContactPayload(
       const missing = req(fields, ["nombre", "telefono", "email", "entrega", "tienda", "modelo", "falla"]);
       if (missing) return { ok: false, error: missing };
       if (!emailOk(get("email"))) return { ok: false, error: "Email inválido" };
+      const tienda = get("tienda");
+      const to = servicioTecnicoTo(tienda);
+      if (!to) return { ok: false, error: "Tienda inválida" };
       const dispositivos = get("dispositivo")
         ? get("dispositivo").split(",").map((s) => s.trim()).filter(Boolean)
         : [];
       return {
         ok: true,
         payload: {
-          to: INFO,
-          subject: "Solicitud Servicio Técnico OneClick",
+          to,
+          subject: `Solicitud Servicio Técnico OneClick — ${tienda}`,
           replyTo: get("email"),
           text: [
             line("Nombre", get("nombre")),
             line("Teléfono", get("telefono")),
             line("Email", get("email")),
             line("Tipo de entrega", get("entrega")),
-            line("Tienda", get("tienda")),
+            line("Tienda", tienda),
             line("Dispositivo(s)", dispositivos.join(", ") || "—"),
             line("Modelo", get("modelo")),
             line("Nº de serie", get("serie") || "—"),
