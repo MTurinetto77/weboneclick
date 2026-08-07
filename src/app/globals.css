@@ -2465,6 +2465,152 @@ img { max-width: 100%; display: block; }
   }
 }
 
+/* —— Demo PDP variantes (iPhone 17) —— */
+.oc-demo-pdp-badge {
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--oc-muted, #6e6e73);
+  background: #f5f5f7;
+  border-radius: 4px;
+}
+
+.oc-demo-pdp-variant-name {
+  margin: -0.25rem 0 0.85rem;
+  font-size: 0.92rem;
+  color: var(--oc-muted, #6e6e73);
+}
+
+.oc-demo-pdp-price-block {
+  margin-bottom: 1.25rem;
+}
+
+.oc-demo-pdp-price-block .oc-price,
+.oc-demo-pdp-price-block .oc-price-old,
+.oc-demo-pdp-price-block .oc-price-row {
+  margin: 0;
+}
+
+.oc-demo-pdp-price-block .oc-cuotas,
+.oc-demo-pdp-price-block .oc-contado,
+.oc-demo-pdp-price-block .oc-sin-imp {
+  margin-top: 0.35rem;
+}
+
+.oc-demo-pdp-attr {
+  margin: 0 0 1.15rem;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.oc-demo-pdp-attr legend {
+  margin: 0 0 0.55rem;
+  padding: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--oc-ink);
+}
+
+.oc-demo-pdp-attr-value {
+  font-weight: 400;
+  color: var(--oc-muted, #6e6e73);
+}
+
+.oc-demo-pdp-attr-value::before {
+  content: "— ";
+}
+
+.oc-demo-pdp-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.oc-demo-pdp-pill {
+  appearance: none;
+  margin: 0;
+  padding: 0.55rem 0.95rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--oc-ink);
+  background: #fff;
+  border: 1px solid #d2d2d7;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.oc-demo-pdp-pill:hover {
+  border-color: #1d1d1f;
+}
+
+.oc-demo-pdp-pill.is-active {
+  border-color: #1d1d1f;
+  border-width: 2px;
+  padding: calc(0.55rem - 1px) calc(0.95rem - 1px);
+  background: #fafafa;
+}
+
+.oc-demo-pdp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.oc-demo-pdp-swatch {
+  appearance: none;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  outline-offset: 2px;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.oc-demo-pdp-swatch.is-light {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+}
+
+.oc-demo-pdp-swatch:hover {
+  transform: scale(1.06);
+}
+
+.oc-demo-pdp-swatch.is-active {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #1d1d1f;
+}
+
+.oc-demo-pdp .oc-pdp-add-btn {
+  width: 100%;
+  max-width: 22rem;
+  margin-bottom: 1rem;
+}
+
+.oc-demo-pdp-note {
+  margin-top: 0.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+.oc-demo-pdp-note p {
+  max-width: 42rem;
+  color: var(--oc-muted, #6e6e73);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
 .oc-pdp-stores {
   margin-top: 1.15rem;
   padding-top: 1rem;
