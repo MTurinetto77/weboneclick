@@ -944,20 +944,25 @@ async function deactivateUnpublishedProducts(stats: SyncStats) {
     PRODUCT_DOMAIN,
     ["id"]
   );
-  const publishedOdooIds = new Set(publishedRows.map((r) => r.id));
+  const publishedOdooIds = publishedRows.map((r) => r.id);
+  const publishedSet = new Set(publishedOdooIds);
+
   const locals = await prisma.producto.findMany({
     where: { odoo_id: { not: null }, activo: true },
     select: { id_producto: true, odoo_id: true },
   });
-  for (const p of locals) {
-    if (p.odoo_id && !publishedOdooIds.has(p.odoo_id)) {
-      await prisma.producto.update({
-        where: { id_producto: p.id_producto },
-        data: { activo: false },
-      });
-      stats.productos.deactivated += 1;
-    }
-  }
+  const toDeactivate = locals
+    .filter((p) => p.odoo_id != null && !publishedSet.has(p.odoo_id))
+    .map((p) => p.id_producto);
+
+  if (!toDeactivate.length) return;
+
+  // updateMany evita N round-trips (el último lote del sync suele estar al límite de timeout)
+  const result = await prisma.producto.updateMany({
+    where: { id_producto: { in: toDeactivate } },
+    data: { activo: false },
+  });
+  stats.productos.deactivated += result.count;
 }
 
 /**
@@ -984,14 +989,20 @@ export async function runProductosSyncBatch(options?: {
   }
 
   const total = await searchCount("product.product", PRODUCT_DOMAIN);
+  // Aunque no haya publicados, hay que desactivar los locales que quedaron fuera del dominio.
   if (total === 0) {
+    message = "Desactivando productos no publicados…";
+    await deactivateUnpublishedProducts(stats);
     return {
       type: "productos",
       processed: 0,
       total: 0,
       done: true,
       nextOffset: 0,
-      message: "No hay productos publicados web en Odoo",
+      message:
+        stats.productos.deactivated > 0
+          ? `Sin publicados en Odoo; desactivados ${stats.productos.deactivated} en el sitio`
+          : "No hay productos publicados web en Odoo",
       stats,
       errors: stats.errors,
     };
@@ -1027,7 +1038,10 @@ export async function runProductosSyncBatch(options?: {
   if (done) {
     message = "Desactivando productos no publicados…";
     await deactivateUnpublishedProducts(stats);
-    message = "Productos y precios sincronizados";
+    message =
+      stats.productos.deactivated > 0
+        ? `Productos y precios sincronizados (${stats.productos.deactivated} desactivados)`
+        : "Productos y precios sincronizados";
   }
 
   return {
@@ -1547,7 +1561,8 @@ export async function runImagesSyncBatch(options?: {
 
 /**
  * Sincroniza un producto por SKU (default_code Odoo): datos/precios, stock e imágenes.
- * No exige `x_studio_publicado_web` para permitir forzar sync desde admin.
+ * No exige `x_studio_publicado_web` para permitir forzar sync desde admin,
+ * pero si no está publicado deja el producto local inactivo.
  */
 export async function syncProductoBySku(
   rawSku: string,
@@ -1591,6 +1606,7 @@ export async function syncProductoBySku(
 
   const row = rows[0];
   const titulo = pickProductTitle(row);
+  const isPublishedWeb = row.x_studio_publicado_web === true;
 
   try {
     const [priceByTmpl, promoMaps, maps] = await Promise.all([
@@ -1621,6 +1637,20 @@ export async function syncProductoBySku(
       (await prisma.producto.findUnique({ where: { odoo_id: row.id } }))?.id_producto;
 
     if (localId) {
+      if (!isPublishedWeb && !stats.dryRun) {
+        const wasActive = await prisma.producto.findUnique({
+          where: { id_producto: localId },
+          select: { activo: true },
+        });
+        if (wasActive?.activo) {
+          await prisma.producto.update({
+            where: { id_producto: localId },
+            data: { activo: false },
+          });
+          stats.productos.deactivated += 1;
+        }
+      }
+
       await syncStockForProducts(
         [{ id_producto: localId, odoo_id: row.id }],
         stats,
@@ -1632,6 +1662,10 @@ export async function syncProductoBySku(
       stats.errors.push(...img.errors);
     }
 
+    const unpublishedNote = !isPublishedWeb
+      ? " (sin publicar en web → inactivo en el sitio)"
+      : "";
+
     return {
       ok: Boolean(localId),
       sku,
@@ -1640,8 +1674,8 @@ export async function syncProductoBySku(
       titulo,
       message: localId
         ? stats.errors.filter((e) => !e.includes("variantes con SKU")).length
-          ? `Producto "${titulo}" sincronizado con advertencias`
-          : `Producto "${titulo}" sincronizado (datos, stock e imágenes)`
+          ? `Producto "${titulo}" sincronizado con advertencias${unpublishedNote}`
+          : `Producto "${titulo}" sincronizado (datos, stock e imágenes)${unpublishedNote}`
         : `Error al sincronizar SKU "${sku}"`,
       stats,
       errors: stats.errors,
