@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import type { Prisma } from "@prisma/client";
 import {
   cartHasStockInWarehouse,
   deductStock,
@@ -35,6 +36,121 @@ export type TipoPagoCheckout = "tarjeta" | "mercado_pago";
 
 function field(fields: Record<string, string>, key: string): string {
   return String(fields[key] ?? "").trim();
+}
+
+/** Solo dígitos del documento (DNI/CUIT) para match fiscal estable. */
+export function normalizeDocumentoDigits(
+  numero: string | null | undefined,
+): string | null {
+  const digits = String(numero ?? "").replace(/\D/g, "");
+  return digits || null;
+}
+
+type ClienteRow = {
+  id_cliente: number;
+  mail: string;
+  id_usuario: number | null;
+  id_direccion_principal: number | null;
+  odoo_partner_id: number | null;
+  numero_documento: string | null;
+  fecha_hora_registro: Date;
+};
+
+/**
+ * Resuelve el cliente del checkout: mail → mismo documento → alta.
+ * Si hay dos registros (mails distintos, mismo DNI/CUIT), reutiliza el de
+ * identidad fiscal (prioriza el que ya tiene partner Odoo).
+ */
+async function resolveClienteForCheckout(
+  tx: Prisma.TransactionClient,
+  opts: {
+    mail: string;
+    nombre: string;
+    apellido: string;
+    telefono: string | null;
+    tipo_documento: string | null;
+    numero_documento: string | null;
+    responsabilidad_impositiva: string;
+    id_usuario: number | null;
+    isGuestCheckout: boolean;
+  },
+): Promise<ClienteRow> {
+  const {
+    mail,
+    nombre,
+    apellido,
+    telefono,
+    tipo_documento,
+    numero_documento,
+    responsabilidad_impositiva,
+    id_usuario,
+    isGuestCheckout,
+  } = opts;
+
+  const digits = normalizeDocumentoDigits(numero_documento);
+  const docCandidates = digits
+    ? [...new Set([digits, numero_documento].filter(Boolean) as string[])]
+    : [];
+
+  const byMail = await tx.cliente.findUnique({ where: { mail } });
+  const byDocRows =
+    docCandidates.length > 0
+      ? await tx.cliente.findMany({
+          where: { numero_documento: { in: docCandidates } },
+          orderBy: { fecha_hora_registro: "asc" },
+        })
+      : [];
+  const byDoc =
+    byDocRows.find((c) => c.odoo_partner_id != null) ?? byDocRows[0] ?? null;
+
+  let cliente: ClienteRow | null = null;
+  if (byMail && byDoc && byMail.id_cliente !== byDoc.id_cliente) {
+    // Misma persona con mails distintos: preferir identidad fiscal / Odoo.
+    cliente = byDoc;
+  } else {
+    cliente = byMail ?? byDoc ?? null;
+  }
+
+  if (!cliente) {
+    return tx.cliente.create({
+      data: {
+        nombre,
+        apellido,
+        mail,
+        telefono,
+        tipo_documento,
+        numero_documento: digits ?? numero_documento,
+        responsabilidad_impositiva,
+        id_usuario,
+      },
+    });
+  }
+
+  // Invitado no sobrescribe PII (solo enlaza la venta al cliente existente).
+  if (isGuestCheckout) return cliente;
+
+  let nextUserId = cliente.id_usuario ?? id_usuario;
+  if (id_usuario && !cliente.id_usuario) {
+    const taken = await tx.cliente.findFirst({
+      where: { id_usuario, NOT: { id_cliente: cliente.id_cliente } },
+      select: { id_cliente: true },
+    });
+    if (taken) nextUserId = null;
+  }
+
+  // No cambiar mail: puede diferir del checkout y es único.
+  return tx.cliente.update({
+    where: { id_cliente: cliente.id_cliente },
+    data: {
+      nombre,
+      apellido,
+      telefono,
+      tipo_documento,
+      numero_documento: digits ?? numero_documento,
+      responsabilidad_impositiva,
+      id_usuario: nextUserId,
+    },
+  });
 }
 
 export type VentaPendiente = {
@@ -133,14 +249,17 @@ export async function createPendingVenta(
     throw new Error("Completá nombre, apellido y mail");
   }
   if (responsabilidad_impositiva === "RI") {
-    const cuitDigits = String(numero_documento ?? "").replace(/\D/g, "");
-    if (cuitDigits.length !== 11) {
+    const cuitDigits = normalizeDocumentoDigits(numero_documento);
+    if (!cuitDigits || cuitDigits.length !== 11) {
       throw new Error(
         "Como responsable inscripto debés ingresar un CUIT de 11 dígitos",
       );
     }
     tipo_documento = "CUIT";
     numero_documento = cuitDigits;
+  } else if (numero_documento) {
+    // Normalizar DNI/CUIT a dígitos para reutilizar cliente por documento.
+    numero_documento = normalizeDocumentoDigits(numero_documento);
   }
   if (tipo_entrega !== "envio" && tipo_entrega !== "retiro") {
     throw new Error("Tipo de entrega inválido");
@@ -365,37 +484,17 @@ export async function createPendingVenta(
       }
     }
 
-    let cliente = await tx.cliente.findUnique({ where: { mail } });
-    if (cliente) {
-      // Invitado no puede sobrescribir PII de un cliente existente (solo enlaza).
-      if (!isGuestCheckout) {
-        cliente = await tx.cliente.update({
-          where: { id_cliente: cliente.id_cliente },
-          data: {
-            nombre,
-            apellido,
-            telefono,
-            tipo_documento,
-            numero_documento,
-            responsabilidad_impositiva,
-            id_usuario: cliente.id_usuario ?? id_usuario,
-          },
-        });
-      }
-    } else {
-      cliente = await tx.cliente.create({
-        data: {
-          nombre,
-          apellido,
-          mail,
-          telefono,
-          tipo_documento,
-          numero_documento,
-          responsabilidad_impositiva,
-          id_usuario,
-        },
-      });
-    }
+    const cliente = await resolveClienteForCheckout(tx, {
+      mail,
+      nombre,
+      apellido,
+      telefono,
+      tipo_documento,
+      numero_documento,
+      responsabilidad_impositiva,
+      id_usuario,
+      isGuestCheckout,
+    });
 
     let id_direccion: number | null = null;
     let id_direccion_facturacion: number | null = null;

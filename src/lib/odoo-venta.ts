@@ -296,10 +296,19 @@ async function upsertOdooPartner(
     partnerId = await odooCreate("res.partner", baseValues);
   }
 
-  await prisma.cliente.update({
-    where: { id_cliente: cliente.id_cliente },
-    data: { odoo_partner_id: partnerId },
+  // Un partner Odoo solo puede estar en un cliente local (unique). Si otro
+  // registro ya lo tiene (mismo DNI, mail distinto), no pisar: solo stamp en venta.
+  const partnerOwner = await prisma.cliente.findFirst({
+    where: { odoo_partner_id: partnerId },
+    select: { id_cliente: true },
   });
+  if (!partnerOwner) {
+    await prisma.cliente.update({
+      where: { id_cliente: cliente.id_cliente },
+      data: { odoo_partner_id: partnerId },
+    });
+  }
+
   await prisma.venta.update({
     where: { id_venta: venta.id_venta },
     data: { odoo_partner_id: partnerId },
