@@ -53,6 +53,15 @@ export default async function AdminProductoDetailPage({ params }: { params: Para
             · SKU {product.sku}
           </span>
         ) : null}
+        {product.slug ? (
+          <span style={{ fontSize: "0.95rem", fontWeight: 400 }}>
+            {" "}
+            ·{" "}
+            <Link href={`/producto/${product.slug}`} target="_blank" rel="noopener noreferrer">
+              Ver publicación
+            </Link>
+          </span>
+        ) : null}
       </h1>
 
       <div className="admin-edit-grid">
