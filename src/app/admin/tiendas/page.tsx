@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import { createTienda, deleteTienda } from "@/app/admin/cms-actions";
+import { createTienda } from "@/app/admin/cms-actions";
 
 export default async function AdminTiendasPage() {
   await requireAdmin();
@@ -22,7 +23,8 @@ export default async function AdminTiendasPage() {
         <div style={{ flex: "1 1 auto" }}>
           <h1 style={{ marginTop: 0, marginBottom: "0.35rem" }}>Tiendas</h1>
           <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
-            Puntos de retiro y showrooms. Orden menor = primero en el listado.
+            Puntos de retiro y showrooms. El horario se muestra en checkout y en el mail de
+            confirmación de retiro. Orden menor = primero en el listado.
           </p>
         </div>
       </div>
@@ -81,7 +83,11 @@ export default async function AdminTiendasPage() {
         </div>
         <div className="form-field" style={{ margin: 0, minWidth: "14rem", flex: "2 1 14rem" }}>
           <label>Horarios</label>
-          <textarea name="horarios" rows={2} />
+          <textarea
+            name="horarios"
+            rows={2}
+            placeholder="Ej: Lunes a Sábados de 10:00 a 19:00 hs"
+          />
         </div>
         <button type="submit" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
           Crear
@@ -94,6 +100,7 @@ export default async function AdminTiendasPage() {
             <th>Orden</th>
             <th>Nombre</th>
             <th>Dirección</th>
+            <th>Horarios</th>
             <th>CP</th>
             <th>Tel / Email</th>
             <th>Activa</th>
@@ -106,6 +113,9 @@ export default async function AdminTiendasPage() {
               <td>{t.orden}</td>
               <td>{t.nombre}</td>
               <td>{t.direccion}</td>
+              <td style={{ maxWidth: "16rem", whiteSpace: "pre-wrap" }}>
+                {t.horarios || <span className="muted">—</span>}
+              </td>
               <td>{t.codigo_postal || "—"}</td>
               <td>
                 {t.telefono || "—"}
@@ -114,21 +124,13 @@ export default async function AdminTiendasPage() {
               </td>
               <td>{t.activo ? "Sí" : "No"}</td>
               <td>
-                <form action={deleteTienda.bind(null, t.id_tienda)}>
-                  <button
-                    type="submit"
-                    className="btn btn-ghost"
-                    style={{ padding: "0.15rem 0.45rem", fontSize: "0.8rem" }}
-                  >
-                    Eliminar
-                  </button>
-                </form>
+                <Link href={`/admin/tiendas/${t.id_tienda}`}>Editar</Link>
               </td>
             </tr>
           ))}
           {!tiendas.length && (
             <tr>
-              <td colSpan={7} className="muted">
+              <td colSpan={8} className="muted">
                 No hay tiendas cargadas.
               </td>
             </tr>

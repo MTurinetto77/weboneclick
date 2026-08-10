@@ -80,10 +80,14 @@ function buildText(payload: OrderMailPayload): string {
   }
 
   if (payload.entregaResumen) {
-    lines.push(
-      payload.tipoEntrega === "retiro" ? "Retiro en tienda:" : "Envío a domicilio:",
-    );
-    lines.push(payload.entregaResumen);
+    if (payload.tipoEntrega === "retiro") {
+      lines.push("Retiro en tienda:");
+      lines.push("Tu pedido ya está listo para retirar.");
+      lines.push(payload.entregaResumen);
+    } else {
+      lines.push("Envío a domicilio:");
+      lines.push(payload.entregaResumen);
+    }
     lines.push("");
   }
 
@@ -123,8 +127,14 @@ function buildHtml(payload: OrderMailPayload): string {
       : "";
 
   const entregaBlock = payload.entregaResumen
-    ? `<p style="margin:16px 0 0;color:#333;">
-        <strong>${payload.tipoEntrega === "retiro" ? "Retiro en tienda" : "Envío a domicilio"}</strong><br/>
+    ? payload.tipoEntrega === "retiro"
+      ? `<p style="margin:16px 0 0;color:#333;">
+        <strong>Retiro en tienda</strong><br/>
+        Tu pedido ya está listo para retirar.<br/>
+        ${escapeHtml(payload.entregaResumen).replace(/\n/g, "<br/>")}
+      </p>`
+      : `<p style="margin:16px 0 0;color:#333;">
+        <strong>Envío a domicilio</strong><br/>
         ${escapeHtml(payload.entregaResumen).replace(/\n/g, "<br/>")}
       </p>`
     : "";
@@ -202,7 +212,7 @@ function entregaFromVenta(venta: {
     const parts = [
       t.nombre,
       [t.direccion, t.localidad].filter(Boolean).join(", "),
-      t.horarios ? `Horarios: ${t.horarios}` : null,
+      t.horarios ? `Horario de atención: ${t.horarios}` : null,
     ].filter(Boolean);
     return parts.join("\n");
   }

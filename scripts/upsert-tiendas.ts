@@ -22,7 +22,7 @@ async function main() {
       latitud: t.latitud,
       longitud: t.longitud,
       activo: true,
-      horarios: null as string | null,
+      horarios: t.horario_ventas.join(" · ") || null,
     };
     await prisma.tienda.upsert({
       where: { slug: t.slug },

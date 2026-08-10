@@ -107,24 +107,37 @@ export default async function ConfirmacionPage({
                     ? "El pago fue rechazado o cancelado. Podés volver al carrito para intentarlo nuevamente."
                     : "Estamos verificando el pago con Mercado Pago. Actualizaremos el pedido cuando recibamos la confirmación."}
             </div>
-          ) : venta.tipo_entrega === "retiro" ? (
+          ) : null}
+
+          {venta.tipo_entrega === "retiro" && venta.tienda_retiro ? (
             <div className="alert alert-info">
-              Elegiste <strong>retiro en tienda</strong>
-              {venta.tienda_retiro && (
-                <p style={{ marginBottom: 0 }}>
-                  <strong>{venta.tienda_retiro.nombre}</strong>
-                  <br />
-                  {venta.tienda_retiro.direccion}, {venta.tienda_retiro.localidad}
-                  {venta.tienda_retiro.horarios && (
-                    <>
-                      <br />
-                      {venta.tienda_retiro.horarios}
-                    </>
-                  )}
-                </p>
+              {pagoAprobado ? (
+                <>
+                  Tu pedido ya está <strong>listo para retirar</strong> en{" "}
+                  <strong>{venta.tienda_retiro.nombre}</strong>.
+                </>
+              ) : (
+                <>
+                  Elegiste <strong>retiro en tienda</strong>
+                </>
               )}
+              <p style={{ marginBottom: 0, marginTop: pagoAprobado ? 8 : 0 }}>
+                {!pagoAprobado && (
+                  <>
+                    <strong>{venta.tienda_retiro.nombre}</strong>
+                    <br />
+                  </>
+                )}
+                {venta.tienda_retiro.direccion}, {venta.tienda_retiro.localidad}
+                {venta.tienda_retiro.horarios && (
+                  <>
+                    <br />
+                    Horario de atención: {venta.tienda_retiro.horarios}
+                  </>
+                )}
+              </p>
             </div>
-          ) : (
+          ) : pagosMp.length === 0 ? (
             <div className="alert alert-info">
               Elegiste <strong>envío a domicilio</strong>. El pedido quedó pendiente de pago.
               {envio?.direccion && (
@@ -138,7 +151,7 @@ export default async function ConfirmacionPage({
                 </p>
               )}
             </div>
-          )}
+          ) : null}
 
           <h2>Detalle</h2>
           <ul className="order-summary-list">

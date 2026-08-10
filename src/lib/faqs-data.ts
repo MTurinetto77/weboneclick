@@ -62,7 +62,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       },
       {
         q: "¿Cuánto tarda en estar disponible?",
-        a: "Generalmente 2 hs hábiles luego de confirmarse el pago. Te avisamos por mail cuando esté listo para retirar.",
+        a: "Al confirmarse el pago, el pedido queda listo para retirar. En el mail de confirmación te indicamos la tienda y su horario de atención.",
       },
       {
         q: "¿Puede retirar otra persona?",
