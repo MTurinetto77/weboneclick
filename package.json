@@ -39,7 +39,7 @@
     "mercadopago": "^3.2.0",
     "next": "16.2.12",
     "next-auth": "5.0.0-beta.32",
-    "nodemailer": "^8.0.11",
+    "nodemailer": "^9.0.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "xlsx": "^0.18.5",
@@ -65,7 +65,25 @@
     "postcss": "^8.5.18",
     "js-yaml": "4.3.1",
     "nanoid": "3.3.17",
-    "brace-expansion@1": "1.1.18",
-    "brace-expansion@5": "^5.0.8"
-  }
+    "minimatch": "^10.2.6",
+    "brace-expansion": "^5.0.8",
+    "nodemailer": "^9.0.1"
+  },
+  "description": "Sitio web de **[OneClick](https://www.oneclickstore.com/)** (Apple Premium Reseller): catálogo público sincronizado con Odoo, carrito/checkout, páginas institucionales y panel de administración.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contactoevolutia/weboneclick.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/contactoevolutia/weboneclick/issues"
+  },
+  "homepage": "https://github.com/contactoevolutia/weboneclick#readme"
 }
