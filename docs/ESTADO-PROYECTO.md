@@ -60,10 +60,13 @@ No commitear secretos. Lo esperado:
 | `NEXT_PUBLIC_META_PIXEL_ID` | Meta Pixel (opcional) |
 | `NEXT_PUBLIC_GOOGLE_ADS_ID` | Google Ads conversion ID sin `AW-` (opcional) |
 | `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL` | Etiqueta conversión Purchase (opcional) |
+| `GOOGLE_MERCHANT_FEED_TOKEN` | Protege el feed Merchant con `?token=` (opcional) |
 
 Analytics (GA4 / Meta Pixel / Google Ads) se cargan solo en `(shop)` vía `AnalyticsProvider`. Sin IDs en env no se inyectan scripts. Purchase + conversión Ads solo en `/checkout/confirmacion/[id]` con pago aprobado (dedupe `sessionStorage` por `id_venta`).
 
-**Verificación manual:** DevTools Network (`collect`, `fbevents`); Meta Pixel Helper / Tag Assistant; flujo PDP → cart → checkout → confirmación OK (una sola Purchase); fallo MP sin Purchase; `/admin` sin scripts marketing.
+**Feed Google Merchant:** `GET /api/feeds/google-merchant` (RSS 2.0). Lógica en `lib/google-merchant-feed.ts`. Incluye productos `activo` con precio e imagen; omite el resto. IDs = `id_producto`. Configuración: Scheduled fetch en Merchant Center apuntando a esa URL (ver README).
+
+**Verificación manual:** DevTools Network (`collect`, `fbevents`); Meta Pixel Helper / Tag Assistant; flujo PDP → cart → checkout → confirmación OK (una sola Purchase); fallo MP sin Purchase; `/admin` sin scripts marketing; abrir el feed XML y chequear headers `X-Feed-Item-Count`.
 
 IDs de journals / tipo pedido / producto envío, etc.: **tabla `parametro` grupo `odoo`** (no van en `.env`). Ver [ODOO-CHECKOUT.md](./ODOO-CHECKOUT.md).
 

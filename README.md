@@ -54,6 +54,19 @@ Editar `.env`:
 | `NEXT_PUBLIC_META_PIXEL_ID` | Meta Pixel ID. Opcional |
 | `NEXT_PUBLIC_GOOGLE_ADS_ID` | ID de conversión Ads (número, sin `AW-`). Opcional |
 | `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL` | Etiqueta de conversión Purchase. Opcional |
+| `GOOGLE_MERCHANT_FEED_TOKEN` | Token opcional del feed Merchant (`?token=`). Opcional |
+
+### Google Merchant Center (feed)
+
+Endpoint RSS 2.0 (Scheduled fetch): `/api/feeds/google-merchant`
+
+1. En producción, abrir `https://TU-DOMINIO/api/feeds/google-merchant` y verificar XML.
+2. Merchant Center → Productos → Fuentes de datos → Agregar productos → **Scheduled fetch**.
+3. Pegar la URL (si usás token: `.../api/feeds/google-merchant?token=TU_TOKEN`).
+4. Frecuencia diaria (o la que ofrezca el panel). Country/idioma: AR / español.
+5. Revisar Diagnóstico tras el primer fetch.
+
+Los `g:id` son `id_producto` (mismo valor que Meta Pixel `content_ids`).
 
 3. Crear la base y cargar datos:
 

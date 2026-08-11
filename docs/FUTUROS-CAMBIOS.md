@@ -158,6 +158,7 @@ Ver `.env.example`.
 | `NEXT_PUBLIC_META_PIXEL_ID` | Meta Pixel (opcional) |
 | `NEXT_PUBLIC_GOOGLE_ADS_ID` | Ads conversion ID sin `AW-` (opcional) |
 | `NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_LABEL` | Etiqueta Purchase (opcional) |
+| `GOOGLE_MERCHANT_FEED_TOKEN` | Token opcional feed Merchant (`?token=`) |
 
 ---
 
