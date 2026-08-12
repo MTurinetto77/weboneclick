@@ -250,12 +250,11 @@ export function buildPaymentAdditionalInfo(
       ...(addr
         ? {
             address: {
+              // MLA Payments API: solo estos campos en additional_info.payer.address.
+              // city / federal_unit provocan bad_request (code 8).
               zip_code: addr.zip_code || undefined,
               street_name: addr.street_name,
               street_number: addr.street_number,
-              neighborhood: addr.neighborhood || undefined,
-              city: addr.city,
-              federal_unit: addr.federal_unit,
             },
           }
         : {}),

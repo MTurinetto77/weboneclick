@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import {
   alignGrossesToOdooTotal,
   type AlignGrossItem,
@@ -127,10 +127,10 @@ export function CheckoutPaymentOptions({
   );
   /** Wallet: el modo del paso 1 define precio y tope de cuotas en MP. */
   const tipoPagoWallet = modo === "contado" ? "mercado_pago" : "tarjeta";
-  /** Tarjeta: 1 pago = 10%; 2+ cuotas = precio lista. */
-  const cardIsContado = selectedCuotas === 1;
+  const cardIsContado = modo === "contado" || selectedCuotas === 1;
   const tipoPagoCard = cardIsContado ? "mercado_pago" : "tarjeta";
   const cardAmount = cardIsContado ? payContado : payTarjeta;
+  const cardInstallments = cardIsContado ? 1 : selectedCuotas;
   const tipoPago = mecanismo === "tarjeta" ? tipoPagoCard : tipoPagoWallet;
   const canPayDelivery = deliveryTipo === "retiro" || shippingOk;
   const needsCpWarning = deliveryTipo !== "retiro" && !shippingOk;
@@ -149,6 +149,13 @@ export function CheckoutPaymentOptions({
     window.addEventListener(SHIPPING_QUOTE_EVENT, onQuote);
     return () => window.removeEventListener(SHIPPING_QUOTE_EVENT, onQuote);
   }, []);
+
+  // Contado: siempre 1 pago (protege el 10%).
+  useEffect(() => {
+    if (modo === "contado" && selectedCuotas !== 1) {
+      setSelectedCuotas(1);
+    }
+  }, [modo, selectedCuotas]);
 
   // Device ID para Payments API (antifraude).
   useEffect(() => {
@@ -233,8 +240,11 @@ export function CheckoutPaymentOptions({
 
     const card =
       cardData && typeof cardData === "object"
-        ? { ...(cardData as Record<string, unknown>), installments: selectedCuotas }
-        : { installments: selectedCuotas };
+        ? {
+            ...(cardData as Record<string, unknown>),
+            installments: cardInstallments,
+          }
+        : { installments: cardInstallments };
 
     const res = await fetch("/api/mercadopago/pay", {
       method: "POST",
@@ -467,44 +477,52 @@ export function CheckoutPaymentOptions({
             <strong>Completar datos de tarjeta</strong>
           </span>
           <small>
-            Ingresá la tarjeta en el sitio. 1 pago con 10% de descuento, o hasta{" "}
-            <strong>{maxInstallments} cuotas</strong> sin interés.
+            {modo === "contado"
+              ? "Ingresá la tarjeta en el sitio. Un solo pago con 10% de descuento."
+              : <>
+                  Ingresá la tarjeta en el sitio. Hasta{" "}
+                  <strong>{maxInstallments} cuotas</strong> sin interés.
+                </>}
           </small>
         </span>
       </label>
 
       {mecanismo === "tarjeta" && (
         <div className="oc-checkout-card-panel">
-          <div className="oc-checkout-field oc-checkout-cuotas-select">
-            <label htmlFor="checkout-cuotas">Cuotas</label>
-            <select
-              id="checkout-cuotas"
-              name="card_installments"
-              value={selectedCuotas}
-              onChange={(e) => {
-                const n = Number(e.target.value) || 1;
-                setSelectedCuotas(n);
-                setModo(n === 1 ? "contado" : "cuotas");
-              }}
-            >
-              {cuotaChoices.map((n) => {
-                const total = n === 1 ? payContado : payTarjeta;
-                const cuota = total / n;
-                return (
-                  <option key={n} value={n}>
-                    {n === 1
-                      ? `1 pago · ${formatArs(total)} · 10% de descuento`
-                      : `${n} cuotas de ${formatArs(cuota)} · ${formatArs(total)} · sin interés`}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
+          {modo === "cuotas" ? (
+            <div className="oc-checkout-field oc-checkout-cuotas-select">
+              <label htmlFor="checkout-cuotas">Cuotas</label>
+              <select
+                id="checkout-cuotas"
+                name="card_installments"
+                value={selectedCuotas}
+                onChange={(e) => {
+                  const n = Number(e.target.value) || 1;
+                  setSelectedCuotas(n);
+                  setModo(n === 1 ? "contado" : "cuotas");
+                }}
+              >
+                {cuotaChoices.map((n) => {
+                  const total = n === 1 ? payContado : payTarjeta;
+                  const cuota = total / n;
+                  return (
+                    <option key={n} value={n}>
+                      {n === 1
+                        ? `1 pago · ${formatArs(total)} · 10% de descuento`
+                        : `${n} cuotas de ${formatArs(cuota)} · ${formatArs(total)} · sin interés`}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          ) : (
+            <input type="hidden" name="card_installments" value={1} />
+          )}
           {brickEnabled ? (
             canPayDelivery ? (
               <CardBrick
                 amount={cardAmount}
-                installments={selectedCuotas}
+                installments={cardInstallments}
                 publicKey={publicKey!}
                 onPay={payWithCard}
               />
@@ -551,7 +569,7 @@ function WalletBrick({
   publicKey: string;
   onSubmit: () => Promise<string>;
 }) {
-  const [Brick, setBrick] = useState<React.ComponentType<{
+  const [Brick, setBrick] = useState<ComponentType<{
     locale?: string;
     initialization?: { redirectMode?: "self" | "blank" };
     customization?: {
@@ -563,9 +581,8 @@ function WalletBrick({
 
   useEffect(() => {
     let cancelled = false;
-    import("@mercadopago/sdk-react").then((mp) => {
+    void ensureMercadoPago(publicKey).then((mp) => {
       if (cancelled) return;
-      mp.initMercadoPago(publicKey, { locale: "es-AR" });
       setBrick(() => mp.Wallet as never);
     });
     return () => {
@@ -590,6 +607,35 @@ function WalletBrick({
   );
 }
 
+type MpSdk = typeof import("@mercadopago/sdk-react");
+
+let mpInitKey: string | null = null;
+let mpSdkPromise: Promise<MpSdk> | null = null;
+
+function ensureMercadoPago(publicKey: string): Promise<MpSdk> {
+  if (!mpSdkPromise || mpInitKey !== publicKey) {
+    mpInitKey = publicKey;
+    mpSdkPromise = import("@mercadopago/sdk-react").then((mp) => {
+      mp.initMercadoPago(publicKey, { locale: "es-AR" });
+      return mp;
+    });
+  }
+  return mpSdkPromise;
+}
+
+function roundAmount(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function isSecureFieldsError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const cause = String((err as { cause?: string }).cause || "");
+  return (
+    cause === "fields_setup_failed" ||
+    cause === "fields_setup_failed_after_3_tries"
+  );
+}
+
 /** Card Payment Brick de Mercado Pago (tokeniza la tarjeta en el navegador). */
 function CardBrick({
   amount,
@@ -602,20 +648,27 @@ function CardBrick({
   publicKey: string;
   onPay: (cardData: unknown) => Promise<void>;
 }) {
-  const [Brick, setBrick] = useState<React.ComponentType<{
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [Brick, setBrick] = useState<ComponentType<{
     initialization: { amount: number };
     customization?: {
       paymentMethods?: { maxInstallments?: number; minInstallments?: number };
     };
     onSubmit: (data: unknown) => Promise<void>;
+    onReady?: () => void;
     onError?: (err: unknown) => void;
   }> | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [stableAmount, setStableAmount] = useState(() => roundAmount(amount));
+  const [stableInstallments, setStableInstallments] = useState(installments);
+  const [instance, setInstance] = useState(0);
+  const [setupError, setSetupError] = useState(false);
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    import("@mercadopago/sdk-react").then((mp) => {
+    void ensureMercadoPago(publicKey).then((mp) => {
       if (cancelled) return;
-      mp.initMercadoPago(publicKey, { locale: "es-AR" });
       setBrick(() => mp.CardPayment as never);
     });
     return () => {
@@ -623,22 +676,105 @@ function CardBrick({
     };
   }, [publicKey]);
 
-  if (!Brick) return <p className="oc-checkout-note">Cargando formulario de pago…</p>;
+  // No montar Secure Fields dentro de un paso plegado (`hidden`).
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+
+    const sync = () => {
+      setVisible(!host.closest("[hidden]"));
+    };
+    sync();
+
+    const mo = new MutationObserver(sync);
+    mo.observe(document.documentElement, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ["hidden"],
+    });
+    return () => mo.disconnect();
+  }, []);
+
+  // Evitar remounts mientras llega el costo de envío / cambia el modo.
+  useEffect(() => {
+    setBooting(true);
+    const timer = window.setTimeout(() => {
+      setStableAmount(roundAmount(amount));
+      setStableInstallments(installments);
+      setBooting(false);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [amount, installments]);
+
+  function retry() {
+    setSetupError(false);
+    setBooting(true);
+    window.setTimeout(() => {
+      setInstance((n) => n + 1);
+      setBooting(false);
+    }, 200);
+  }
+
+  let body: ReactNode;
+  if (setupError) {
+    body = (
+      <>
+        <p className="oc-checkout-payment-warning">
+          No pudimos cargar el formulario de tarjeta. Probá de nuevo.
+        </p>
+        <button
+          type="button"
+          className="oc-btn oc-btn-dark oc-checkout-submit"
+          onClick={retry}
+        >
+          Reintentar
+        </button>
+      </>
+    );
+  } else if (!Brick || !visible || booting) {
+    body = <p className="oc-checkout-note">Cargando formulario de pago…</p>;
+  } else if (!(stableAmount > 0)) {
+    body = (
+      <p className="oc-checkout-payment-warning">
+        Completá el envío o retiro para habilitar el pago con tarjeta.
+      </p>
+    );
+  } else {
+    body = (
+      <Brick
+        key={`${instance}-${stableAmount}-${stableInstallments}`}
+        initialization={{ amount: stableAmount }}
+        customization={{
+          paymentMethods: {
+            minInstallments: stableInstallments,
+            maxInstallments: stableInstallments,
+          },
+        }}
+        onReady={() => setSetupError(false)}
+        onSubmit={async (formData) => {
+          const payload =
+            formData && typeof formData === "object"
+              ? {
+                  ...(formData as Record<string, unknown>),
+                  installments: stableInstallments,
+                }
+              : { installments: stableInstallments };
+          await onPay(payload);
+        }}
+        onError={(err) => {
+          console.error("MP Brick error", err);
+          if (isSecureFieldsError(err)) {
+            setSetupError(true);
+          }
+        }}
+      />
+    );
+  }
 
   return (
-    <Brick
-      key={`${amount}-${installments}`}
-      initialization={{ amount }}
-      customization={{
-        paymentMethods: {
-          // La cuota la elige el selector de OneClick (1…tope del producto).
-          minInstallments: installments,
-          maxInstallments: installments,
-        },
-      }}
-      onSubmit={onPay}
-      onError={(err) => console.error("MP Brick error", err)}
-    />
+    <div ref={hostRef} className="oc-checkout-card-brick">
+      {body}
+    </div>
   );
 }
 
