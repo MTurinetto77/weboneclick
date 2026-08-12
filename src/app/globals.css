@@ -6620,6 +6620,61 @@ img { max-width: 100%; display: block; }
   cursor: pointer;
 }
 
+.oc-checkout-payment-option.is-active .oc-checkout-payment-copy strong {
+  color: #1d1d1f;
+}
+
+.oc-checkout-payment-step2 {
+  margin-top: 1.25rem !important;
+}
+
+.oc-checkout-wallet-panel {
+  margin: 0.25rem 0 0.9rem;
+  background: #f7f7f8;
+  border-radius: 8px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.oc-checkout-qr-toggle {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #0066cc;
+  font-size: 0.82rem;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.oc-checkout-qr-toggle:disabled {
+  color: #8e8e93;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.oc-checkout-qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #6e6e73;
+}
+
+.oc-checkout-qr-box img {
+  border-radius: 6px;
+}
+
 .oc-checkout-payment-option input {
   width: auto;
   margin-top: 0.2rem;
@@ -6664,6 +6719,62 @@ img { max-width: 100%; display: block; }
   background: #f7f7f8;
   border-radius: 8px;
   padding: 1.1rem;
+}
+
+.oc-checkout-cuotas {
+  border: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.oc-checkout-cuotas legend {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+
+.oc-checkout-cuotas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.oc-checkout-cuota {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  padding: 0.55rem 0.65rem;
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.84rem;
+}
+
+.oc-checkout-cuota.is-active {
+  border-color: #3483fa;
+  box-shadow: 0 0 0 1px #3483fa;
+}
+
+.oc-checkout-cuota input {
+  width: auto;
+  margin-top: 0.15rem;
+  accent-color: #3483fa;
+}
+
+.oc-checkout-cuota span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.35rem;
+}
+
+.oc-checkout-cuota small {
+  display: block;
+  width: 100%;
+  color: #6e6e73;
+  font-size: 0.75rem;
 }
 
 .oc-checkout-card-preview .oc-checkout-field input:disabled {

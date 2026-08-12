@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, isGoogleAuthConfigured } from "@/auth";
 import { CheckoutCoupon } from "@/components/checkout-coupon";
 import { CheckoutDeliveryFields } from "@/components/checkout-delivery-fields";
+import { CheckoutForm } from "@/components/checkout-form";
 import { CheckoutGiftSelector } from "@/components/checkout-gift-selector";
 import { CheckoutIdempotencyBootstrap } from "@/components/checkout-idempotency-bootstrap";
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
@@ -23,7 +24,6 @@ import { formatPriceArs } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { getRegaloApplicable } from "@/lib/regalos";
-import { confirmarVenta } from "./actions";
 import { continueAsGuest, continueWithGoogle } from "./identity-actions";
 
 export const dynamic = "force-dynamic";
@@ -128,7 +128,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
       <div className="container">
         <h1 className="oc-checkout-title">Finalizar compra</h1>
 
-        <form action={confirmarVenta} className="oc-checkout-layout">
+        <CheckoutForm>
           <CheckoutIdempotencyBootstrap />
           <input
             type="hidden"
@@ -246,7 +246,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
               </Link>
             </div>
           </aside>
-        </form>
+        </CheckoutForm>
       </div>
     </div>
   );

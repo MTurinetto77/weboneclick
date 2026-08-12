@@ -16,6 +16,7 @@ import {
   CUPON_ESTADO_CONSUMIDO,
   CUPON_ESTADO_EMITIDO,
   clearCuponCookie,
+  releaseCuponForVenta,
   resolveAppliedCupon,
   type ValidCupon,
 } from "@/lib/cupones";
@@ -27,6 +28,10 @@ import {
 import { alignGrossesToOdooTotal, round2 } from "@/lib/odoo-amount";
 import { resolveWarehouseOdooId } from "@/lib/odoo-venta";
 import { isOdooSyncEnabled } from "@/lib/odoo-config";
+import {
+  addressesFromCheckoutFields,
+  type MpAddress,
+} from "@/lib/mp-payer-payload";
 import { CONTADO_DISCOUNT } from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { ALMACEN_WEB_SELECT, sumSellableStock, type StockRow } from "@/lib/almacenes";
@@ -163,6 +168,14 @@ export type VentaPendiente = {
   nombre: string;
   apellido: string;
   mail: string;
+  telefono: string | null;
+  tipo_documento: string | null;
+  numero_documento: string | null;
+  tipo_entrega: string;
+  /** "google" | "invitado" */
+  checkout_mode: string;
+  address_billing: MpAddress | null;
+  address_shipping: MpAddress | null;
   /** Items con el precio unitario efectivamente cobrado (con descuento contado si aplica) */
   itemsCobro: {
     id_producto: number;
@@ -171,6 +184,29 @@ export type VentaPendiente = {
     unit_price: number;
   }[];
 };
+
+function mpAddressFromDb(d: {
+  calle: string;
+  numero: string;
+  piso: string | null;
+  departamento: string | null;
+  barrio: string | null;
+  localidad: string;
+  provincia: string;
+  codigo_postal: string | null;
+} | null): MpAddress | null {
+  if (!d) return null;
+  return {
+    street_name: d.calle,
+    street_number: d.numero,
+    floor: d.piso,
+    apartment: d.departamento,
+    zip_code: d.codigo_postal,
+    city: d.localidad,
+    federal_unit: d.provincia,
+    neighborhood: d.barrio,
+  };
+}
 
 /**
  * Valida los datos del checkout y registra la venta como pendiente de pago.
@@ -188,32 +224,59 @@ export async function createPendingVenta(
   if (idemKey) {
     const existing = await prisma.venta.findUnique({
       where: { idempotency_key: idemKey },
-      include: { cliente: true, detalles: true },
+      include: {
+        cliente: true,
+        detalles: true,
+        pagos: { select: { tipo_pago: true, referencia: true }, take: 1 },
+        envios: { include: { direccion: true }, take: 1 },
+        direccion_facturacion: true,
+      },
     });
     if (existing && existing.estado === "pendiente") {
-      const itemsCobro = existing.detalles
-        .filter((d) => Number(d.precio_cobrado ?? d.precio_unitario) > 0)
-        .map((d) => ({
-          id_producto: d.id_producto,
-          titulo: d.nombre_producto,
-          cantidad: Number(d.cantidad),
-          unit_price: Number(d.precio_cobrado ?? d.precio_unitario),
-        }));
-      return {
-        id_venta: existing.id_venta,
-        access_token: existing.access_token,
-        subtotal: Number(existing.subtotal),
-        descuento: Number(existing.descuento),
-        costo_envio: Number(existing.costo_envio),
-        total: Number(existing.total),
-        nombre: existing.cliente.nombre,
-        apellido: existing.cliente.apellido,
-        mail: existing.cliente.mail,
-        itemsCobro,
-      };
-    }
-    // Clave ya asociada a una venta cerrada: emitir una nueva.
-    if (existing) {
+      const pagoTipo = existing.pagos[0]?.tipo_pago;
+      // Si cambió contado ↔ cuotas, invalidar la venta pendiente previa.
+      if (pagoTipo && pagoTipo !== tipo_pago) {
+        await prisma.venta.update({
+          where: { id_venta: existing.id_venta },
+          data: { estado: "cancelada" },
+        });
+        await releaseCuponForVenta(existing.id_venta).catch(() => undefined);
+        await rotateCheckoutIdempotencyKey();
+        idemKey = await ensureCheckoutIdempotencyKey();
+      } else {
+        const itemsCobro = existing.detalles
+          .filter((d) => Number(d.precio_cobrado ?? d.precio_unitario) > 0)
+          .map((d) => ({
+            id_producto: d.id_producto,
+            titulo: d.nombre_producto,
+            cantidad: Number(d.cantidad),
+            unit_price: Number(d.precio_cobrado ?? d.precio_unitario),
+          }));
+        const shippingAddr = mpAddressFromDb(existing.envios[0]?.direccion ?? null);
+        const billingAddr =
+          mpAddressFromDb(existing.direccion_facturacion) ?? shippingAddr;
+        return {
+          id_venta: existing.id_venta,
+          access_token: existing.access_token,
+          subtotal: Number(existing.subtotal),
+          descuento: Number(existing.descuento),
+          costo_envio: Number(existing.costo_envio),
+          total: Number(existing.total),
+          nombre: existing.cliente.nombre,
+          apellido: existing.cliente.apellido,
+          mail: existing.cliente.mail,
+          telefono: existing.cliente.telefono,
+          tipo_documento: existing.cliente.tipo_documento,
+          numero_documento: existing.cliente.numero_documento,
+          tipo_entrega: existing.tipo_entrega,
+          checkout_mode: field(fields, "checkout_mode") || "invitado",
+          address_billing: billingAddr,
+          address_shipping: shippingAddr,
+          itemsCobro,
+        };
+      }
+    } else if (existing) {
+      // Clave ya asociada a una venta cerrada: emitir una nueva.
       await rotateCheckoutIdempotencyKey();
       idemKey = await ensureCheckoutIdempotencyKey();
     }
@@ -442,9 +505,15 @@ export async function createPendingVenta(
       titulo: string;
     }[];
 
-    const shortages = await checkStockOdooWarehouse(stockItems, warehouseOdooId);
-    if (shortages.length) {
-      throw new Error(formatStockShortageMessage(shortages));
+    try {
+      const shortages = await checkStockOdooWarehouse(stockItems, warehouseOdooId);
+      if (shortages.length) {
+        throw new Error(formatStockShortageMessage(shortages));
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "";
+      if (/stock insuficiente/i.test(msg)) throw error;
+      console.error("[checkout] stock Odoo no disponible, se usa stock local:", error);
     }
   }
 
@@ -649,6 +718,8 @@ export async function createPendingVenta(
   await clearCuponCookie();
   // No rotar la clave aquí: permite reintentar el pago sobre la misma venta pendiente.
 
+  const { address_billing, address_shipping } = addressesFromCheckoutFields(fields);
+
   return {
     id_venta,
     access_token,
@@ -660,6 +731,13 @@ export async function createPendingVenta(
     nombre,
     apellido,
     mail,
+    telefono,
+    tipo_documento,
+    numero_documento,
+    tipo_entrega,
+    checkout_mode: checkoutMode || (sessionEmail ? "google" : "invitado"),
+    address_billing,
+    address_shipping,
     itemsCobro,
   };
 }

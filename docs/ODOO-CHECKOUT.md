@@ -2,7 +2,7 @@
 
 Documento de referencia para modificar, probar o depurar el flujo **pago web → venta en Odoo**.
 
-**Última actualización:** 2026-07-28  
+**Última actualización:** 2026-08-11  
 **Instancias usadas en pruebas:**
 - Producción: `https://oneclick.adhoc.ar`
 - Test / training: `https://train-oneclick-24-07-1.adhoc.inc`
@@ -35,7 +35,7 @@ sequenceDiagram
 
   UI->>Web: createPendingVenta (idempotency_key)
   Web->>DB: venta pendiente + pago pendiente
-  UI->>MP: preferencia / Card Brick
+  UI->>MP: Wallet preference / Card Brick
   MP->>Web: webhook / pay callback
   Web->>DB: applyMercadoPagoPayment (stock + pagada)
   Web->>Odoo: syncVentaToOdoo
@@ -48,13 +48,23 @@ sequenceDiagram
 | Momento | Archivo / ruta |
 |---------|----------------|
 | Crear venta pendiente | [`checkout-venta.ts`](../src/lib/checkout-venta.ts) → `createPendingVenta` |
-| Preferencia MP (contado) | [`checkout/actions.ts`](../src/app/(shop)/checkout/actions.ts) |
-| Pago tarjeta embebido | [`api/mercadopago/pay`](../src/app/api/mercadopago/pay/route.ts) |
+| Preferencia MP (Wallet / Checkout Pro) | [`api/mercadopago/preference`](../src/app/api/mercadopago/preference/route.ts) (+ helper [`mp-preference.ts`](../src/lib/mp-preference.ts)); fallback form [`checkout/actions.ts`](../src/app/(shop)/checkout/actions.ts) |
+| Pago tarjeta embebido (Card Brick) | [`api/mercadopago/pay`](../src/app/api/mercadopago/pay/route.ts) |
 | Webhook MP | [`api/mercadopago/webhook`](../src/app/api/mercadopago/webhook/route.ts) |
 | Aplicar pago + disparar Odoo | [`mp-payment-sync.ts`](../src/lib/mp-payment-sync.ts) → `applyMercadoPagoPayment` |
 | Orquestador Odoo | [`odoo-venta.ts`](../src/lib/odoo-venta.ts) → `syncVentaToOdoo` |
 | Reintento admin | `POST /api/admin/odoo/sync-venta` |
 | Reintento CLI | `npm run sync:ventas` |
+
+### Checkout: modo de cobro × mecanismo
+
+UI en [`checkout-payment-options.tsx`](../src/components/checkout-payment-options.tsx):
+
+1. **Modo:** Contado 10% (`tipo_pago=mercado_pago`, 1 cuota) o Cuotas (`tipo_pago=tarjeta`, hasta `cartMaxInstallments`).
+2. **Mecanismo:** Mercado Pago con login (Wallet Brick / preference `purpose=wallet_purchase`) o Card Payment Brick en el sitio.
+
+Ambos mecanismos están disponibles en ambos modos. La preference de cuotas **no** fuerza `installments: 1`. Datos de payer / `additional_info` / Device ID: [`mp-payer-payload.ts`](../src/lib/mp-payer-payload.ts).
+
 
 ---
 

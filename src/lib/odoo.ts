@@ -47,7 +47,15 @@ async function jsonRpcCall<T>(body: unknown, attempt = 1): Promise<T> {
     if (!res.ok) {
       throw new Error(`Odoo HTTP ${res.status}: ${res.statusText}`);
     }
-    const json = (await res.json()) as JsonRpcResponse<T>;
+    const raw = await res.text();
+    let json: JsonRpcResponse<T>;
+    try {
+      json = JSON.parse(raw) as JsonRpcResponse<T>;
+    } catch {
+      throw new Error(
+        `Odoo no respondió JSON (HTTP ${res.status}). Revisá ODOO_URL y credenciales.`,
+      );
+    }
     if (json.error) {
       const data = json.error.data as
         | { message?: string; name?: string; debug?: string }

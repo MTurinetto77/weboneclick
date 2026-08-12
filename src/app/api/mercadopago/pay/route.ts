@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { clearCartCookie } from "@/lib/cart";
+import { cartMaxInstallments, clearCartCookie, resolveCart } from "@/lib/cart";
 import { rotateCheckoutIdempotencyKey } from "@/lib/checkout-idempotency";
 import {
   confirmationPath,
   createPendingVenta,
+  type TipoPagoCheckout,
 } from "@/lib/checkout-venta";
 import { releaseCuponForVenta } from "@/lib/cupones";
 import { mercadoPagoPayment, publicSiteUrl } from "@/lib/mercadopago";
+import {
+  buildPaymentAdditionalInfo,
+  buildPaymentPayer,
+  clientIpFromHeaders,
+  toMpPayerSource,
+} from "@/lib/mp-payer-payload";
 import { applyMercadoPagoPayment } from "@/lib/mp-payment-sync";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, rateLimitClientKey } from "@/lib/rate-limit";
@@ -28,11 +35,12 @@ type CardFormData = {
 type PayBody = {
   fields?: Record<string, string>;
   card?: CardFormData;
+  /** Device ID de security.js (MP_DEVICE_SESSION_ID). */
+  deviceSessionId?: string | null;
 };
 
 function publicPayError(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  // Errores de validación de negocio: se pueden mostrar.
   if (
     message &&
     !/mercadopago|access.?token|api|internal|ECONN|timeout/i.test(message)
@@ -40,6 +48,12 @@ function publicPayError(error: unknown): string {
     return message;
   }
   return "No pudimos procesar el pago";
+}
+
+function resolveTipoPago(fields: Record<string, string>): TipoPagoCheckout {
+  const raw = String(fields.tipo_pago || "").trim();
+  if (raw === "tarjeta") return "tarjeta";
+  return "mercado_pago";
 }
 
 /** Pago con tarjeta embebido (Card Payment Brick) sin salir del sitio. */
@@ -74,13 +88,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const tipo_pago = resolveTipoPago(fields);
+  const installments = card.installments ?? 1;
+
+  if (tipo_pago === "mercado_pago" && installments !== 1) {
+    return NextResponse.json(
+      {
+        error:
+          "El pago contado con 10% de descuento solo admite 1 cuota. Elegí cuotas o 1 pago.",
+      },
+      { status: 400 },
+    );
+  }
+
+  if (tipo_pago === "tarjeta") {
+    const cart = await resolveCart();
+    const maxInstallments = cartMaxInstallments(cart.items);
+    if (installments < 1 || installments > maxInstallments) {
+      return NextResponse.json(
+        {
+          error: `Las cuotas deben estar entre 1 y ${maxInstallments} para este carrito.`,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   const session = await auth();
 
   let venta;
   try {
     venta = await createPendingVenta(
       fields,
-      "tarjeta",
+      tipo_pago,
       session?.user?.email ?? null,
       session?.user?.id ?? null,
     );
@@ -94,29 +134,29 @@ export async function POST(req: NextRequest) {
     ? `${siteUrl}/api/mercadopago/webhook`
     : undefined;
 
+  const src = toMpPayerSource(venta);
+  const ipAddress = clientIpFromHeaders(req.headers);
+  const deviceSessionId = body.deviceSessionId?.trim() || undefined;
+
   try {
     const payment = await mercadoPagoPayment().create({
       body: {
         token: card.token,
         issuer_id: card.issuer_id != null ? Number(card.issuer_id) : undefined,
         payment_method_id: card.payment_method_id,
-        installments: card.installments ?? 1,
+        installments,
         transaction_amount: venta.total,
         description: `OneClick pedido #${venta.id_venta}`,
         statement_descriptor: "ONECLICK",
         external_reference: String(venta.id_venta),
         metadata: { id_venta: venta.id_venta },
         notification_url: notificationUrl,
-        payer: {
-          email: card.payer?.email || venta.mail,
-          first_name: venta.nombre,
-          last_name: venta.apellido,
-          identification: card.payer?.identification,
-        },
+        payer: buildPaymentPayer(src, card.payer),
+        additional_info: buildPaymentAdditionalInfo(src, ipAddress),
       },
       requestOptions: {
-        // Evita cobros duplicados si el cliente reintenta el mismo pago
         idempotencyKey: `venta-${venta.id_venta}-${card.token}`,
+        ...(deviceSessionId ? { meliSessionId: deviceSessionId } : {}),
       },
     });
 
@@ -136,7 +176,6 @@ export async function POST(req: NextRequest) {
       redirect: confirmationPath(venta.id_venta, venta.access_token, mp),
     });
   } catch (error) {
-    // El pago no se concretó: cancelar la venta pendiente y liberar el cupón
     const raw =
       error instanceof Error ? error.message : "error desconocido al pagar";
     await prisma.venta
