@@ -9,6 +9,7 @@ import { CheckoutIdempotencyBootstrap } from "@/components/checkout-idempotency-
 import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { CheckoutTaxDocumentFields } from "@/components/checkout-tax-document-fields";
+import { CheckoutStep, CheckoutWizard } from "@/components/checkout-wizard";
 import { BeginCheckoutTracker } from "@/components/funnel-trackers";
 import { computeTotals } from "@/lib/checkout-venta";
 import {
@@ -127,6 +128,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
       <BeginCheckoutTracker value={cart.subtotal} items={beginCheckoutItems} />
       <div className="container">
         <h1 className="oc-checkout-title">Finalizar compra</h1>
+        <p className="oc-checkout-session">
+          Completá cada paso. Podés volver a editar cuando quieras.
+        </p>
 
         <CheckoutForm>
           <CheckoutIdempotencyBootstrap />
@@ -136,55 +140,81 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
             value={isAuthenticated ? "google" : "invitado"}
           />
 
-          <div className="oc-checkout-billing">
-            <h2>Detalles de facturación</h2>
-
-            <div className="oc-checkout-grid-2">
-              <div className="oc-checkout-field">
-                <label>
-                  Nombre <abbr title="obligatorio">*</abbr>
-                </label>
-                <input name="nombre" required defaultValue={defaultNombre} />
+          <CheckoutWizard>
+            <CheckoutStep id="datos" title="Tus datos">
+              <div className="oc-checkout-grid-2">
+                <div className="oc-checkout-field">
+                  <label>
+                    Nombre <abbr title="obligatorio">*</abbr>
+                  </label>
+                  <input name="nombre" required defaultValue={defaultNombre} />
+                </div>
+                <div className="oc-checkout-field">
+                  <label>
+                    Apellidos <abbr title="obligatorio">*</abbr>
+                  </label>
+                  <input name="apellido" required defaultValue={defaultApellido} />
+                </div>
               </div>
-              <div className="oc-checkout-field">
-                <label>
-                  Apellidos <abbr title="obligatorio">*</abbr>
-                </label>
-                <input name="apellido" required defaultValue={defaultApellido} />
-              </div>
-            </div>
 
-            <CheckoutTaxDocumentFields
-              defaultResponsabilidad={cliente?.responsabilidad_impositiva}
-              defaultTipoDocumento={cliente?.tipo_documento}
-              defaultNumeroDocumento={cliente?.numero_documento}
-            />
-
-            <div className="oc-checkout-field">
-              <label>Teléfono</label>
-              <input name="telefono" type="tel" defaultValue={cliente?.telefono ?? ""} />
-            </div>
-
-            <div className="oc-checkout-field">
-              <label>
-                Dirección de correo electrónico <abbr title="obligatorio">*</abbr>
-              </label>
-              <input
-                name="mail"
-                type="email"
-                required
-                defaultValue={cliente?.mail ?? session?.user?.email ?? ""}
-                readOnly={mailLocked}
+              <CheckoutTaxDocumentFields
+                defaultResponsabilidad={cliente?.responsabilidad_impositiva}
+                defaultTipoDocumento={cliente?.tipo_documento}
+                defaultNumeroDocumento={cliente?.numero_documento}
               />
-            </div>
 
-            <CheckoutDeliveryFields
-              addressDefaults={addressDefaults}
-              cartSubtotal={cart.subtotal}
-              envioDisponible={envioDisponible}
-              retiroDisponible={retiroDisponible}
-            />
-          </div>
+              <div className="oc-checkout-field">
+                <label>Teléfono</label>
+                <input
+                  name="telefono"
+                  type="tel"
+                  defaultValue={cliente?.telefono ?? ""}
+                />
+              </div>
+
+              <div className="oc-checkout-field">
+                <label>
+                  Dirección de correo electrónico <abbr title="obligatorio">*</abbr>
+                </label>
+                <input
+                  name="mail"
+                  type="email"
+                  required
+                  defaultValue={cliente?.mail ?? session?.user?.email ?? ""}
+                  readOnly={mailLocked}
+                />
+              </div>
+            </CheckoutStep>
+
+            <CheckoutStep id="entrega" title="Entrega">
+              <CheckoutDeliveryFields
+                addressDefaults={addressDefaults}
+                cartSubtotal={cart.subtotal}
+                envioDisponible={envioDisponible}
+                retiroDisponible={retiroDisponible}
+              />
+            </CheckoutStep>
+
+            {regalo ? (
+              <CheckoutStep id="regalo" title="Tu regalo">
+                <CheckoutGiftSelector regalo={regalo} />
+              </CheckoutStep>
+            ) : null}
+
+            <CheckoutStep id="pago" title="Pago">
+              <CheckoutCoupon
+                appliedCodigo={cupon?.codigo}
+                appliedMonto={descuentoCupon > 0 ? descuentoCupon : null}
+              />
+              <CheckoutPaymentOptions
+                itemsTarjeta={itemsTarjeta}
+                itemsContado={itemsContado}
+                maxInstallments={cartMaxInstallments(cart.items)}
+                mpConfigured={mercadoPagoConfigured}
+                publicKey={mpPublicKey}
+              />
+            </CheckoutStep>
+          </CheckoutWizard>
 
           <aside className="oc-checkout-order">
             <div className="oc-checkout-order-box">
@@ -225,21 +255,6 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                   />
                 </tfoot>
               </table>
-
-              <CheckoutCoupon
-                appliedCodigo={cupon?.codigo}
-                appliedMonto={descuentoCupon > 0 ? descuentoCupon : null}
-              />
-
-              {regalo ? <CheckoutGiftSelector regalo={regalo} /> : null}
-
-              <CheckoutPaymentOptions
-                itemsTarjeta={itemsTarjeta}
-                itemsContado={itemsContado}
-                maxInstallments={cartMaxInstallments(cart.items)}
-                mpConfigured={mercadoPagoConfigured}
-                publicKey={mpPublicKey}
-              />
 
               <Link href="/carrito" className="oc-checkout-back">
                 ← Volver al carrito

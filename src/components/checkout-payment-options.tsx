@@ -282,7 +282,7 @@ export function CheckoutPaymentOptions({
       <input type="hidden" name="tipo_pago" value={tipoPago} />
       <input type="hidden" name="mecanismo_pago" value={mecanismo} />
 
-      <h3>1. Modo de cobro</h3>
+      <h3>Modo de cobro</h3>
 
       <label
         className={`oc-checkout-payment-option${modo === "contado" ? " is-active" : ""}`}
@@ -346,7 +346,7 @@ export function CheckoutPaymentOptions({
         </span>
       </label>
 
-      <h3 className="oc-checkout-payment-step2">2. Cómo querés pagar</h3>
+      <h3 className="oc-checkout-payment-step2">Cómo querés pagar</h3>
 
       <label
         className={`oc-checkout-payment-option${mecanismo === "mercado_pago" ? " is-active" : ""}`}
@@ -475,51 +475,31 @@ export function CheckoutPaymentOptions({
 
       {mecanismo === "tarjeta" && (
         <div className="oc-checkout-card-panel">
-          <fieldset className="oc-checkout-cuotas">
-            <legend>Cuotas</legend>
-            <div className="oc-checkout-cuotas-list">
+          <div className="oc-checkout-field oc-checkout-cuotas-select">
+            <label htmlFor="checkout-cuotas">Cuotas</label>
+            <select
+              id="checkout-cuotas"
+              name="card_installments"
+              value={selectedCuotas}
+              onChange={(e) => {
+                const n = Number(e.target.value) || 1;
+                setSelectedCuotas(n);
+                setModo(n === 1 ? "contado" : "cuotas");
+              }}
+            >
               {cuotaChoices.map((n) => {
                 const total = n === 1 ? payContado : payTarjeta;
                 const cuota = total / n;
                 return (
-                  <label
-                    key={n}
-                    className={`oc-checkout-cuota${selectedCuotas === n ? " is-active" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="card_installments"
-                      value={n}
-                      checked={selectedCuotas === n}
-                      onChange={() => {
-                        setSelectedCuotas(n);
-                        setModo(n === 1 ? "contado" : "cuotas");
-                      }}
-                    />
-                    <span>
-                      {n === 1 ? (
-                        <>
-                          <strong>1 pago</strong>
-                          {" · "}
-                          {formatArs(total)}
-                          <small>10% de descuento</small>
-                        </>
-                      ) : (
-                        <>
-                          <strong>
-                            {n} cuotas de {formatArs(cuota)}
-                          </strong>
-                          {" · "}
-                          {formatArs(total)}
-                          <small>sin interés</small>
-                        </>
-                      )}
-                    </span>
-                  </label>
+                  <option key={n} value={n}>
+                    {n === 1
+                      ? `1 pago · ${formatArs(total)} · 10% de descuento`
+                      : `${n} cuotas de ${formatArs(cuota)} · ${formatArs(total)} · sin interés`}
+                  </option>
                 );
               })}
-            </div>
-          </fieldset>
+            </select>
+          </div>
           {brickEnabled ? (
             canPayDelivery ? (
               <CardBrick

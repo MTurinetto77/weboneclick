@@ -6099,9 +6099,135 @@ img { max-width: 100%; display: block; }
 
 .oc-checkout-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
+  gap: 1.5rem;
   align-items: start;
+}
+
+.oc-checkout-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.oc-checkout-step {
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  overflow: hidden;
+  scroll-margin-top: 112px;
+}
+
+.oc-checkout-step.is-open {
+  border-color: #d2d2d7;
+}
+
+.oc-checkout-step.is-done {
+  background: #fbfbfc;
+}
+
+.oc-checkout-step.is-locked {
+  opacity: 0.55;
+}
+
+.oc-checkout-step-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.95rem 1.15rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.oc-checkout-step-header:disabled {
+  cursor: default;
+}
+
+.oc-checkout-step-header:not(:disabled):hover .oc-checkout-step-edit {
+  text-decoration: underline;
+}
+
+.oc-checkout-step-index {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #f5f5f7;
+  color: #6e6e73;
+  flex-shrink: 0;
+}
+
+.oc-checkout-step.is-open .oc-checkout-step-index,
+.oc-checkout-step.is-done .oc-checkout-step-index {
+  background: #1d1d1f;
+  color: #fff;
+}
+
+.oc-checkout-step-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.oc-checkout-step-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #1d1d1f;
+}
+
+.oc-checkout-step-summary {
+  font-size: 0.8rem;
+  color: #6e6e73;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oc-checkout-step-edit {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0066cc;
+}
+
+.oc-checkout-step-body {
+  padding: 0 1.15rem 1.2rem;
+}
+
+.oc-checkout-step-body[hidden] {
+  display: none;
+}
+
+.oc-checkout-step-next {
+  margin-top: 0.35rem;
+  width: 100%;
+}
+
+.oc-checkout-step .oc-checkout-gift {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.oc-checkout-step .oc-checkout-gift h3 {
+  display: none;
+}
+
+.oc-checkout-step .oc-checkout-payment,
+.oc-checkout-step .oc-checkout-coupon {
+  margin-bottom: 0.75rem;
 }
 
 .oc-checkout-billing {
@@ -6383,9 +6509,9 @@ img { max-width: 100%; display: block; }
 
 .oc-checkout-order-box {
   background: #fff;
-  border: 2px solid #1d1d1f;
-  border-radius: 10px;
-  padding: 1.5rem 1.6rem 1.75rem;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  padding: 1.25rem 1.3rem 1.4rem;
 }
 
 .oc-checkout-order-box h2 {
@@ -6452,8 +6578,8 @@ img { max-width: 100%; display: block; }
 }
 
 .oc-checkout-gift-options {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 0.55rem;
 }
 
@@ -6733,6 +6859,10 @@ img { max-width: 100%; display: block; }
   margin-bottom: 0.45rem;
 }
 
+.oc-checkout-cuotas-select {
+  margin: 0 0 1rem;
+}
+
 .oc-checkout-cuotas-list {
   display: flex;
   flex-direction: column;
@@ -6869,6 +6999,10 @@ img { max-width: 100%; display: block; }
 
   .oc-checkout-order {
     position: static;
+  }
+
+  .oc-checkout-step {
+    scroll-margin-top: 88px;
   }
 }
 
