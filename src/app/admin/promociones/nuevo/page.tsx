@@ -13,7 +13,7 @@ export default async function AdminNuevaPromocionPage() {
       <h1 style={{ marginTop: 0 }}>Nueva promoción</h1>
 
       <div className="admin-card">
-        <form action={createPromocion} encType="multipart/form-data">
+        <form action={createPromocion}>
           <div className="form-field">
             <label>Nombre</label>
             <input name="nombre" required placeholder="Vacaciones de Invierno" />

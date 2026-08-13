@@ -73,7 +73,7 @@ export default async function AdminPromocionDetailPage({
       </p>
 
       <div className="admin-card">
-        <form action={updatePromocion.bind(null, id_promocion)} encType="multipart/form-data">
+        <form action={updatePromocion.bind(null, id_promocion)}>
           <div className="form-field">
             <label>Nombre</label>
             <input name="nombre" defaultValue={promo.nombre} required />
