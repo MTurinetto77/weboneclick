@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ProductVariantOption } from "@/lib/products";
+import { sortColors, type ProductVariantOption } from "@/lib/products";
 
 const COLOR_SWATCH: Record<string, string> = {
   "Negro Espacial": "#3a3a3d",
@@ -42,7 +42,9 @@ export function ProductVariantPicker({
   const current = variants.find((v) => v.id_producto === currentId);
   if (!current) return null;
 
-  const colors = [...new Set(variants.map((v) => v.color).filter((c): c is string => Boolean(c)))];
+  const colors = sortColors([
+    ...new Set(variants.map((v) => v.color).filter((c): c is string => Boolean(c))),
+  ]);
   const chips = [...new Set(variants.map((v) => v.chip).filter((c): c is string => Boolean(c)))];
   // Memoria y Teclado se listan sobre el total de variantes (no solo el pool del
   // color actual): así el selector muestra siempre las mismas opciones sin
@@ -155,6 +157,7 @@ export function ProductVariantPicker({
                   aria-current={active}
                 >
                   {memoria}
+                  {target.touchId && <span className="oc-pdp-variant-pill-touchid">Con Touch ID</span>}
                 </Link>
               );
             })}

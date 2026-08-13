@@ -45,7 +45,7 @@ export async function SiteHeader() {
       <div className="oc-header-float-inner">
         <Link href="/" className="oc-logo-float">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/oneclick/logo.svg" alt="OneClick" />
+          <img src="/oneclick/footer/apple-premium.svg" alt="OneClick - Apple Premium Reseller" />
         </Link>
 
         <div className="oc-header-spacer" aria-hidden />
@@ -227,12 +227,9 @@ export function SiteFooter() {
           <div className="oc-footer-brand">
             <Link href="/" className="oc-footer-logos" aria-label="OneClick inicio">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/oneclick/logo.svg" alt="OneClick" className="oc-footer-logo" />
-              <span className="oc-footer-logo-sep" aria-hidden />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/oneclick/footer/apple-premium.svg"
-                alt="Apple Premium Reseller"
+                alt="OneClick - Apple Premium Reseller"
                 className="oc-footer-apple"
               />
             </Link>

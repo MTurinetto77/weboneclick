@@ -5,9 +5,9 @@ import { ProductAddToCart } from "@/components/product-add-to-cart";
 import { ProductCard } from "@/components/product-card";
 import { ProductGallery } from "@/components/product-gallery";
 import { ProductReserveForm } from "@/components/product-reserve-form";
-import { ProductStickyBar } from "@/components/product-sticky-bar";
 import { ProductStoreAvailability } from "@/components/product-store-availability";
 import { ProductVariantPicker } from "@/components/product-variant-picker";
+import { ScrollToTopOnMount } from "@/components/scroll-to-top-on-mount";
 import {
   effectiveCharacteristicRows,
   getActiveProducts,
@@ -15,11 +15,13 @@ import {
   getProductBySlug,
   getProductVariants,
   getSizeComparison,
+  getStorageComparison,
   pickConsistentDescription,
   resolveStoreAvailability,
   sortProductImageLinks,
   type ChipComparisonRow,
   type ProductListItem,
+  type StorageComparisonRow,
 } from "@/lib/products";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
 import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
@@ -456,6 +458,50 @@ function ChipComparisonTable({ rows }: { rows: ChipComparisonRow[] }) {
   );
 }
 
+/**
+ * Compara los almacenamientos (256GB / 512GB) a todo el ancho, mostrando qué
+ * colores trae cada uno y cuál incluye Touch ID — para MacBook Neo, que ya
+ * no tiene chips que comparar (solo existe A18 Pro), esta es la comparativa
+ * que sí aporta: el eje real que cambia es almacenamiento, no color ni chip.
+ */
+function StorageComparisonTable({ rows }: { rows: StorageComparisonRow[] }) {
+  if (rows.length < 2) return null;
+  const gridTemplateColumns = `1fr repeat(${rows.length}, 1.4fr)`;
+
+  return (
+    <div className="oc-pdp-compare-wrap">
+      <h2>256GB o 512GB: elegí según lo que necesites.</h2>
+      <div className="oc-pdp-compare">
+        <div className="oc-pdp-compare-row oc-pdp-compare-head" style={{ gridTemplateColumns }}>
+          <div>Comparar</div>
+          {rows.map((r) => (
+            <div key={r.almacenamiento}>{r.almacenamiento}</div>
+          ))}
+        </div>
+        <div className="oc-pdp-compare-row" style={{ gridTemplateColumns }}>
+          <div>Colores disponibles</div>
+          {rows.map((r) => (
+            <div key={r.almacenamiento}>{r.colores.length ? r.colores.join(", ") : "—"}
+            </div>
+          ))}
+        </div>
+        <div className="oc-pdp-compare-row" style={{ gridTemplateColumns }}>
+          <div>Touch ID</div>
+          {rows.map((r) => (
+            <div key={r.almacenamiento}>{r.touchId ? "Sí" : "No"}</div>
+          ))}
+        </div>
+        <div className="oc-pdp-compare-row oc-pdp-compare-strong" style={{ gridTemplateColumns }}>
+          <div>Desde</div>
+          {rows.map((r) => (
+            <div key={r.almacenamiento}>{formatPriceArs(r.desde)}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BankPromoBlock({
   cuotas,
   cuotaMonto,
@@ -533,20 +579,37 @@ export default async function ProductoPage({ params }: { params: Params }) {
   // /uploads/mock, sumadas acá solo en memoria. Sacar este bloque en cuanto
   // haya fotos reales (Odoo o admin).
   const MOCK_GALLERY_NEO: Record<string, string[]> = {
-    Amarillo: ["mock/macbook-neo/yellow.jpg", "mock/macbook-neo/keyboard-yellow.jpg"],
-    Índigo: ["mock/macbook-neo/indigo.jpg", "mock/macbook-neo/keyboard-indigo.jpg"],
+    Amarillo: [
+      "mock/macbook-neo/yellow.jpg",
+      "mock/macbook-neo/keyboard-yellow.jpg",
+      "mock/macbook-neo/detail-keyboard-touchid-yellow.jpg",
+    ],
+    Índigo: [
+      "mock/macbook-neo/indigo.jpg",
+      "mock/macbook-neo/keyboard-indigo.jpg",
+      "mock/macbook-neo/detail-ports-indigo.jpg",
+    ],
     Plateado: ["mock/macbook-neo/silver.jpg", "mock/macbook-neo/keyboard-silver.jpg"],
     Rosa: ["mock/macbook-neo/pink.jpg", "mock/macbook-neo/keyboard-pink.jpg"],
   };
+  // MacBook Neo solo existe con A18 Pro (ver effectiveSpecsFrom en
+  // lib/products.ts) — un solo badge posible.
   const MOCK_GALLERY_CHIP_NEO: Record<string, string> = {
     "A18 Pro": "mock/macbook-neo/gallery-chip-a18-pro.jpg",
-    A18: "mock/macbook-neo/gallery-chip-a18.jpg",
   };
+  // Fotos "en uso" (lifestyle/software) — no muestran un color de chasis
+  // identificable, así que se suman igual en las 4 variantes en vez de
+  // adivinar a cuál corresponden.
+  const MOCK_GALLERY_LIFESTYLE_NEO = [
+    "mock/macbook-neo/lifestyle-bed.jpg",
+    "mock/macbook-neo/lifestyle-keynote.jpg",
+  ];
   const isNeo = modeloBase === "MacBook Neo";
   const mockExtras = isNeo
     ? [
         ...(colorChar ? MOCK_GALLERY_NEO[colorChar] ?? [] : []),
         ...(chipChar && MOCK_GALLERY_CHIP_NEO[chipChar] ? [MOCK_GALLERY_CHIP_NEO[chipChar]] : []),
+        ...MOCK_GALLERY_LIFESTYLE_NEO,
       ]
     : [];
   const imagenes = [...imagenesSync, ...mockExtras];
@@ -628,10 +691,12 @@ export default async function ProductoPage({ params }: { params: Params }) {
   related = related.slice(0, 8);
   const sizeComparison = categoryId ? await getSizeComparison(categoryId) : [];
   const chipComparison = isNeo && categoryId ? await getChipComparison(categoryId) : [];
+  const storageComparison = isNeo && categoryId ? await getStorageComparison(categoryId) : [];
   const ownTamano = tamanoChar;
 
   return (
     <div className={`container oc-pdp ${styles.wrapper}`}>
+      <ScrollToTopOnMount watch={product.slug} />
       <div className="oc-page-header">
         <nav className="oc-breadcrumb">
           <Link href="/">Inicio</Link>
@@ -763,6 +828,8 @@ export default async function ProductoPage({ params }: { params: Params }) {
 
         {chipComparison.length > 1 ? (
           <ChipComparisonTable rows={chipComparison} />
+        ) : storageComparison.length > 1 ? (
+          <StorageComparisonTable rows={storageComparison} />
         ) : (
           <TechSpecsTable caracteristicas={caracteristicasEfectivas} />
         )}
@@ -789,17 +856,6 @@ export default async function ProductoPage({ params }: { params: Params }) {
         </section>
       )}
 
-      {inStock && (
-        <ProductStickyBar
-          idProducto={product.id_producto}
-          title={displayTitle}
-          imageUrl={uploadPublicUrl(imagenes[0] ?? "")}
-          priceLabel={formatPriceArs(product.precio)}
-          cuotaLabel={cuotaMonto != null ? `${cuotas} cuotas de ${formatPriceArs(cuotaMonto)}` : null}
-          maxQty={maxQty}
-          triggerId="oc-pdp-buybox-cta"
-        />
-      )}
     </div>
   );
 }

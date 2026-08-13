@@ -1014,14 +1014,6 @@ img { max-width: 100%; display: block; }
   background: transparent;
   padding: 0;
   box-shadow: none;
-  transition: bottom 0.32s ease;
-}
-
-/* En la página de producto, la barra fija de compra (.oc-pdp-buybar) aparece
-   pegada abajo al scrollear y tapaba este botón — se lo sube por encima
-   mientras esa barra esté visible. */
-body:has(.oc-pdp-buybar.is-visible) .oc-whatsapp {
-  bottom: 96px;
 }
 
 .oc-whatsapp-icon {
@@ -1170,17 +1162,6 @@ body:has(.oc-pdp-buybar.is-visible) .oc-whatsapp {
   align-items: center;
   gap: 0.75rem;
   width: fit-content;
-}
-
-.oc-footer-logo {
-  height: 22px;
-  width: auto;
-}
-
-.oc-footer-logo-sep {
-  width: 1px;
-  height: 28px;
-  background: #d2d2d7;
 }
 
 .oc-footer-apple {
@@ -2460,6 +2441,16 @@ body:has(.oc-pdp-buybar.is-visible) .oc-whatsapp {
   .oc-pdp-bank-row {
     flex-direction: column;
     align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  /* flex: 1 1 12rem (ver regla base, pensada para la fila horizontal en
+     desktop) se hereda acá y en columna esa base de 12rem pasa a leerse
+     como alto mínimo en vez de ancho, dejando un hueco enorme antes de
+     los logos de tarjetas. */
+  .oc-pdp-bank-info {
+    flex: none;
+    width: 100%;
   }
 
   .oc-pdp-bank-mp {

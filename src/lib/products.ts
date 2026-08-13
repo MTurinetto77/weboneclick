@@ -865,9 +865,16 @@ function parseTitleSpecs(titulo: string): TitleDerivedSpecs | null {
     }
   }
 
+  // MacBook Neo solo existe con chip A18 Pro — no hay versión "A18" a secas
+  // (confirmado en apple.com/macbook-neo/specs/). Los SKUs de Odoo que traen
+  // "A18" sin "Pro" en el título son un error de carga: se corrige acá para
+  // que todo el sitio (selector de variantes, comparativa, badges) trate a
+  // esas unidades como lo que realmente son.
+  const chip = chipGen === "A18" && !chipTier ? "A18 Pro" : chipGen ? `${chipGen}${chipTier ? ` ${chipTier}` : ""}` : null;
+
   return {
     tamano: `${tamano}"`,
-    chip: chipGen ? `${chipGen}${chipTier ? ` ${chipTier}` : ""}` : null,
+    chip,
     cpu: `${cpu} CPU`,
     gpu: `${gpu} GPU`,
     ram: `${ram}GB`,
@@ -921,6 +928,7 @@ function effectiveSpecsFrom(
   // acá, no en el título, para que valga en toda la UI (tile, comparativa,
   // selector de variantes) sin depender de qué texto haya en cada SKU.
   const gpuOverride = chip === "A18 Pro" ? "6 GPU" : null;
+  const touchId = fromTitle?.touchId ?? false;
   return {
     chip,
     cpu: real.get("CPU") ?? fromTitle?.cpu ?? null,
@@ -932,7 +940,7 @@ function effectiveSpecsFrom(
     tamano: real.get("Tamaño") ?? fromTitle?.tamano ?? null,
     tipoPantalla: real.get("Tipo de pantalla") ?? fromDescripcion.tipoPantalla ?? null,
     bateria: real.get("Batería") ?? fromDescripcion.bateria ?? null,
-    touchId: fromTitle?.touchId ?? false,
+    touchId,
   };
 }
 
@@ -976,6 +984,7 @@ export type ProductVariantOption = {
   chipSpec: string | null;
   teclado: string | null;
   memoria: string | null;
+  touchId: boolean;
   inStock: boolean;
   descripcion: string;
 };
@@ -1024,6 +1033,7 @@ export async function getProductVariants(product: {
       chipSpec: specs.cpu && specs.gpu ? `${specs.cpu} · ${specs.gpu}` : null,
       teclado: specs.teclado,
       memoria: specs.ram && specs.almacenamiento ? `${specs.ram} · ${specs.almacenamiento}` : null,
+      touchId: specs.touchId,
       inStock: resolveStockAvailability(cand.stocks).inStock,
       descripcion: cand.descripcion,
     });
@@ -1085,6 +1095,22 @@ export type SizeComparisonRow = {
 };
 
 const CHIP_ORDER = ["M4", "M4 Pro", "M4 Max", "M5", "M5 Pro", "M5 Max"];
+
+// Orden fijo de colores (no alfabético ni el orden en que Prisma devuelva las
+// filas): así listas de color (selector de variantes, comparativas) se ven
+// siempre igual sin importar desde qué producto/consulta se arme la lista.
+const COLOR_ORDER = ["Plateado", "Rosa", "Amarillo", "Índigo"];
+
+export function sortColors(colors: string[]): string[] {
+  return [...colors].sort((a, b) => {
+    const ia = COLOR_ORDER.indexOf(a);
+    const ib = COLOR_ORDER.indexOf(b);
+    if (ia === -1 && ib === -1) return 0;
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
 
 /**
  * Compara los tamaños de una línea de producto (ej. MacBook Pro 14"/16") usando
@@ -1234,10 +1260,84 @@ export async function getChipComparison(categoriaId: number): Promise<ChipCompar
       chip,
       cpu: g.cpu,
       gpu: g.gpu,
-      colores: [...g.colores],
+      colores: sortColors([...g.colores]),
       almacenamientos: [...g.almacenamientos.entries()]
         .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
         .map(([valor, touchId]) => ({ valor, touchId })),
+      slugDesde: g.cheapestSlug,
+      desde: g.precios.length ? Math.min(...g.precios) : null,
+    }));
+}
+
+export type StorageComparisonRow = {
+  almacenamiento: string;
+  touchId: boolean;
+  colores: string[];
+  desde: number | null;
+  slugDesde: string | null;
+};
+
+/**
+ * Compara los almacenamientos de una línea de un solo chip (ej. MacBook Neo,
+ * que solo viene en A18 Pro: 256GB sin Touch ID vs 512GB con Touch ID),
+ * mostrando qué colores están disponibles en cada uno. Mismo enfoque que
+ * getChipComparison — si solo hay un almacenamiento cargado, no hay nada que
+ * comparar y devuelve [].
+ */
+export async function getStorageComparison(categoriaId: number): Promise<StorageComparisonRow[]> {
+  const products = await prisma.producto.findMany({
+    where: { activo: true, categorias: { some: { id_categoria: categoriaId } } },
+    include: {
+      precios: { orderBy: { fecha_desde: "desc" } },
+      caracteristicas: { include: { caracteristica: true } },
+    },
+  });
+
+  const groups = new Map<
+    string,
+    {
+      touchId: boolean;
+      colores: Set<string>;
+      precios: number[];
+      cheapestSlug: string | null;
+      cheapestPrecio: number;
+    }
+  >();
+
+  for (const p of products) {
+    const specs = effectiveSpecsFrom(p.titulo, p.descripcion, p.caracteristicas);
+    const almacenamiento = specs.almacenamiento;
+    if (!almacenamiento) continue;
+
+    if (!groups.has(almacenamiento)) {
+      groups.set(almacenamiento, {
+        touchId: specs.touchId,
+        colores: new Set(),
+        precios: [],
+        cheapestSlug: null,
+        cheapestPrecio: Infinity,
+      });
+    }
+    const g = groups.get(almacenamiento)!;
+    if (specs.color) g.colores.add(specs.color);
+    const precio = pickCurrentPrice(p.precios);
+    if (precio != null) {
+      g.precios.push(precio);
+      if (precio < g.cheapestPrecio) {
+        g.cheapestPrecio = precio;
+        g.cheapestSlug = p.slug;
+      }
+    }
+  }
+
+  if (groups.size < 2) return [];
+
+  return [...groups.entries()]
+    .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
+    .map(([almacenamiento, g]) => ({
+      almacenamiento,
+      touchId: g.touchId,
+      colores: sortColors([...g.colores]),
       slugDesde: g.cheapestSlug,
       desde: g.precios.length ? Math.min(...g.precios) : null,
     }));
