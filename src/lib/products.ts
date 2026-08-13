@@ -531,6 +531,8 @@ async function currentPricesByProductIds(
 export async function getActiveProducts(options?: {
   q?: string;
   categoriaId?: number;
+  /** OR de categorías puntuales (sin expandir subcategorías, a diferencia de categoriaId) */
+  categoriaIds?: number[];
   marcaId?: number;
   /** Restringir a un conjunto de IDs (p.ej. productos de una promoción) */
   ids?: number[];
@@ -567,6 +569,10 @@ export async function getActiveProducts(options?: {
     categoryIds = await resolveCategoryFilterIds(options.categoriaId);
     where.categorias = {
       some: { id_categoria: { in: categoryIds } },
+    };
+  } else if (options?.categoriaIds?.length) {
+    where.categorias = {
+      some: { id_categoria: { in: options.categoriaIds } },
     };
   }
 
@@ -797,7 +803,10 @@ export async function getProductBySlug(slug: string) {
  */
 const COLOR_ALIASES: Record<string, string> = {
   "space black": "Negro Espacial",
-  "silver": "Plata",
+  "silver": "Plateado",
+  "yellow": "Amarillo",
+  "pink": "Rosa",
+  "indigo": "Índigo",
 };
 
 function normalizeColorName(raw: string): string {
@@ -810,9 +819,10 @@ function normalizeKeyboardName(raw: string): string {
 }
 
 const TITLE_SPEC_RE =
-  /^(?:CTO\s+)?MacBook\s+Pro\s+(\d+)(?:\s+(M\d+)(?:\s+(Pro|Max))?)?\s+(\d+)\s*CPU\s+(\d+)\s*GPU\s+(\d+)\s*GB\s+(\d+(?:GB|TB))\s*(?:SSD)?\s*[-/]?\s*(.*)$/i;
+  /^(?:CTO\s+)?MacBook\s+(?:Pro|Neo)\s+(\d+)(?:\s+(M\d+|A\d+)(?:\s+(Pro|Max))?)?\s+(\d+)\s*CPU\s+(\d+)\s*GPU\s+(\d+)\s*(?:GB|RAM)\s+(\d+(?:GB|TB))\s*(?:SSD)?\s*[-/]?\s*(.*)$/i;
 
 const KEYBOARD_HINT_RE = /ingl[eé]s|english|espa[ñn]ol|spanish|teclado|keyboard/i;
+const TOUCH_ID_HINT_RE = /touch id/i;
 
 type TitleDerivedSpecs = {
   tamano: string;
@@ -823,10 +833,13 @@ type TitleDerivedSpecs = {
   almacenamiento: string;
   color: string | null;
   teclado: string | null;
+  touchId: boolean;
 };
 
-/** Deriva tamaño/chip/cpu/gpu/ram/almacenamiento/color/teclado del título real
- *  (ej. "MacBook Pro 14 M5 10CPU 10GPU 16GB 1TB - Negro Espacial - Teclado Inglés"). */
+/** Deriva tamaño/chip/cpu/gpu/ram/almacenamiento/color/teclado/Touch ID del
+ *  título real (ej. "MacBook Pro 14 M5 10CPU 10GPU 16GB 1TB - Negro Espacial
+ *  - Teclado Inglés"; en MacBook Neo, "Touch ID" aparece como su propio
+ *  segmento, ej. "... 512GB - Touch ID - Silver"). */
 function parseTitleSpecs(titulo: string): TitleDerivedSpecs | null {
   const match = titulo.match(TITLE_SPEC_RE);
   if (!match) return null;
@@ -840,10 +853,13 @@ function parseTitleSpecs(titulo: string): TitleDerivedSpecs | null {
     .filter(Boolean);
 
   let teclado: string | null = null;
+  let touchId = false;
   const colorSegments: string[] = [];
   for (const seg of segments) {
     if (KEYBOARD_HINT_RE.test(seg)) {
       teclado = normalizeKeyboardName(seg);
+    } else if (TOUCH_ID_HINT_RE.test(seg)) {
+      touchId = true;
     } else {
       colorSegments.push(seg);
     }
@@ -858,6 +874,7 @@ function parseTitleSpecs(titulo: string): TitleDerivedSpecs | null {
     almacenamiento,
     color: colorSegments.length ? normalizeColorName(colorSegments.join(" ")) : null,
     teclado,
+    touchId,
   };
 }
 
@@ -885,6 +902,7 @@ type EffectiveSpecs = {
   tamano: string | null;
   tipoPantalla: string | null;
   bateria: string | null;
+  touchId: boolean;
 };
 
 /** Combina producto_caracteristica real (prioridad) con lo derivado de
@@ -897,10 +915,16 @@ function effectiveSpecsFrom(
   const real = new Map(caracteristicas.map((c) => [c.caracteristica.nombre, c.valor]));
   const fromTitle = parseTitleSpecs(titulo);
   const fromDescripcion = parseDescriptionSpecs(descripcion);
+  const chip = real.get("Chip") ?? fromTitle?.chip ?? null;
+  // El título en Odoo trae "5GPU" para las dos variantes de MacBook Neo, pero
+  // el A18 Pro real tiene GPU de 6 núcleos (vs. 5 del A18 base) — se corrige
+  // acá, no en el título, para que valga en toda la UI (tile, comparativa,
+  // selector de variantes) sin depender de qué texto haya en cada SKU.
+  const gpuOverride = chip === "A18 Pro" ? "6 GPU" : null;
   return {
-    chip: real.get("Chip") ?? fromTitle?.chip ?? null,
+    chip,
     cpu: real.get("CPU") ?? fromTitle?.cpu ?? null,
-    gpu: real.get("GPU") ?? fromTitle?.gpu ?? null,
+    gpu: gpuOverride ?? real.get("GPU") ?? fromTitle?.gpu ?? null,
     ram: real.get("RAM") ?? fromTitle?.ram ?? null,
     almacenamiento: real.get("Almacenamiento") ?? fromTitle?.almacenamiento ?? null,
     color: real.get("Color") ?? fromTitle?.color ?? null,
@@ -908,6 +932,7 @@ function effectiveSpecsFrom(
     tamano: real.get("Tamaño") ?? fromTitle?.tamano ?? null,
     tipoPantalla: real.get("Tipo de pantalla") ?? fromDescripcion.tipoPantalla ?? null,
     bateria: real.get("Batería") ?? fromDescripcion.bateria ?? null,
+    touchId: fromTitle?.touchId ?? false,
   };
 }
 
@@ -939,6 +964,7 @@ export function effectiveCharacteristicRows(product: {
   pushIfMissing("Almacenamiento", specs.almacenamiento);
   pushIfMissing("Batería", specs.bateria);
   pushIfMissing("Teclado", specs.teclado);
+  if (specs.touchId) pushIfMissing("Touch ID", "Sí");
   return merged;
 }
 
@@ -1003,6 +1029,17 @@ export async function getProductVariants(product: {
     });
   }
   return options.length > 1 ? options : [];
+}
+
+/**
+ * Título genérico de línea ("MacBook Pro 14"", "MacBook Neo 13""), sin chip,
+ * memoria, almacenamiento, color ni teclado — para tarjetas donde se destaca
+ * la línea completa (ej. Destacados) en vez de un SKU puntual. Si el título no
+ * matchea una línea Mac conocida, devuelve `null` (se usa el título real tal cual).
+ */
+export function genericLineTitle(titulo: string): string | null {
+  const m = titulo.match(/^(?:CTO\s+)?(MacBook\s+(?:Pro|Neo|Air))\s+(\d+)/i);
+  return m ? `${m[1]} ${m[2]}"` : null;
 }
 
 /**
@@ -1108,6 +1145,100 @@ export async function getSizeComparison(categoriaId: number): Promise<SizeCompar
       chips: [...g.chips]
         .sort((a, b) => CHIP_ORDER.indexOf(a) - CHIP_ORDER.indexOf(b))
         .join(" / "),
+      desde: g.precios.length ? Math.min(...g.precios) : null,
+    }));
+}
+
+export type ChipComparisonRow = {
+  chip: string;
+  cpu: string | null;
+  gpu: string | null;
+  colores: string[];
+  almacenamientos: { valor: string; touchId: boolean }[];
+  desde: number | null;
+  slugDesde: string | null;
+};
+
+/**
+ * Compara los chips de una línea de un solo tamaño (ej. MacBook Neo 13", que
+ * viene en A18 y A18 Pro) mostrando qué colores/almacenamientos trae cada uno
+ * y el precio "desde". Mismo enfoque que getSizeComparison (real primero,
+ * derivado de título/descripción como fallback) — si solo hay un chip en la
+ * categoría, no hay nada que comparar y devuelve [].
+ */
+export async function getChipComparison(categoriaId: number): Promise<ChipComparisonRow[]> {
+  const products = await prisma.producto.findMany({
+    where: { activo: true, categorias: { some: { id_categoria: categoriaId } } },
+    include: {
+      precios: { orderBy: { fecha_desde: "desc" } },
+      caracteristicas: { include: { caracteristica: true } },
+    },
+  });
+
+  const groups = new Map<
+    string,
+    {
+      cpu: string | null;
+      gpu: string | null;
+      colores: Set<string>;
+      // Almacenamiento -> ¿ese storage viene con Touch ID? (en MacBook Neo
+      // Touch ID depende del teclado elegido, pero en este catálogo cada SKU
+      // sincronizada trae uno solo de los dos, y coincide 1:1 con el
+      // almacenamiento — se muestra igual, por SKU real, no inventado).
+      almacenamientos: Map<string, boolean>;
+      precios: number[];
+      cheapestSlug: string | null;
+      cheapestPrecio: number;
+    }
+  >();
+
+  for (const p of products) {
+    const specs = effectiveSpecsFrom(p.titulo, p.descripcion, p.caracteristicas);
+    const chip = specs.chip;
+    if (!chip) continue;
+
+    if (!groups.has(chip)) {
+      groups.set(chip, {
+        cpu: specs.cpu,
+        gpu: specs.gpu,
+        colores: new Set(),
+        almacenamientos: new Map(),
+        precios: [],
+        cheapestSlug: null,
+        cheapestPrecio: Infinity,
+      });
+    }
+    const g = groups.get(chip)!;
+    if (specs.color) g.colores.add(specs.color);
+    if (specs.almacenamiento) {
+      g.almacenamientos.set(
+        specs.almacenamiento,
+        (g.almacenamientos.get(specs.almacenamiento) ?? false) || specs.touchId
+      );
+    }
+    const precio = pickCurrentPrice(p.precios);
+    if (precio != null) {
+      g.precios.push(precio);
+      if (precio < g.cheapestPrecio) {
+        g.cheapestPrecio = precio;
+        g.cheapestSlug = p.slug;
+      }
+    }
+  }
+
+  if (groups.size < 2) return [];
+
+  return [...groups.entries()]
+    .sort((a, b) => CHIP_ORDER.concat(["A18", "A18 Pro"]).indexOf(a[0]) - CHIP_ORDER.concat(["A18", "A18 Pro"]).indexOf(b[0]))
+    .map(([chip, g]) => ({
+      chip,
+      cpu: g.cpu,
+      gpu: g.gpu,
+      colores: [...g.colores],
+      almacenamientos: [...g.almacenamientos.entries()]
+        .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
+        .map(([valor, touchId]) => ({ valor, touchId })),
+      slugDesde: g.cheapestSlug,
       desde: g.precios.length ? Math.min(...g.precios) : null,
     }));
 }

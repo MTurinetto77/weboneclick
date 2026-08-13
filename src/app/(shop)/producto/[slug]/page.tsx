@@ -11,12 +11,15 @@ import { ProductVariantPicker } from "@/components/product-variant-picker";
 import {
   effectiveCharacteristicRows,
   getActiveProducts,
+  getChipComparison,
   getProductBySlug,
   getProductVariants,
   getSizeComparison,
   pickConsistentDescription,
   resolveStoreAvailability,
   sortProductImageLinks,
+  type ChipComparisonRow,
+  type ProductListItem,
 } from "@/lib/products";
 import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
 import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
@@ -170,10 +173,23 @@ function parseHighlights(
   return highlights.length >= 2 ? highlights : null;
 }
 
+type SpecTile = { value: string; sub: string | null; badge?: string };
+
+/**
+ * Grilla de specs destacadas. Para MacBook Neo suma Apple Intelligence y
+ * Puertos — no hay fuente de datos para eso (Odoo no trae "puertos" ni
+ * soporte de Apple Intelligence como característica), así que es contenido
+ * estático igual que las fotos/badges mock, tomado de la ficha técnica real
+ * de apple.com/macbook-neo/specs/. Un solo tile por dato (nunca se repite
+ * Chip ni Batería entre esta grilla y la tabla de Características técnicas
+ * de más abajo, que sí lista todo en detalle).
+ */
 function SpecTilesGrid({
   caracteristicas,
+  isNeo,
 }: {
   caracteristicas: { caracteristica: { nombre: string }; valor: string }[];
+  isNeo: boolean;
 }) {
   const chip = findCaracteristica(caracteristicas, "Chip");
   const cpu = findCaracteristica(caracteristicas, "CPU");
@@ -186,21 +202,59 @@ function SpecTilesGrid({
 
   if (!chip) return null;
 
-  const tiles = [
+  // El badge gráfico del chip (A18 / A18 Pro) va solo en el carrusel de fotos
+  // (ver MOCK_GALLERY_CHIP_NEO en ProductoPage) — acá repetirlo era
+  // redundante, este tile queda con el nombre en texto nomás.
+  const tiles: SpecTile[] = [
     { value: chip, sub: [cpu, gpu].filter(Boolean).join(" · ") || null },
     ram || almacenamiento
       ? { value: [ram, almacenamiento].filter(Boolean).join(" · "), sub: "RAM · Almacenamiento" }
       : null,
-    pantalla ? { value: pantalla, sub: tipoPantalla } : null,
-    bateria ? { value: bateria, sub: "de autonomía" } : null,
-  ].filter((t): t is { value: string; sub: string | null } => Boolean(t));
+    // "Liquid Retina" (sin XDR) es la pantalla real de MacBook Neo — Odoo no
+    // trae ese texto en la descripción de estos SKUs (ver parseDescriptionSpecs,
+    // que solo matchea "...XDR"), así que se completa como fallback fijo de
+    // línea en vez de dejar el tile sin subtítulo.
+    pantalla ? { value: pantalla, sub: tipoPantalla ?? (isNeo ? "Liquid Retina" : null) } : null,
+    bateria
+      ? { value: bateria, sub: "de autonomía" }
+      : isNeo
+        ? { value: "16 horas", sub: "de autonomía" }
+        : null,
+    isNeo
+      ? {
+          value: "Apple Intelligence",
+          sub: "incluida",
+          badge: "mock/macbook-neo/icon-apple-intelligence.png",
+        }
+      : null,
+    isNeo
+      ? {
+          value: "3 puertos",
+          sub: "USB 3 (USB-C), USB 2 (USB-C), entrada de 3.5 mm para audífonos",
+        }
+      : null,
+  ].filter(Boolean) as SpecTile[];
 
   if (!tiles.length) return null;
 
+  // 4 tiles → una fila de 4. 6 (línea Neo) → dos filas parejas de 3. Evita
+  // filas dispares con huecos vacíos al final.
+  const columns = tiles.length % 3 === 0 && tiles.length !== 4 ? 3 : Math.min(tiles.length, 4);
+
   return (
-    <div className="oc-pdp-spec-tiles">
+    <div className="oc-pdp-spec-tiles" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
       {tiles.map((t, i) => (
         <div key={i} className="oc-pdp-spec-tile">
+          {t.badge && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={uploadPublicUrl(t.badge)}
+              alt={t.value}
+              width={48}
+              height={48}
+              className="oc-pdp-spec-tile-badge"
+            />
+          )}
           <strong>{t.value}</strong>
           {t.sub && <span>{t.sub}</span>}
         </div>
@@ -334,6 +388,74 @@ function SizeComparisonTable({
   );
 }
 
+/**
+ * Comparativa de chips (A18 vs A18 Pro en MacBook Neo) a todo el ancho,
+ * mostrando qué colores y almacenamientos trae cada uno — arma el panorama
+ * completo de variantes en vez de listar solo la config actual, como ya
+ * hace SizeComparisonTable para tamaños.
+ */
+function ChipComparisonTable({ rows }: { rows: ChipComparisonRow[] }) {
+  if (rows.length < 2) return null;
+  const gridTemplateColumns = `1fr repeat(${rows.length}, 1.4fr)`;
+
+  return (
+    <div className="oc-pdp-compare-wrap">
+      <h2>Chip A18 o A18 Pro: elegí según lo que necesites.</h2>
+      <div className="oc-pdp-compare">
+        <div className="oc-pdp-compare-row oc-pdp-compare-head" style={{ gridTemplateColumns }}>
+          <div>Comparar</div>
+          {rows.map((r) => (
+            <div key={r.chip}>Chip {r.chip}</div>
+          ))}
+        </div>
+        <div className="oc-pdp-compare-row" style={{ gridTemplateColumns }}>
+          <div>CPU · GPU</div>
+          {rows.map((r) => (
+            <div key={r.chip}>{[r.cpu, r.gpu].filter(Boolean).join(" · ") || "—"}</div>
+          ))}
+        </div>
+        <div className="oc-pdp-compare-row" style={{ gridTemplateColumns }}>
+          <div>Colores</div>
+          {rows.map((r) => (
+            <div key={r.chip}>{r.colores.length ? r.colores.join(", ") : "—"}</div>
+          ))}
+        </div>
+        <div className="oc-pdp-compare-row" style={{ gridTemplateColumns }}>
+          <div>Almacenamiento</div>
+          {rows.map((r) => (
+            <div key={r.chip}>
+              {r.almacenamientos.length
+                ? r.almacenamientos
+                    .map((a) => (a.touchId ? `${a.valor} (Touch ID)` : a.valor))
+                    .join(", ")
+                : "—"}
+            </div>
+          ))}
+        </div>
+        <div className="oc-pdp-compare-row" style={{ gridTemplateColumns }}>
+          <div>Touch ID</div>
+          {rows.map((r) => {
+            const withTouchId = r.almacenamientos.filter((a) => a.touchId);
+            const label =
+              withTouchId.length === 0
+                ? "No"
+                : withTouchId.length === r.almacenamientos.length
+                  ? "Sí"
+                  : `Solo en ${withTouchId.map((a) => a.valor).join(", ")}`;
+            return <div key={r.chip}>{label}</div>;
+          })}
+        </div>
+        <div className="oc-pdp-compare-row oc-pdp-compare-strong" style={{ gridTemplateColumns }}>
+          <div>Desde</div>
+          {rows.map((r) => (
+            <div key={r.chip}>{formatPriceArs(r.desde)}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BankPromoBlock({
   cuotas,
   cuotaMonto,
@@ -379,7 +501,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const imagenes = sortProductImageLinks(
+  const imagenesSync = sortProductImageLinks(
     product.archivos.map((a) => ({
       link: a.archivo.link,
       tipo: a.archivo.tipo,
@@ -404,6 +526,30 @@ export default async function ProductoPage({ params }: { params: Params }) {
       : product.titulo;
 
   const chipChar = findCaracteristica(caracteristicasEfectivas, "Chip");
+
+  // Fotos mock (tapa cerrada + perfil + teclado + chip) para MacBook Neo:
+  // Odoo solo trae la foto principal de frente, sin galería. No hay
+  // archivo/archivo_producto en base para esto — son estáticas en
+  // /uploads/mock, sumadas acá solo en memoria. Sacar este bloque en cuanto
+  // haya fotos reales (Odoo o admin).
+  const MOCK_GALLERY_NEO: Record<string, string[]> = {
+    Amarillo: ["mock/macbook-neo/yellow.jpg", "mock/macbook-neo/keyboard-yellow.jpg"],
+    Índigo: ["mock/macbook-neo/indigo.jpg", "mock/macbook-neo/keyboard-indigo.jpg"],
+    Plateado: ["mock/macbook-neo/silver.jpg", "mock/macbook-neo/keyboard-silver.jpg"],
+    Rosa: ["mock/macbook-neo/pink.jpg", "mock/macbook-neo/keyboard-pink.jpg"],
+  };
+  const MOCK_GALLERY_CHIP_NEO: Record<string, string> = {
+    "A18 Pro": "mock/macbook-neo/gallery-chip-a18-pro.jpg",
+    A18: "mock/macbook-neo/gallery-chip-a18.jpg",
+  };
+  const isNeo = modeloBase === "MacBook Neo";
+  const mockExtras = isNeo
+    ? [
+        ...(colorChar ? MOCK_GALLERY_NEO[colorChar] ?? [] : []),
+        ...(chipChar && MOCK_GALLERY_CHIP_NEO[chipChar] ? [MOCK_GALLERY_CHIP_NEO[chipChar]] : []),
+      ]
+    : [];
+  const imagenes = [...imagenesSync, ...mockExtras];
   const pantallaTipoChar = findCaracteristica(caracteristicasEfectivas, "Tipo de pantalla");
   const bateriaChar = findCaracteristica(caracteristicasEfectivas, "Batería");
   const displaySubtitle =
@@ -427,15 +573,61 @@ export default async function ProductoPage({ params }: { params: Params }) {
       : 99;
 
   const categoryId = product.categorias[0]?.id_categoria;
-  const related = categoryId
-    ? (
-        await getActiveProducts({
-          categoriaId: categoryId,
-          take: 8,
-        })
-      ).items.filter((p) => p.id_producto !== product.id_producto).slice(0, 8)
+  // Excluye variantes hermanas (mismo modelo, solo cambia color/chip/memoria):
+  // esas ya están cubiertas por el selector de variantes de arriba — mostrarlas
+  // de nuevo acá no es un producto "relacionado", es el mismo producto repetido.
+  const excludedIds = new Set([product.id_producto, ...variants.map((v) => v.id_producto)]);
+  const dedupe = (items: ProductListItem[]) => items.filter((p) => !excludedIds.has(p.id_producto));
+
+  let related = categoryId
+    ? dedupe(
+        (
+          await getActiveProducts({
+            categoriaId: categoryId,
+            take: 8 + excludedIds.size,
+          })
+        ).items
+      )
     : [];
+
+  // Para una Mac, lo "realmente relacionado" son accesorios que se usan con
+  // ella — fundas, cargadores, cables y auriculares — no otras Macs de la
+  // misma línea, que ya se ven en el selector de variantes / comparador de
+  // tamaños de arriba. Un producto por categoría (variedad real, no 4
+  // fundas), priorizando el que menciona "Mac" en el título cuando aplica
+  // (ej. "Funda ... MacBook Pro 14" es compatible; un cargador USB-C no
+  // necesita decir "Mac" para servir igual).
+  const ACCESSORY_CATEGORIES = [
+    { id: 8, nombre: "Fundas y Cobertores" },
+    { id: 6, nombre: "Cargadores" },
+    { id: 5, nombre: "Cables y Adaptadores" },
+    { id: 23, nombre: "Auriculares" },
+  ];
+  const isMac = product.categorias[0]?.categoria.nombre.startsWith("Mac") ?? false;
+  if (isMac) {
+    const accessories: ProductListItem[] = [];
+    for (const cat of ACCESSORY_CATEGORIES) {
+      const pool = dedupe(
+        (await getActiveProducts({ categoriaIds: [cat.id], take: 24 })).items
+      ).filter((p) => !accessories.some((a) => a.id_producto === p.id_producto));
+      const pick = pool.find((p) => /\bmac/i.test(p.titulo)) ?? pool[0];
+      if (pick) accessories.push(pick);
+    }
+    const accessoryIds = new Set(accessories.map((p) => p.id_producto));
+    related = [...related.filter((p) => !accessoryIds.has(p.id_producto)).slice(0, 4), ...accessories];
+  }
+
+  // Si después de accesorios + línea todavía sobra lugar (ej. "MacBook Neo",
+  // categoría chica), se completa con otros productos de la misma marca.
+  if (related.length < 8 && product.id_marca) {
+    const brandItems = dedupe(
+      (await getActiveProducts({ marcaId: product.id_marca, take: 8 + excludedIds.size })).items
+    ).filter((p) => !related.some((r) => r.id_producto === p.id_producto));
+    related = [...related, ...brandItems];
+  }
+  related = related.slice(0, 8);
   const sizeComparison = categoryId ? await getSizeComparison(categoryId) : [];
+  const chipComparison = isNeo && categoryId ? await getChipComparison(categoryId) : [];
   const ownTamano = tamanoChar;
 
   return (
@@ -459,10 +651,6 @@ export default async function ProductoPage({ params }: { params: Params }) {
       <div className="oc-product-detail">
         <div className="oc-pdp-gallery-wrap">
           <ProductGallery images={imagenes} alt={product.titulo} outOfStock={!inStock} />
-          <div className="oc-pdp-reseller-badge">
-            <span />
-            Apple Premium Reseller
-          </div>
         </div>
 
         <div className="oc-pdp-buybox">
@@ -565,7 +753,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
       </div>
 
       <section className="oc-pdp-description">
-        <SpecTilesGrid caracteristicas={caracteristicasEfectivas} />
+        <SpecTilesGrid caracteristicas={caracteristicasEfectivas} isNeo={isNeo} />
 
         <HighlightsSection
           modeloBase={modeloBase}
@@ -573,7 +761,11 @@ export default async function ProductoPage({ params }: { params: Params }) {
           fallbackHtml={cleanFallbackHtml(descripcionConsistente, modeloBase)}
         />
 
-        <TechSpecsTable caracteristicas={caracteristicasEfectivas} />
+        {chipComparison.length > 1 ? (
+          <ChipComparisonTable rows={chipComparison} />
+        ) : (
+          <TechSpecsTable caracteristicas={caracteristicasEfectivas} />
+        )}
 
         {sizeComparison.length > 1 && modeloBase && (
           <div className="oc-pdp-compare-wrap">
@@ -589,7 +781,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
       {related.length > 0 && (
         <section className="oc-pdp-related">
           <h2>Productos relacionados</h2>
-          <div className="oc-product-grid">
+          <div className="oc-product-grid oc-product-scroll">
             {related.map((p) => (
               <ProductCard key={p.id_producto} product={p} />
             ))}

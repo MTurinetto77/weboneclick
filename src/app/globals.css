@@ -47,6 +47,16 @@ html, body {
   min-height: 100%;
 }
 
+/* Solo en body (no en html): así el navegador sigue usando el viewport como
+   único contenedor de scroll. Poner overflow-x explícito en html Y body a la
+   vez fuerza overflow-y:auto en los dos (regla de cómputo del overflow),
+   creando dos contenedores de scroll anidados independientes y rompiendo el
+   position:sticky de la galería del producto (el scroll se corta a mitad de
+   página, el sticky se ancla al contenedor equivocado). */
+body {
+  overflow-x: hidden;
+}
+
 body,
 button,
 input,
@@ -1004,6 +1014,14 @@ img { max-width: 100%; display: block; }
   background: transparent;
   padding: 0;
   box-shadow: none;
+  transition: bottom 0.32s ease;
+}
+
+/* En la página de producto, la barra fija de compra (.oc-pdp-buybar) aparece
+   pegada abajo al scrollear y tapaba este botón — se lo sube por encima
+   mientras esa barra esté visible. */
+body:has(.oc-pdp-buybar.is-visible) .oc-whatsapp {
+  bottom: 96px;
 }
 
 .oc-whatsapp-icon {

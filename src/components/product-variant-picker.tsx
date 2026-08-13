@@ -4,9 +4,13 @@ import type { ProductVariantOption } from "@/lib/products";
 const COLOR_SWATCH: Record<string, string> = {
   "Negro Espacial": "#3a3a3d",
   "Plata": "#e3e4e6",
+  "Plateado": "#e3e4e6",
   "Space Black": "#3a3a3d",
   "Gris Espacial": "#6e6e73",
   "Dorado": "#f0e1c6",
+  "Amarillo": "#f4d94e",
+  "Rosa": "#f2c3d0",
+  "Índigo": "#4b5488",
 };
 
 function swatchHex(color: string): string {

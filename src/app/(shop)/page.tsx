@@ -7,11 +7,15 @@ import {
 } from "@/components/home-banners";
 import { HomeDestacados } from "@/components/home-destacados";
 import { ProductCard } from "@/components/product-card";
-import { getActiveBanners, getActiveProducts } from "@/lib/products";
+import { genericLineTitle, getActiveBanners, getActiveProducts } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
 
 type ProductPage = Awaited<ReturnType<typeof getActiveProducts>>;
 const emptyProducts: ProductPage = { items: [], total: 0 };
+
+/** Representante fijo de la línea MacBook Neo en Destacados > Apple (posición 2):
+ *  por antigüedad de alta no entraría en el top 8 automático. */
+const PINNED_APPLE_DESTACADO_ID = 666;
 
 export default async function HomePage() {
   const [apple, jbl, accesoriosCat, fundasCat, heroBanners, secundarioBanners, tripleBanners, pieBanners] =
@@ -38,7 +42,7 @@ export default async function HomePage() {
       getActiveBanners("pie"),
     ]);
 
-  const [destacadosApple, destacadosJbl, destacadosAccesorios, potenciaProducts] =
+  const [destacadosApple, destacadosJbl, destacadosAccesorios, potenciaProducts, pinnedApple] =
     await Promise.all([
       apple
         ? getActiveProducts({ marcaId: apple.id_marca, take: 8 })
@@ -56,9 +60,23 @@ export default async function HomePage() {
             take: 6,
           })
         : getActiveProducts({ q: "Funda", take: 6 }),
+      getActiveProducts({ ids: [PINNED_APPLE_DESTACADO_ID], take: 1 }),
     ]);
 
   const jblProducts = destacadosJbl.items.slice(0, 5);
+
+  const pinnedApplePick = pinnedApple.items[0];
+  const appleItems = (
+    pinnedApplePick
+      ? [
+          destacadosApple.items[0],
+          pinnedApplePick,
+          ...destacadosApple.items
+            .filter((p) => p.id_producto !== PINNED_APPLE_DESTACADO_ID)
+            .slice(1, 7),
+        ].filter((p): p is (typeof destacadosApple.items)[number] => Boolean(p))
+      : destacadosApple.items
+  ).map((p) => ({ ...p, titulo: genericLineTitle(p.titulo) ?? p.titulo }));
 
   const categoryBanners = [
     {
@@ -133,7 +151,7 @@ export default async function HomePage() {
 
       <HomeDestacados
         products={{
-          apple: destacadosApple.items,
+          apple: appleItems,
           jbl: destacadosJbl.items,
           accesorios: destacadosAccesorios.items,
         }}
