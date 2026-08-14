@@ -1,10 +1,10 @@
 import Link from "next/link";
 import {
-  HomeHeroBanner,
   HomePieBanner,
   HomeSecundarioBanner,
   HomeTripleBanners,
 } from "@/components/home-banners";
+import { HomeHeroCarousel } from "@/components/home-hero-carousel";
 import { HomeDestacados } from "@/components/home-destacados";
 import { ProductCard } from "@/components/product-card";
 import { getActiveBanners } from "@/lib/products";
@@ -57,7 +57,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <HomeHeroBanner banner={heroBanners[0]} />
+      <HomeHeroCarousel banners={heroBanners} />
 
       {/* Barra utilitaria oscura debajo del hero */}
       <section className="oc-utility-bar">

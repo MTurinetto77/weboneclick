@@ -65,11 +65,7 @@ export default async function AdminNuevoBannerPage() {
             </p>
           </div>
           <div className="form-field">
-            <label>Link al hacer clic (opcional, legado)</label>
-            <input name="link" placeholder="/shop" />
-          </div>
-          <div className="form-field">
-            <label>Orden (menor = primero; en triple usar 1, 2, 3)</label>
+            <label>Orden (menor = primero; en triple usar 1, 2, 3; en hero define el orden del carrusel)</label>
             <input name="orden" type="number" defaultValue={0} />
           </div>
           <div className="form-field">

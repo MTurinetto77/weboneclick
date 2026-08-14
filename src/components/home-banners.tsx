@@ -2,34 +2,14 @@ import type { CSSProperties } from "react";
 import type { banner as Banner } from "@prisma/client";
 import { bannerImageUrl } from "@/lib/banners";
 
-type BannerRow = Pick<
+export type BannerRow = Pick<
   Banner,
   "id_banner" | "titulo" | "imagen_desktop" | "imagen_mobile" | "html" | "clase_css" | "orden" | "link"
 >;
 
-function HtmlSlot({ html }: { html: string | null }) {
+export function HtmlSlot({ html }: { html: string | null }) {
   if (!html) return null;
   return <div className="oc-banner-slot" dangerouslySetInnerHTML={{ __html: html }} />;
-}
-
-export function HomeHeroBanner({ banner }: { banner: BannerRow | null | undefined }) {
-  if (!banner) return null;
-  const desktop = bannerImageUrl(banner.imagen_desktop);
-  const mobile = banner.imagen_mobile ? bannerImageUrl(banner.imagen_mobile) : null;
-
-  return (
-    <section className="oc-hero-live">
-      <picture>
-        {mobile ? <source media="(max-width: 768px)" srcSet={mobile} /> : null}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="oc-hero-live-bg" src={desktop} alt="" />
-      </picture>
-      <div className="oc-hero-live-shade" />
-      <div className="container oc-hero-live-grid">
-        <HtmlSlot html={banner.html} />
-      </div>
-    </section>
-  );
 }
 
 export function HomeSecundarioBanner({ banner }: { banner: BannerRow | null | undefined }) {
