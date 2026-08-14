@@ -1885,9 +1885,9 @@ img { max-width: 100%; display: block; }
 @media (max-width: 768px) {
   .oc-product-card-wishlist,
   .oc-product-card-thumb:has(.oc-product-card-promo-badge) .oc-product-card-wishlist {
-    top: 0;
+    top: auto;
+    bottom: 0;
     right: 0;
-    bottom: auto;
   }
 }
 
