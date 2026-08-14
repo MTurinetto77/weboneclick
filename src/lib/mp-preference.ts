@@ -54,7 +54,7 @@ export async function createOrReuseMercadoPagoPreference(
 
   const cart = await resolveCart();
   const maxInstallments = Math.max(1, cartMaxInstallments(cart.items));
-  // Contado: solo 1 pago (protege el 10%). Cuotas: tope del producto.
+  // Contado: solo 1 pago. Cuotas: tope del producto.
   const installments = tipo_pago === "mercado_pago" ? 1 : maxInstallments;
 
   const src = toMpPayerSource(venta);

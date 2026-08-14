@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "El pago contado con 10% de descuento solo admite 1 cuota. Elegí cuotas o 1 pago.",
+          "El pago contado solo admite 1 cuota. Elegí cuotas o 1 pago.",
       },
       { status: 400 },
     );

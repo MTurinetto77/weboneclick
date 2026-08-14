@@ -147,16 +147,35 @@ web/src/
   lib/
     products.ts      # queries listado / categoría por path / facetas shop
     promos.ts        # promociones de menú (nav, slug, badges)
-    pricing.ts       # contado −10%, sin impuestos /1.105
+    pricing.ts       # descuento contado por cuotas (params), sin impuestos /1.105
+    parametros.ts    # envíos + precios (umbral/ % contado)
     nav.ts           # mega-menú (Promociones = dynamicChildren desde DB)
     odoo*.ts
   app/globals.css    # tokens OneClick + layout home (prefijo .oc-*)
 ```
 
-### Precios en UI ([`pricing.ts`](web/src/lib/pricing.ts))
-- Contado: lista × **0.9**
+### Precios en UI ([`pricing.ts`](../src/lib/pricing.ts) + [`parametros.ts`](../src/lib/parametros.ts))
+
+**Descuento contado** (ya no es 10% fijo para todos):
+
+| Condición | Efecto |
+|-----------|--------|
+| `cuotas_max` null / ≤0 | **Sin** descuento contado |
+| `cuotas_max >= cantidad_cuotas_base_descuento_contado` | Aplica `porcentaje_descuento_contado_segun_cuota` |
+| Resto (cuotas definidas pero &lt; umbral) | Sin descuento contado |
+
+Parámetros (tabla `parametro`, grupo `precios`, editables en `/admin/parametros`):
+
+| nombre | default | significado |
+|--------|---------|-------------|
+| `cantidad_cuotas_base_descuento_contado` | `12` | Umbral mínimo de `cuotas_max` |
+| `porcentaje_descuento_contado_segun_cuota` | `20` | Porcentaje (20 = 20%) |
+
+- Ficha / cards: texto “Pagando contado X%…” **solo** si el producto califica.
+- Checkout (`computeTotals`): en Contado (`tipo_pago=mercado_pago`) el % aplica **solo a ítems elegibles**; carrito mixto → descuento parcial; toda la compra sigue siendo 1 pago.
+- Sidebar “Tu pedido”: con Contado (default) muestra precio tachado + precio descontado en elegibles y fila “Descuento contado”.
 - Sin impuestos nacionales: lista ÷ **1.105**
-- Cuotas: campo `cuotas_max` del producto
+- Cuotas UI: campo `cuotas_max` (fallback visual `?? 12` **no** define elegibilidad del descuento)
 
 ### Categorías por URL ([`getCategoryBySlugPath`](web/src/lib/products.ts))
 1. Match jerárquico por segmentos  
@@ -273,7 +292,7 @@ Scripts de apoyo (Playwright / sharp):
 | Trío categorías Audio/Mochilas/Fundas | `page.tsx` + `public/oneclick/banners/` (aún estático) |
 | **Promociones del menú** | Ver [PROMOCIONES.md](./PROMOCIONES.md) — `promos.ts`, `site-chrome`, `admin/promociones`, catch-all |
 | **Regalos por monto** | Ver [REGALOS.md](./REGALOS.md) — checkout selector, línea $0 Odoo, `admin/regalos` |
-| Precios / cuotas / contado | `src/lib/pricing.ts`, `product-card.tsx` |
+| Precios / cuotas / contado | `src/lib/pricing.ts`, `src/lib/parametros.ts`, `product-card.tsx`, `checkout-order-summary.tsx` |
 | Menú (resto de categorías) | `src/lib/nav.ts`, `site-chrome.tsx` |
 | Listados / categorías | `src/lib/products.ts`, `(shop)/[...path]/page.tsx` |
 | Sync / Odoo | `src/lib/odoo-sync.ts`, `scripts/sync-odoo.ts` |

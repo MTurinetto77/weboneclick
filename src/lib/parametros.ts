@@ -1,8 +1,24 @@
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 
 export const PARAM_VALOR_ENVIO_GRATIS = "valor_para_envio_gratis";
 export const DEFAULT_VALOR_ENVIO_GRATIS = 200_000;
 export const GRUPO_ENVIOS = "envios";
+
+export const GRUPO_PRECIOS = "precios";
+/** A partir de cuántas cuotas del producto aplica el descuento contado. */
+export const PARAM_CANTIDAD_CUOTAS_BASE_DESCUENTO_CONTADO =
+  "cantidad_cuotas_base_descuento_contado";
+export const DEFAULT_CANTIDAD_CUOTAS_BASE_DESCUENTO_CONTADO = 12;
+/** Porcentaje de descuento contado (20 = 20%). */
+export const PARAM_PORCENTAJE_DESCUENTO_CONTADO_SEGUN_CUOTA =
+  "porcentaje_descuento_contado_segun_cuota";
+export const DEFAULT_PORCENTAJE_DESCUENTO_CONTADO_SEGUN_CUOTA = 20;
+
+export type DescuentoContadoConfig = {
+  umbralCuotas: number;
+  porcentaje: number;
+};
 
 /** Precios FastTrack por zona (parámetros fastrack_precio_zona_N). */
 export const FASTRACK_ZONAS_PRECIO = [2, 3, 4, 5, 6, 7] as const;
@@ -130,6 +146,25 @@ export async function getValorEnvioGratis(): Promise<number> {
   const n = await getParametroNumber(PARAM_VALOR_ENVIO_GRATIS);
   return n != null && n > 0 ? n : DEFAULT_VALOR_ENVIO_GRATIS;
 }
+
+/** Config de descuento contado según cuotas del producto (dedupe por request RSC). */
+export const getDescuentoContadoConfig = cache(
+  async (): Promise<DescuentoContadoConfig> => {
+    const [umbralRaw, pctRaw] = await Promise.all([
+      getParametroNumber(PARAM_CANTIDAD_CUOTAS_BASE_DESCUENTO_CONTADO),
+      getParametroNumber(PARAM_PORCENTAJE_DESCUENTO_CONTADO_SEGUN_CUOTA),
+    ]);
+    const umbralCuotas =
+      umbralRaw != null && umbralRaw > 0
+        ? umbralRaw
+        : DEFAULT_CANTIDAD_CUOTAS_BASE_DESCUENTO_CONTADO;
+    const porcentaje =
+      pctRaw != null && pctRaw >= 0
+        ? pctRaw
+        : DEFAULT_PORCENTAJE_DESCUENTO_CONTADO_SEGUN_CUOTA;
+    return { umbralCuotas, porcentaje };
+  },
+);
 
 /** Mapa zona → precio FastTrack desde parámetros (con defaults). */
 export async function getFastrackPreciosPorZona(): Promise<Record<number, number>> {

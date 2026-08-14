@@ -11,9 +11,11 @@ import {
 export function HomeDestacados({
   title,
   products,
+  descuentoContado = null,
 }: {
   title: string;
   products: Record<DestacadosPestana, ProductListItem[]>;
+  descuentoContado?: { umbralCuotas: number; porcentaje: number } | null;
 }) {
   const [tab, setTab] = useState<DestacadosPestana>("apple");
   const items = products[tab];
@@ -43,7 +45,11 @@ export function HomeDestacados({
         </div>
         <div className="oc-product-grid oc-product-scroll" role="tabpanel">
           {items.map((p) => (
-            <ProductCard key={p.id_producto} product={p} />
+            <ProductCard
+              key={p.id_producto}
+              product={p}
+              descuentoContado={descuentoContado}
+            />
           ))}
         </div>
         {!items.length && (

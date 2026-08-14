@@ -13,7 +13,11 @@ import "dotenv/config";
 import type { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import { applyMercadoPagoPayment } from "../src/lib/mp-payment-sync";
 import { getShippingWarehouseOdooId } from "../src/lib/almacenes";
-import { CONTADO_DISCOUNT } from "../src/lib/pricing";
+import {
+  factorDescuentoContado,
+  productoCalificaDescuentoContado,
+} from "../src/lib/pricing";
+import { getDescuentoContadoConfig } from "../src/lib/parametros";
 import { syncVentaToOdoo } from "../src/lib/odoo-venta";
 import { odooRead } from "../src/lib/odoo-write";
 import { prisma } from "../src/lib/prisma";
@@ -62,6 +66,7 @@ async function findProductForWarehouse(warehouseOdooId: number) {
     odoo_id: row.producto.odoo_id,
     titulo: row.producto.titulo,
     precio: Number(row.producto.precios[0]!.precio),
+    cuotas_max: row.producto.cuotas_max,
     id_tienda: row.almacen?.tienda?.id_tienda ?? null,
     tiendaNombre: row.almacen?.tienda?.nombre ?? null,
     warehouseOdooId,
@@ -101,6 +106,7 @@ async function findProductForRetiro() {
     odoo_id: row.producto.odoo_id,
     titulo: row.producto.titulo,
     precio: Number(row.producto.precios[0]!.precio),
+    cuotas_max: row.producto.cuotas_max,
     id_tienda: row.almacen.tienda.id_tienda,
     tiendaNombre: row.almacen.tienda.nombre,
     warehouseOdooId: row.almacen.odoo_id!,
@@ -196,9 +202,17 @@ async function createTestVenta(options: {
       })
     : null;
 
-  // Simula pago "mercado_pago" (contado −10%) + cupón de monto fijo sobre productos
+  // Simula pago "mercado_pago" (contado según cuotas) + cupón de monto fijo sobre productos
+  const descConfig = await getDescuentoContadoConfig();
   const subtotal = pick.precio;
-  const precioContado = round2(pick.precio * (1 - CONTADO_DISCOUNT));
+  const aplicaContado = productoCalificaDescuentoContado(
+    pick.cuotas_max,
+    descConfig.umbralCuotas,
+  );
+  const factor = aplicaContado
+    ? factorDescuentoContado(descConfig.porcentaje)
+    : 0;
+  const precioContado = round2(pick.precio * (1 - factor));
   const descuentoContado = round2(subtotal - precioContado);
   const descuentoCupon = round2(
     Math.min(Math.max(0, cuponMonto), precioContado)

@@ -5,12 +5,13 @@ import {
   alignGrossesToOdooTotal,
   type AlignGrossItem,
 } from "@/lib/odoo-amount";
-import { installmentOptions } from "@/lib/pricing";
+import { installmentOptions, labelModoContado } from "@/lib/pricing";
 import {
   getLastShippingQuote,
   SHIPPING_QUOTE_EVENT,
   type ShippingQuoteDetail,
 } from "@/lib/shipping-quote";
+import { setModoCobro } from "@/lib/modo-cobro";
 
 type ModoCobro = "contado" | "cuotas";
 type Mecanismo = "mercado_pago" | "tarjeta";
@@ -24,6 +25,12 @@ type Props = {
   maxInstallments: number;
   mpConfigured: boolean;
   publicKey: string | null;
+  /** Porcentaje configurado (20 = 20%). */
+  descuentoContadoPct: number;
+  /** Monto de descuento contado ya calculado (0 si nadie califica). */
+  descuentoContadoMonto: number;
+  /** True si hay ítems con y sin descuento en el mismo carrito. */
+  descuentoContadoParcial: boolean;
 };
 
 function formatArs(value: number): string {
@@ -87,7 +94,21 @@ export function CheckoutPaymentOptions({
   maxInstallments,
   mpConfigured,
   publicKey,
+  descuentoContadoPct,
+  descuentoContadoMonto,
+  descuentoContadoParcial,
 }: Props) {
+  const contadoTitle = labelModoContado({
+    porcentaje: descuentoContadoPct,
+    descuentoMonto: descuentoContadoMonto,
+    parcial: descuentoContadoParcial,
+  });
+  const contadoHint =
+    descuentoContadoMonto > 0
+      ? descuentoContadoParcial
+        ? `Un pago. El ${descuentoContadoPct}% aplica solo a productos elegibles; toda la compra es al contado.`
+        : `Un pago o dinero en cuenta Mercado Pago. Incluye ${descuentoContadoPct}% de descuento.`
+      : "Un pago o dinero en cuenta Mercado Pago.";
   const [modo, setModo] = useState<ModoCobro>("contado");
   const [mecanismo, setMecanismo] = useState<Mecanismo>("mercado_pago");
   const [error, setError] = useState<string | null>(null);
@@ -150,12 +171,17 @@ export function CheckoutPaymentOptions({
     return () => window.removeEventListener(SHIPPING_QUOTE_EVENT, onQuote);
   }, []);
 
-  // Contado: siempre 1 pago (protege el 10%).
+  // Contado: siempre 1 pago.
   useEffect(() => {
     if (modo === "contado" && selectedCuotas !== 1) {
       setSelectedCuotas(1);
     }
   }, [modo, selectedCuotas]);
+
+  // Sincroniza sidebar "Tu pedido" con Contado / Cuotas.
+  useEffect(() => {
+    setModoCobro(modo);
+  }, [modo]);
 
   // Device ID para Payments API (antifraude).
   useEffect(() => {
@@ -310,7 +336,7 @@ export function CheckoutPaymentOptions({
         />
         <span className="oc-checkout-payment-copy">
           <span className="oc-checkout-payment-head">
-            <strong>Contado — 10% de descuento</strong>
+            <strong>{contadoTitle}</strong>
             <span className="oc-checkout-payment-arrow" aria-hidden>
               ⟶
             </span>
@@ -318,10 +344,7 @@ export function CheckoutPaymentOptions({
               Total: <strong>{formatArs(payContado)}</strong>
             </span>
           </span>
-          <small>
-            Un pago o dinero en cuenta Mercado Pago. El descuento aplica al pagar
-            de contado.
-          </small>
+          <small>{contadoHint}</small>
         </span>
       </label>
 
@@ -478,7 +501,9 @@ export function CheckoutPaymentOptions({
           </span>
           <small>
             {modo === "contado"
-              ? "Ingresá la tarjeta en el sitio. Un solo pago con 10% de descuento."
+              ? descuentoContadoMonto > 0
+                ? `Ingresá la tarjeta en el sitio. Un solo pago${descuentoContadoParcial ? ` (${descuentoContadoPct}% en productos elegibles)` : ` con ${descuentoContadoPct}% de descuento`}.`
+                : "Ingresá la tarjeta en el sitio. Un solo pago."
               : <>
                   Ingresá la tarjeta en el sitio. Hasta{" "}
                   <strong>{maxInstallments} cuotas</strong> sin interés.
@@ -508,7 +533,9 @@ export function CheckoutPaymentOptions({
                   return (
                     <option key={n} value={n}>
                       {n === 1
-                        ? `1 pago · ${formatArs(total)} · 10% de descuento`
+                        ? descuentoContadoMonto > 0
+                          ? `1 pago · ${formatArs(total)} · ${descuentoContadoPct}% de descuento`
+                          : `1 pago · ${formatArs(total)}`
                         : `${n} cuotas de ${formatArs(cuota)} · ${formatArs(total)} · sin interés`}
                     </option>
                   );

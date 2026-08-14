@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { ProductCard } from "@/components/product-card";
 import { pickCurrentPriceInfo } from "@/lib/products";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 export default async function ListaDeseosPage() {
   const session = await auth();
@@ -71,6 +72,8 @@ export default async function ListaDeseosPage() {
         };
       }) ?? [];
 
+  const descuentoContado = await getDescuentoContadoConfig();
+
   return (
     <div className="container">
       <div className="oc-page-header">
@@ -79,7 +82,11 @@ export default async function ListaDeseosPage() {
       </div>
       <div className="oc-product-grid" style={{ paddingBottom: "2.5rem" }}>
         {items.map((p) => (
-          <ProductCard key={p.id_producto} product={p} />
+          <ProductCard
+            key={p.id_producto}
+            product={p}
+            descuentoContado={descuentoContado}
+          />
         ))}
       </div>
       {!items.length && <p className="muted">Tu lista está vacía.</p>}

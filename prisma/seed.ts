@@ -483,6 +483,28 @@ async function main() {
     });
   }
 
+  for (const p of [
+    {
+      nombre: "cantidad_cuotas_base_descuento_contado",
+      valor: "0",
+    },
+    {
+      nombre: "porcentaje_descuento_contado_segun_cuota",
+      valor: "10",
+    },
+  ] as const) {
+    await prisma.parametro.upsert({
+      where: { nombre: p.nombre },
+      create: {
+        nombre: p.nombre,
+        tipo: "number",
+        valor: p.valor,
+        grupo_parametros: "precios",
+      },
+      update: { grupo_parametros: "precios" },
+    });
+  }
+
   const { seedOdooParametros } = await import("../src/lib/odoo-config");
   await seedOdooParametros();
 

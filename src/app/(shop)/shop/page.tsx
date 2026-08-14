@@ -10,6 +10,7 @@ import {
   type ShopOrder,
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -47,7 +48,7 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
   const minPrice = query.min != null && query.min !== "" ? Number(query.min) : undefined;
   const maxPrice = query.max != null && query.max !== "" ? Number(query.max) : undefined;
 
-  const [facets, category, marca] = await Promise.all([
+  const [facets, category, marca, descuentoContado] = await Promise.all([
     getShopFacets(),
     query.cat ? resolveCategoryFilterIdsBySlug(query.cat) : Promise.resolve(null),
     query.marca
@@ -56,6 +57,7 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
           select: { id_marca: true, nombre: true },
         })
       : Promise.resolve(null),
+    getDescuentoContadoConfig(),
   ]);
 
   const { items, total } = await getActiveProducts({
@@ -101,7 +103,11 @@ export default async function ShopPage({ searchParams }: { searchParams: SearchP
 
             <div className="oc-product-grid">
               {items.map((p) => (
-                <ProductCard key={p.id_producto} product={p} />
+                <ProductCard
+                  key={p.id_producto}
+                  product={p}
+                  descuentoContado={descuentoContado}
+                />
               ))}
             </div>
 

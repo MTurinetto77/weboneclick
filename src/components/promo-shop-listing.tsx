@@ -11,6 +11,7 @@ import {
 } from "@/lib/products";
 import { resolvePromoProductIds, type PromoDetail } from "@/lib/promos";
 import { prisma } from "@/lib/prisma";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 function param(sp: Record<string, string | string[] | undefined>, key: string) {
   const v = sp[key];
@@ -66,7 +67,7 @@ export async function PromoShopListing({ promo, searchParams, basePath }: Props)
 
   const promoIds = await resolvePromoProductIds(promo);
 
-  const [facets, category, marca] = await Promise.all([
+  const [facets, category, marca, descuentoContado] = await Promise.all([
     getShopFacets({ ids: promoIds }),
     query.cat ? resolveCategoryFilterIdsBySlug(query.cat) : Promise.resolve(null),
     query.marca
@@ -75,6 +76,7 @@ export async function PromoShopListing({ promo, searchParams, basePath }: Props)
           select: { id_marca: true, nombre: true },
         })
       : Promise.resolve(null),
+    getDescuentoContadoConfig(),
   ]);
 
   const { items, total } = await getActiveProducts({
@@ -124,7 +126,11 @@ export async function PromoShopListing({ promo, searchParams, basePath }: Props)
 
             <div className="oc-product-grid">
               {items.map((p) => (
-                <ProductCard key={p.id_producto} product={p} />
+                <ProductCard
+                  key={p.id_producto}
+                  product={p}
+                  descuentoContado={descuentoContado}
+                />
               ))}
             </div>
 

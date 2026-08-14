@@ -6547,6 +6547,27 @@ img { max-width: 100%; display: block; }
   font-size: 0.85rem;
 }
 
+.oc-checkout-line-prices {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.oc-checkout-line-prices .oc-price-old {
+  font-size: 0.75rem;
+}
+
+.oc-checkout-line-now {
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.oc-checkout-descuento-contado th,
+.oc-checkout-descuento-contado td {
+  color: #0a7a3e;
+}
+
 .oc-checkout-order-table tfoot th {
   font-weight: 600;
 }

@@ -1,16 +1,32 @@
 import Link from "next/link";
 import { AddToCartButton } from "@/components/add-to-cart";
 import { ProductPrice } from "@/components/product-price";
-import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
+import {
+  formatPriceArs,
+  precioSinImpuestos,
+  productoCalificaDescuentoContado,
+} from "@/lib/pricing";
 import { precioEfectivo, type ProductListItem } from "@/lib/products";
 import { uploadPublicUrl } from "@/lib/utils";
 
+type Props = {
+  product: ProductListItem;
+  /** Config de descuento contado; si falta, no se muestra el texto. */
+  descuentoContado?: { umbralCuotas: number; porcentaje: number } | null;
+};
+
 /** Card de producto estilo OneClick (cuotas en rojo + CTA animado). */
-export function ProductCard({ product }: { product: ProductListItem }) {
+export function ProductCard({ product, descuentoContado = null }: Props) {
   const venta = precioEfectivo(product.precio, product.precio_con_desc);
   const sinImp = precioSinImpuestos(venta);
   const cuotas = product.cuotas_max ?? 12;
   const outOfStock = product.stockTracked && product.stockTotal <= 0;
+  const muestraContado =
+    descuentoContado != null &&
+    productoCalificaDescuentoContado(
+      product.cuotas_max,
+      descuentoContado.umbralCuotas,
+    );
 
   return (
     <article className="oc-product-card">
@@ -52,7 +68,11 @@ export function ProductCard({ product }: { product: ProductListItem }) {
           precio_con_desc={product.precio_con_desc}
         />
         <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>
-        <p className="oc-contado">Pagando contado 10% de descuento</p>
+        {muestraContado ? (
+          <p className="oc-contado">
+            Pagando contado {descuentoContado!.porcentaje}% de descuento
+          </p>
+        ) : null}
         {sinImp != null && (
           <p className="oc-sin-imp">Sin imp nacionales: {formatPriceArs(sinImp)}</p>
         )}

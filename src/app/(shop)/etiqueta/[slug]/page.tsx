@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPriceInfo } from "@/lib/products";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 type Params = Promise<{ slug: string }>;
 
@@ -46,6 +47,8 @@ export default async function EtiquetaPage({ params }: { params: Params }) {
     };
   });
 
+  const descuentoContado = await getDescuentoContadoConfig();
+
   return (
     <div className="container">
       <div className="oc-page-header">
@@ -58,7 +61,11 @@ export default async function EtiquetaPage({ params }: { params: Params }) {
       </div>
       <div className="oc-product-grid" style={{ paddingBottom: "2.5rem" }}>
         {items.map((p) => (
-          <ProductCard key={p.id_producto} product={p} />
+          <ProductCard
+            key={p.id_producto}
+            product={p}
+            descuentoContado={descuentoContado}
+          />
         ))}
       </div>
     </div>

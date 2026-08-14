@@ -6,7 +6,7 @@ import { CheckoutDeliveryFields } from "@/components/checkout-delivery-fields";
 import { CheckoutForm } from "@/components/checkout-form";
 import { CheckoutGiftSelector } from "@/components/checkout-gift-selector";
 import { CheckoutIdempotencyBootstrap } from "@/components/checkout-idempotency-bootstrap";
-import { CheckoutEnvioTotalRows } from "@/components/checkout-order-totals";
+import { CheckoutOrderSummary } from "@/components/checkout-order-summary";
 import { CheckoutPaymentOptions } from "@/components/checkout-payment-options";
 import { CheckoutTaxDocumentFields } from "@/components/checkout-tax-document-fields";
 import { CheckoutStep, CheckoutWizard } from "@/components/checkout-wizard";
@@ -21,7 +21,12 @@ import {
 } from "@/lib/cart";
 import { resolveAppliedCupon } from "@/lib/cupones";
 import type { AlignGrossItem } from "@/lib/odoo-amount";
-import { formatPriceArs } from "@/lib/pricing";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
+import {
+  factorDescuentoContado,
+  labelModoContado,
+  productoCalificaDescuentoContado,
+} from "@/lib/pricing";
 import { prisma } from "@/lib/prisma";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { getRegaloApplicable } from "@/lib/regalos";
@@ -69,9 +74,33 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const mpPublicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() || null;
   const cupon = await resolveAppliedCupon();
   const cuponMonto = cupon?.monto ?? 0;
-  const totalsContado = computeTotals(cart, "mercado_pago", cuponMonto);
-  const totalsTarjeta = computeTotals(cart, "tarjeta", cuponMonto);
+  const descuentoContadoConfig = await getDescuentoContadoConfig();
+  const totalsContado = computeTotals(
+    cart,
+    "mercado_pago",
+    cuponMonto,
+    descuentoContadoConfig,
+  );
+  const totalsTarjeta = computeTotals(
+    cart,
+    "tarjeta",
+    cuponMonto,
+    descuentoContadoConfig,
+  );
   const descuentoCupon = totalsTarjeta.descuentoCupon;
+  const eligibleContado = cart.items.filter((i) =>
+    productoCalificaDescuentoContado(
+      i.cuotas_max,
+      descuentoContadoConfig.umbralCuotas,
+    ),
+  ).length;
+  const descuentoContadoParcial =
+    eligibleContado > 0 && eligibleContado < cart.items.length;
+  const contadoSummaryLabel = labelModoContado({
+    porcentaje: descuentoContadoConfig.porcentaje,
+    descuentoMonto: totalsContado.descuentoContado,
+    parcial: descuentoContadoParcial,
+  });
   const regalo = await getRegaloApplicable(cart.subtotal);
 
   const itemsTarjeta: AlignGrossItem[] = totalsTarjeta.itemsCobro.map((i) => ({
@@ -114,6 +143,30 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     else iva21 += tax;
   }
 
+  const factorContado = factorDescuentoContado(
+    descuentoContadoConfig.porcentaje,
+  );
+  const orderLines = cart.items.map((item) => {
+    const elegible = productoCalificaDescuentoContado(
+      item.cuotas_max,
+      descuentoContadoConfig.umbralCuotas,
+    );
+    const subtotalLista = item.subtotal ?? 0;
+    const subtotalContado =
+      elegible && factorContado > 0 && item.precio != null
+        ? Math.round(item.precio * (1 - factorContado) * item.cantidad * 100) /
+          100
+        : subtotalLista;
+    return {
+      id_producto: item.id_producto,
+      titulo: item.titulo,
+      cantidad: item.cantidad,
+      subtotalLista,
+      subtotalContado,
+      elegibleContado: elegible,
+    };
+  });
+
   const beginCheckoutItems = cart.items
     .filter((i) => i.disponible && i.precio != null)
     .map((i) => ({
@@ -140,7 +193,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
             value={isAuthenticated ? "google" : "invitado"}
           />
 
-          <CheckoutWizard>
+          <CheckoutWizard contadoSummaryLabel={contadoSummaryLabel}>
             <CheckoutStep id="datos" title="Tus datos">
               <div className="oc-checkout-grid-2">
                 <div className="oc-checkout-field">
@@ -212,6 +265,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
                 maxInstallments={cartMaxInstallments(cart.items)}
                 mpConfigured={mercadoPagoConfigured}
                 publicKey={mpPublicKey}
+                descuentoContadoPct={descuentoContadoConfig.porcentaje}
+                descuentoContadoMonto={totalsContado.descuentoContado}
+                descuentoContadoParcial={descuentoContadoParcial}
               />
             </CheckoutStep>
           </CheckoutWizard>
@@ -219,42 +275,18 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
           <aside className="oc-checkout-order">
             <div className="oc-checkout-order-box">
               <h2>Tu pedido</h2>
-              <table className="oc-checkout-order-table">
-                <thead>
-                  <tr>
-                    <th>Producto</th>
-                    <th>Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cart.items.map((item) => (
-                    <tr key={item.id_producto}>
-                      <td>
-                        {item.titulo}{" "}
-                        <strong className="oc-checkout-qty">× {item.cantidad}</strong>
-                      </td>
-                      <td>{formatPriceArs(item.subtotal)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <th>Subtotal</th>
-                    <td>{formatPriceArs(cart.subtotal)}</td>
-                  </tr>
-                  {descuentoCupon > 0 && (
-                    <tr>
-                      <th>Cupón {cupon?.codigo}</th>
-                      <td>−{formatPriceArs(descuentoCupon)}</td>
-                    </tr>
-                  )}
-                  <CheckoutEnvioTotalRows
-                    items={itemsTarjeta}
-                    iva105={iva105}
-                    iva21={iva21}
-                  />
-                </tfoot>
-              </table>
+              <CheckoutOrderSummary
+                lines={orderLines}
+                subtotalLista={cart.subtotal}
+                descuentoContadoMonto={totalsContado.descuentoContado}
+                descuentoContadoPct={descuentoContadoConfig.porcentaje}
+                cuponCodigo={cupon?.codigo}
+                descuentoCupon={descuentoCupon}
+                itemsTarjeta={itemsTarjeta}
+                itemsContado={itemsContado}
+                iva105={iva105}
+                iva21={iva21}
+              />
 
               <Link href="/carrito" className="oc-checkout-back">
                 ← Volver al carrito

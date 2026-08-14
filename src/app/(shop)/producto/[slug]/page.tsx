@@ -14,7 +14,8 @@ import {
   resolveStoreAvailability,
   sortProductImageLinks,
 } from "@/lib/products";
-import { formatPriceArs, precioSinImpuestos } from "@/lib/pricing";
+import { formatPriceArs, precioSinImpuestos, productoCalificaDescuentoContado } from "@/lib/pricing";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { whatsappUrl } from "@/lib/utils";
 
 type Params = Promise<{ slug: string }>;
@@ -112,6 +113,11 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const cuotas = product.cuotas_max ?? 12;
   const venta = precioEfectivo(product.precio, product.precio_con_desc);
   const sinImp = precioSinImpuestos(venta);
+  const descConfig = await getDescuentoContadoConfig();
+  const muestraContado = productoCalificaDescuentoContado(
+    product.cuotas_max,
+    descConfig.umbralCuotas,
+  );
   const inStock = product.inStock;
   const storeAvailability = resolveStoreAvailability(product.stocks);
   const cuotaMonto =
@@ -175,7 +181,11 @@ export default async function ProductoPage({ params }: { params: Params }) {
           {inStock ? (
             <>
               <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>
-              <p className="oc-contado">Pagando contado 10% de descuento</p>
+              {muestraContado ? (
+                <p className="oc-contado">
+                  Pagando contado {descConfig.porcentaje}% de descuento
+                </p>
+              ) : null}
               {sinImp != null && (
                 <p className="oc-sin-imp">Sin imp nacionales: {formatPriceArs(sinImp)}</p>
               )}
@@ -242,7 +252,11 @@ export default async function ProductoPage({ params }: { params: Params }) {
           <h2>Productos relacionados</h2>
           <div className="oc-product-grid">
             {related.map((p) => (
-              <ProductCard key={p.id_producto} product={p} />
+              <ProductCard
+                key={p.id_producto}
+                product={p}
+                descuentoContado={descConfig}
+              />
             ))}
           </div>
         </section>

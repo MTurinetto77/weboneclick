@@ -11,6 +11,7 @@ import {
   type ShopOrder,
 } from "@/lib/products";
 import { prisma } from "@/lib/prisma";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 function param(sp: Record<string, string | string[] | undefined>, key: string) {
   const v = sp[key];
@@ -72,7 +73,7 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
 
   const categoryIds = await resolveCategoryProductIds(category.id_categoria);
 
-  const [facets, catFilter, marca] = await Promise.all([
+  const [facets, catFilter, marca, descuentoContado] = await Promise.all([
     getShopFacets({ ids: categoryIds }),
     query.cat ? resolveCategoryFilterIdsBySlug(query.cat) : Promise.resolve(null),
     query.marca
@@ -81,6 +82,7 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
           select: { id_marca: true, nombre: true },
         })
       : Promise.resolve(null),
+    getDescuentoContadoConfig(),
   ]);
 
   const { items, total } = await getActiveProducts({
@@ -127,7 +129,11 @@ export async function CategoryShopListing({ category, path, searchParams }: Prop
 
             <div className="oc-product-grid">
               {items.map((p) => (
-                <ProductCard key={p.id_producto} product={p} />
+                <ProductCard
+                  key={p.id_producto}
+                  product={p}
+                  descuentoContado={descuentoContado}
+                />
               ))}
             </div>
 

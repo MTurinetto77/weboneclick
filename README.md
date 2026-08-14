@@ -124,7 +124,8 @@ El **panel admin** solo admite `tipo_usuario = admin` y `activo = true`. El seed
 - `src/app/(shop)/` — Home, catálogo, producto, marcas, carrito, checkout, tiendas, institucionales
 - `src/app/admin/` — Panel (productos, categorías, banners, **promociones**, marcas, tiendas, sync Odoo, ventas)
 - `src/lib/odoo.ts` / `odoo-sync.ts` — Cliente y sync
-- `src/lib/pricing.ts` — Contado (−10%) y sin impuestos (/1.105)
+- `src/lib/pricing.ts` — Descuento contado según `cuotas_max` + parámetros; sin impuestos (/1.105)
+- `src/lib/parametros.ts` — Envíos gratis/precios y config descuento contado (grupo `precios`)
 - `src/lib/nav.ts` — Mega-menú estilo OneClick (Promociones dinámicas desde DB)
 - `src/lib/promos.ts` — Queries y badges de promociones de menú
 - `src/lib/banners.ts` — Ubicaciones y URLs de banners de home

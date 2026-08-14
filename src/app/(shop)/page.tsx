@@ -8,11 +8,20 @@ import {
 import { HomeDestacados } from "@/components/home-destacados";
 import { ProductCard } from "@/components/product-card";
 import { getActiveBanners } from "@/lib/products";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { getHomeSeccion } from "@/lib/secciones";
 
 export default async function HomePage() {
-  const [heroBanners, secundarioBanners, tripleBanners, pieBanners, destacados, fiesta, potencia] =
-    await Promise.all([
+  const [
+    heroBanners,
+    secundarioBanners,
+    tripleBanners,
+    pieBanners,
+    destacados,
+    fiesta,
+    potencia,
+    descuentoContado,
+  ] = await Promise.all([
       getActiveBanners("hero"),
       getActiveBanners("secundario"),
       getActiveBanners("triple"),
@@ -20,6 +29,7 @@ export default async function HomePage() {
       getHomeSeccion("destacados"),
       getHomeSeccion("fiesta"),
       getHomeSeccion("potencia"),
+      getDescuentoContadoConfig(),
     ]);
 
   const categoryBanners = [
@@ -96,7 +106,11 @@ export default async function HomePage() {
       <HomeSecundarioBanner banner={secundarioBanners[0]} />
 
       {hasDestacados && destacados?.porPestana ? (
-        <HomeDestacados title={destacados.nombre} products={destacados.porPestana} />
+        <HomeDestacados
+          title={destacados.nombre}
+          products={destacados.porPestana}
+          descuentoContado={descuentoContado}
+        />
       ) : null}
 
       <HomeTripleBanners banners={tripleBanners} />
@@ -116,7 +130,11 @@ export default async function HomePage() {
             </div>
             <div className="oc-product-grid oc-product-scroll">
               {fiesta.productos.map((p) => (
-                <ProductCard key={p.id_producto} product={p} />
+                <ProductCard
+                  key={p.id_producto}
+                  product={p}
+                  descuentoContado={descuentoContado}
+                />
               ))}
             </div>
           </div>
@@ -157,7 +175,11 @@ export default async function HomePage() {
             </div>
             <div className="oc-product-grid oc-product-scroll">
               {potencia.productos.map((p) => (
-                <ProductCard key={p.id_producto} product={p} />
+                <ProductCard
+                  key={p.id_producto}
+                  product={p}
+                  descuentoContado={descuentoContado}
+                />
               ))}
             </div>
           </div>

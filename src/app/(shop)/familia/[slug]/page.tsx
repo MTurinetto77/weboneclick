@@ -3,12 +3,16 @@ import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
 import { getActiveProducts } from "@/lib/products";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 type Params = Promise<{ slug: string }>;
 
 export default async function FamiliaPage({ params }: { params: Params }) {
   const { slug } = await params;
-  const familia = await prisma.familia.findUnique({ where: { slug } });
+  const [familia, descuentoContado] = await Promise.all([
+    prisma.familia.findUnique({ where: { slug } }),
+    getDescuentoContadoConfig(),
+  ]);
   if (!familia) notFound();
 
   const { items } = familia.id_categoria
@@ -28,7 +32,11 @@ export default async function FamiliaPage({ params }: { params: Params }) {
       </div>
       <div className="oc-product-grid" style={{ paddingBottom: "2.5rem" }}>
         {items.map((p) => (
-          <ProductCard key={p.id_producto} product={p} />
+          <ProductCard
+            key={p.id_producto}
+            product={p}
+            descuentoContado={descuentoContado}
+          />
         ))}
       </div>
     </div>

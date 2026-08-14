@@ -1,6 +1,5 @@
 /** Precios estilo OneClick Store */
 
-export const CONTADO_DISCOUNT = 0.1;
 /** Factor aproximado impuestos nacionales (precio con impuestos / sin impuestos) */
 export const IMPUESTOS_NACIONALES_FACTOR = 1.105;
 
@@ -19,9 +18,44 @@ export function installmentOptions(max: number): number[] {
   return opts;
 }
 
-export function precioContado(precioLista: number | null | undefined): number | null {
+/**
+ * Descuento contado solo si el producto tiene cuotas definidas (> 0)
+ * y cuotas_max >= umbral. Sin cuotas definidas → no califica.
+ */
+export function productoCalificaDescuentoContado(
+  cuotasMax: number | null | undefined,
+  umbralCuotas: number,
+): boolean {
+  if (cuotasMax == null || cuotasMax <= 0) return false;
+  return cuotasMax >= umbralCuotas;
+}
+
+/** Convierte porcentaje (20 = 20%) a factor de descuento (0.2). */
+export function factorDescuentoContado(porcentaje: number): number {
+  if (!Number.isFinite(porcentaje) || porcentaje <= 0) return 0;
+  return Math.min(porcentaje, 100) / 100;
+}
+
+export function precioContado(
+  precioLista: number | null | undefined,
+  porcentaje: number,
+): number | null {
   if (precioLista == null) return null;
-  return Math.round(precioLista * (1 - CONTADO_DISCOUNT) * 100) / 100;
+  const factor = factorDescuentoContado(porcentaje);
+  return Math.round(precioLista * (1 - factor) * 100) / 100;
+}
+
+/** Texto de la opción Contado en checkout (título corto). */
+export function labelModoContado(opts: {
+  porcentaje: number;
+  descuentoMonto: number;
+  parcial: boolean;
+}): string {
+  if (opts.descuentoMonto <= 0) return "Contado";
+  if (opts.parcial) {
+    return `Contado — ${opts.porcentaje}% en productos elegibles`;
+  }
+  return `Contado — ${opts.porcentaje}% de descuento`;
 }
 
 export function precioSinImpuestos(precioLista: number | null | undefined): number | null {

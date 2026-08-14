@@ -47,7 +47,11 @@ function fieldValue(form: HTMLFormElement, name: string): string {
   return "";
 }
 
-function summarize(id: CheckoutStepId, form: HTMLFormElement): string {
+function summarize(
+  id: CheckoutStepId,
+  form: HTMLFormElement,
+  contadoSummaryLabel: string,
+): string {
   if (id === "datos") {
     const name = [fieldValue(form, "nombre"), fieldValue(form, "apellido")]
       .filter(Boolean)
@@ -90,7 +94,7 @@ function summarize(id: CheckoutStepId, form: HTMLFormElement): string {
   const mec =
     fieldValue(form, "mecanismo_pago_ui") || fieldValue(form, "mecanismo_pago");
   return [
-    modo === "cuotas" ? "Cuotas" : "Contado 10%",
+    modo === "cuotas" ? "Cuotas" : contadoSummaryLabel,
     mec === "tarjeta" ? "Tarjeta" : "Mercado Pago",
   ].join(" · ");
 }
@@ -133,7 +137,13 @@ function validateStepPanel(panel: HTMLElement): boolean {
   return true;
 }
 
-export function CheckoutWizard({ children }: { children: ReactNode }) {
+export function CheckoutWizard({
+  children,
+  contadoSummaryLabel = "Contado",
+}: {
+  children: ReactNode;
+  contadoSummaryLabel?: string;
+}) {
   const steps = Children.toArray(children).filter(isStep);
   const [active, setActive] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -156,7 +166,9 @@ export function CheckoutWizard({ children }: { children: ReactNode }) {
   const goNext = useCallback(
     (index: number, panel: HTMLElement | null, form: HTMLFormElement | null) => {
       if (!panel || !validateStepPanel(panel)) return;
-      const summary = form ? summarize(steps[index].props.id, form) : "";
+      const summary = form
+        ? summarize(steps[index].props.id, form, contadoSummaryLabel)
+        : "";
       setSummaries((prev) => {
         const next = [...prev];
         next[index] = summary;
@@ -169,7 +181,7 @@ export function CheckoutWizard({ children }: { children: ReactNode }) {
       setActive(nextIndex);
       setMaxReached((m) => Math.max(m, nextIndex));
     },
-    [maxReached, steps],
+    [contadoSummaryLabel, maxReached, steps],
   );
 
   return (
@@ -195,7 +207,11 @@ export function CheckoutWizard({ children }: { children: ReactNode }) {
                 if (locked || isOpen) return;
                 const form = e.currentTarget.closest("form");
                 if (form) {
-                  const summary = summarize(steps[active].props.id, form);
+                  const summary = summarize(
+                    steps[active].props.id,
+                    form,
+                    contadoSummaryLabel,
+                  );
                   setSummaries((prev) => {
                     const next = [...prev];
                     next[active] = summary;

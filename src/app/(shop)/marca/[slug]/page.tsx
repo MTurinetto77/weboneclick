@@ -3,15 +3,19 @@ import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { prisma } from "@/lib/prisma";
 import { getActiveProducts } from "@/lib/products";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 
 type Params = Promise<{ slug: string }>;
 
 export default async function MarcaPage({ params }: { params: Params }) {
   const { slug } = await params;
-  const marca = await prisma.marca.findUnique({
-    where: { slug },
-    select: { id_marca: true, nombre: true, slug: true },
-  });
+  const [marca, descuentoContado] = await Promise.all([
+    prisma.marca.findUnique({
+      where: { slug },
+      select: { id_marca: true, nombre: true, slug: true },
+    }),
+    getDescuentoContadoConfig(),
+  ]);
   if (!marca) notFound();
 
   const { items } = await getActiveProducts({ marcaId: marca.id_marca, take: 48 });
@@ -30,7 +34,11 @@ export default async function MarcaPage({ params }: { params: Params }) {
       </div>
       <div className="oc-product-grid" style={{ paddingBottom: "2.5rem" }}>
         {items.map((p) => (
-          <ProductCard key={p.id_producto} product={p} />
+          <ProductCard
+            key={p.id_producto}
+            product={p}
+            descuentoContado={descuentoContado}
+          />
         ))}
       </div>
     </div>

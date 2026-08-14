@@ -60,7 +60,8 @@ sequenceDiagram
 
 UI en [`checkout-payment-options.tsx`](../src/components/checkout-payment-options.tsx):
 
-1. **Modo:** Contado 10% (`tipo_pago=mercado_pago`, 1 cuota) o Cuotas (`tipo_pago=tarjeta`, hasta `cartMaxInstallments`).
+1. **Modo:** Contado (`tipo_pago=mercado_pago`, 1 cuota) o Cuotas (`tipo_pago=tarjeta`, hasta `cartMaxInstallments`).
+   - El descuento contado **no** es un 10% fijo: solo aplica a productos con `cuotas_max` definido y `>=` parámetro `cantidad_cuotas_base_descuento_contado`, con el % de `porcentaje_descuento_contado_segun_cuota` (grupo `precios`). Ver §4.3.
 2. **Mecanismo:** Mercado Pago con login (Wallet Brick / preference `purpose=wallet_purchase`) o Card Payment Brick en el sitio.
 
 Ambos mecanismos están disponibles en ambos modos. La preference de cuotas **no** fuerza `installments: 1`. Datos de payer / `additional_info` / Device ID: [`mp-payer-payload.ts`](../src/lib/mp-payer-payload.ts).
@@ -80,7 +81,10 @@ Ambos mecanismos están disponibles en ambos modos. La preference de cuotas **no
 | [`almacenes.ts`](../src/lib/almacenes.ts) | Almacenes vendibles (retiro / envío) |
 | [`odoo-sync.ts`](../src/lib/odoo-sync.ts) | Sync de catálogo (incluye `id_tienda` y `es_envio_domicilio`) |
 | [`mp-payment-sync.ts`](../src/lib/mp-payment-sync.ts) | Idempotencia del pago + trigger Odoo |
-| [`checkout-venta.ts`](../src/lib/checkout-venta.ts) | Validaciones checkout (tienda, stock local + Odoo) |
+| [`checkout-venta.ts`](../src/lib/checkout-venta.ts) | Validaciones checkout (tienda, stock local + Odoo); `computeTotals` (descuento contado por ítem elegible) |
+| [`pricing.ts`](../src/lib/pricing.ts) | Elegibilidad contado (`productoCalificaDescuentoContado`) y factor % |
+| [`parametros.ts`](../src/lib/parametros.ts) | `getDescuentoContadoConfig()` + envíos |
+| [`checkout-order-summary.tsx`](../src/components/checkout-order-summary.tsx) | Sidebar “Tu pedido”: tachado + fila descuento según modo Contado/Cuotas |
 | [`test-checkout-odoo.ts`](../scripts/test-checkout-odoo.ts) | Prueba E2E sin Mercado Pago (`--envio`, `--cupon`, `--regalo`) |
 
 ---
@@ -137,6 +141,27 @@ npm run db:seed            # incluye seed Odoo
 Cache de config: 60s en memoria; se invalida al editar parámetros del grupo `odoo` en admin.
 
 > **Importante al cambiar de prod ↔ test:** los IDs de journals / type / product pueden diferir. Verificarlos en la instancia destino y actualizar el grupo `odoo` en MySQL.
+
+### 4.3 Descuento contado (tabla `parametro`, grupo `precios`)
+
+Ya **no** hay un 10% fijo para todo el carrito. El descuento depende de `producto.cuotas_max` y de estos parámetros (Admin → Parámetros; también en `db:seed`):
+
+| Parámetro | Default | Uso |
+|-----------|---------|-----|
+| `cantidad_cuotas_base_descuento_contado` | `12` | Umbral: el producto califica si `cuotas_max` está definido, `> 0` y `>=` este valor |
+| `porcentaje_descuento_contado_segun_cuota` | `20` | % a aplicar (20 = 20%) |
+
+Reglas:
+
+1. Sin `cuotas_max` (null / ≤0) → **sin** descuento contado (el fallback visual `?? 12` de ficha/cards **no** cuenta para elegibilidad).
+2. Contado (`tipo_pago=mercado_pago`): en `computeTotals` el % se aplica **solo** a ítems elegibles; el resto va a precio lista/promo.
+3. Carrito mixto: descuento parcial; toda la compra sigue siendo 1 pago.
+4. Cupón: se aplica **después** del descuento contado, sobre el subtotal de productos (no sobre el envío).
+5. Odoo recibe `precio_cobrado` ya neto (`discount: 0` en líneas).
+
+UI: ficha/cards muestran el texto solo si califica; en checkout, “Tu pedido” refleja Contado (tachado + fila descuento) o Cuotas vía evento `oc-modo-cobro`.
+
+Helpers: `getDescuentoContadoConfig()`, `productoCalificaDescuentoContado()`, `factorDescuentoContado()`.
 
 ---
 
@@ -353,3 +378,4 @@ Orden de referencia Woo legacy: `sale.order` 156122 = `OCW-212217`
 - Estado general: [ESTADO-PROYECTO.md](./ESTADO-PROYECTO.md)
 - Carrito / checkout UI: [ETAPA-2-CARRITO.md](./ETAPA-2-CARRITO.md)
 - Parámetros de envío (precios FastTrack/SmartPost): Admin → Parámetros grupo `envios` / [`parametros.ts`](../src/lib/parametros.ts)
+- Descuento contado por cuotas: Admin → Parámetros grupo `precios` / §4.3

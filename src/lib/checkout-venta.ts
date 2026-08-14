@@ -32,7 +32,12 @@ import {
   addressesFromCheckoutFields,
   type MpAddress,
 } from "@/lib/mp-payer-payload";
-import { CONTADO_DISCOUNT } from "@/lib/pricing";
+import {
+  factorDescuentoContado,
+  productoCalificaDescuentoContado,
+} from "@/lib/pricing";
+import type { DescuentoContadoConfig } from "@/lib/parametros";
+import { getDescuentoContadoConfig } from "@/lib/parametros";
 import { prisma } from "@/lib/prisma";
 import { ALMACEN_WEB_SELECT, sumSellableStock, type StockRow } from "@/lib/almacenes";
 import { resolveSelectedRegaloProducto } from "@/lib/regalos";
@@ -377,12 +382,13 @@ export async function createPendingVenta(
   }
 
   const cupon = await resolveAppliedCupon();
+  const descuentoContadoConfig = await getDescuentoContadoConfig();
   const {
     subtotal,
     descuento,
     itemsCobro: itemsCobroRaw,
     descuentoCupon,
-  } = computeTotals(cart, tipo_pago, cupon?.monto ?? 0);
+  } = computeTotals(cart, tipo_pago, cupon?.monto ?? 0, descuentoContadoConfig);
 
   const idProductoRegaloRaw = Number(field(fields, "id_producto_regalo"));
   const idProductoRegalo =
@@ -750,25 +756,36 @@ export function confirmationPath(id_venta: number, access_token: string, mp?: st
 }
 
 /**
- * Totales según medio de pago: la opción "mercado_pago" (contado) aplica 10% de
- * descuento por ítem; luego un cupón de monto fijo se descuenta del subtotal de
- * productos (no del envío) y se redistribuye en unit_price para MP.
+ * Totales según medio de pago: la opción "mercado_pago" (contado) aplica
+ * descuento solo a ítems con cuotas_max definido y >= umbral de parámetro;
+ * luego un cupón de monto fijo se descuenta del subtotal de productos
+ * (no del envío) y se redistribuye en unit_price para MP.
  */
 export function computeTotals(
   cart: ResolvedCart,
   tipo_pago: TipoPagoCheckout,
   cuponMonto = 0,
+  descuentoContadoConfig?: DescuentoContadoConfig,
 ) {
   const subtotal = cart.subtotal;
-  const itemsBase = cart.items.map((item) => ({
-    id_producto: item.id_producto,
-    titulo: item.titulo,
-    cantidad: item.cantidad,
-    unit_price:
-      tipo_pago === "mercado_pago"
-        ? round2(item.precio! * (1 - CONTADO_DISCOUNT))
+  const umbral = descuentoContadoConfig?.umbralCuotas ?? 0;
+  const pctFactor = factorDescuentoContado(
+    descuentoContadoConfig?.porcentaje ?? 0,
+  );
+  const itemsBase = cart.items.map((item) => {
+    const aplicaContado =
+      tipo_pago === "mercado_pago" &&
+      pctFactor > 0 &&
+      productoCalificaDescuentoContado(item.cuotas_max, umbral);
+    return {
+      id_producto: item.id_producto,
+      titulo: item.titulo,
+      cantidad: item.cantidad,
+      unit_price: aplicaContado
+        ? round2(item.precio! * (1 - pctFactor))
         : item.precio!,
-  }));
+    };
+  });
 
   const totalAntesCupon = round2(
     itemsBase.reduce((acc, i) => acc + i.unit_price * i.cantidad, 0),
