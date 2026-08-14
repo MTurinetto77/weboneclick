@@ -521,6 +521,86 @@ img { max-width: 100%; display: block; }
   pointer-events: none;
 }
 
+/* Hero carousel */
+.oc-hero-carousel {
+  isolation: isolate;
+}
+
+.oc-hero-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.oc-hero-slide.is-active {
+  position: relative;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.oc-hero-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+  opacity: 0.4;
+}
+
+.oc-hero-arrow:hover {
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 1;
+}
+
+.oc-hero-arrow-prev {
+  left: 18px;
+}
+
+.oc-hero-arrow-next {
+  right: 18px;
+}
+
+.oc-hero-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.oc-hero-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: background 0.2s ease, width 0.2s ease;
+}
+
+.oc-hero-dots button.is-active {
+  width: 22px;
+  background: #fff;
+}
+
 .oc-hero-live-grid {
   position: relative;
   z-index: 1;
@@ -3434,6 +3514,20 @@ img { max-width: 100%; display: block; }
   }
   .oc-hero-live-bg {
     object-position: center top;
+  }
+  .oc-hero-arrow {
+    width: 36px;
+    height: 36px;
+    margin-top: -18px;
+  }
+  .oc-hero-arrow-prev {
+    left: 10px;
+  }
+  .oc-hero-arrow-next {
+    right: 10px;
+  }
+  .oc-hero-dots {
+    bottom: 12px;
   }
   .oc-hero-live-copy {
     text-align: center;
