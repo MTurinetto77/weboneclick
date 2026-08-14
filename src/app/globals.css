@@ -1882,6 +1882,15 @@ img { max-width: 100%; display: block; }
   top: 68px;
 }
 
+@media (max-width: 768px) {
+  .oc-product-card-wishlist,
+  .oc-product-card-thumb:has(.oc-product-card-promo-badge) .oc-product-card-wishlist {
+    top: 0;
+    right: 0;
+    bottom: auto;
+  }
+}
+
 .oc-product-card-body {
   padding: 1rem;
   display: flex;
