@@ -21,7 +21,7 @@ type SearchParams = Promise<{
 
 const PAGE_SIZE = 20;
 
-const ESTADOS = ["pendiente", "confirmada", "cancelada", "entregada"] as const;
+const ESTADOS = ["pendiente", "pagada", "cancelada"] as const;
 const TIPOS_ENTREGA = [
   { value: "envio", label: "Envío" },
   { value: "retiro", label: "Retiro" },

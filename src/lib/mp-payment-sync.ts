@@ -1,11 +1,23 @@
 import type { PaymentResponse } from "mercadopago/dist/clients/payment/commonTypes";
 import { deductStock } from "@/lib/cart";
 import { releaseCuponForVenta } from "@/lib/cupones";
+import {
+  isMercadoPagoConfigured,
+  mercadoPagoPayment,
+} from "@/lib/mercadopago";
 import { sendOrderConfirmationEmail } from "@/lib/order-mail";
 import { syncVentaToOdoo } from "@/lib/odoo-venta";
 import { prisma } from "@/lib/prisma";
 
 export type MpSyncResult = "approved" | "pending" | "rejected" | "ignored";
+
+export type ManualMpSyncResult = {
+  result: MpSyncResult;
+  paymentsFound: number;
+  applied: Array<{ id: string; status: string; result: MpSyncResult }>;
+  message: string;
+  odooTriggered: boolean;
+};
 
 const MP_TIPOS = ["mercado_pago", "tarjeta"] as const;
 
@@ -295,4 +307,116 @@ export async function applyMercadoPagoPayment(
   });
 
   return "pending";
+}
+
+/**
+ * Reconsulta pagos en Mercado Pago por external_reference (= id_venta) y
+ * aplica el sync local (stock, email, Odoo si corresponde).
+ * Pensado para recuperar casos donde el webhook falló o llegó como merchant_order.
+ */
+export async function syncVentaFromMercadoPago(
+  idVenta: number,
+): Promise<ManualMpSyncResult> {
+  if (!isMercadoPagoConfigured()) {
+    throw new Error("Mercado Pago no está configurado");
+  }
+  if (!Number.isInteger(idVenta) || idVenta <= 0) {
+    throw new Error("id_venta inválido");
+  }
+
+  const venta = await prisma.venta.findUnique({
+    where: { id_venta: idVenta },
+    select: { id_venta: true, estado: true, total: true },
+  });
+  if (!venta) {
+    throw new Error(`Venta ${idVenta} no encontrada`);
+  }
+
+  if (venta.estado === "pagada") {
+    return {
+      result: "approved",
+      paymentsFound: 0,
+      applied: [],
+      message: "La venta ya está pagada",
+      odooTriggered: false,
+    };
+  }
+
+  if (venta.estado === "cancelada") {
+    return {
+      result: "ignored",
+      paymentsFound: 0,
+      applied: [],
+      message: "La venta está cancelada; no se sincroniza el pago",
+      odooTriggered: false,
+    };
+  }
+
+  const search = await mercadoPagoPayment().search({
+    options: {
+      external_reference: String(idVenta),
+      sort: "date_created",
+      criteria: "desc",
+      limit: 50,
+    },
+  });
+  const results = search.results ?? [];
+  if (results.length === 0) {
+    return {
+      result: "ignored",
+      paymentsFound: 0,
+      applied: [],
+      message: "No hay pagos en Mercado Pago para esta venta",
+      odooTriggered: false,
+    };
+  }
+
+  // Priorizar approved para marcar pagada cuanto antes.
+  const ordered = [...results].sort((a, b) => {
+    const rank = (s?: string) =>
+      s === "approved" ? 0 : s === "pending" || s === "in_process" ? 1 : 2;
+    return rank(a.status) - rank(b.status);
+  });
+
+  const applied: ManualMpSyncResult["applied"] = [];
+  let lastResult: MpSyncResult = "ignored";
+
+  for (const row of ordered) {
+    const paymentId = String(row.id ?? "").trim();
+    if (!paymentId) continue;
+    const payment = await mercadoPagoPayment().get({ id: paymentId });
+    const result = await applyMercadoPagoPayment(payment);
+    applied.push({
+      id: paymentId,
+      status: payment.status ?? row.status ?? "unknown",
+      result,
+    });
+    lastResult = result;
+    if (result === "approved") break;
+  }
+
+  const refreshed = await prisma.venta.findUnique({
+    where: { id_venta: idVenta },
+    select: { estado: true },
+  });
+  const becamePaid =
+    lastResult === "approved" && refreshed?.estado === "pagada";
+
+  const message = becamePaid
+    ? "Pago acreditado; venta marcada como pagada (Odoo disparado si correspondía)"
+    : lastResult === "pending"
+      ? "Hay pagos en MP pero aún no cubren el total / siguen pendientes"
+      : lastResult === "rejected"
+        ? "Los pagos encontrados están rechazados o cancelados"
+        : lastResult === "approved"
+          ? "Pago ya aplicado"
+          : "No se aplicaron cambios";
+
+  return {
+    result: lastResult,
+    paymentsFound: results.length,
+    applied,
+    message,
+    odooTriggered: becamePaid,
+  };
 }

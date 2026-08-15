@@ -46,6 +46,10 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
     return qs ? `/admin/productos?${qs}` : "/admin/productos";
   }
 
+  const exportQs = new URLSearchParams();
+  if (q) exportQs.set("q", q);
+  const exportHref = `/admin/productos/export${exportQs.toString() ? `?${exportQs}` : ""}`;
+
   return (
     <div>
       <div
@@ -64,6 +68,9 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
           </p>
         </div>
         <ProductoSyncModal />
+        <a href={exportHref} className="btn btn-secondary" style={{ padding: "0.35rem 0.75rem" }}>
+          Exportar CSV
+        </a>
         <Link href="/admin/productos/nuevo" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
           Crear
         </Link>

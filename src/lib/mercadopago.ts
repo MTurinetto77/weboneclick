@@ -1,5 +1,9 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import MercadoPagoConfig, { Payment, Preference } from "mercadopago";
+import MercadoPagoConfig, {
+  MerchantOrder,
+  Payment,
+  Preference,
+} from "mercadopago";
 
 function accessToken(): string {
   const token = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim();
@@ -28,6 +32,10 @@ export function mercadoPagoPreference() {
 
 export function mercadoPagoPayment() {
   return new Payment(client());
+}
+
+export function mercadoPagoMerchantOrder() {
+  return new MerchantOrder(client());
 }
 
 export function publicSiteUrl(): string {

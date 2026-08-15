@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OdooSyncRetryButton } from "@/components/admin/odoo-sync-retry-button";
+import { VentaAdminActions } from "@/components/admin/venta-admin-actions";
 import { requireVentasAccess } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatPrice } from "@/lib/utils";
@@ -166,6 +167,7 @@ export default async function AdminVentaDetailPage({
               />
             )}
           </div>
+          <VentaAdminActions idVenta={venta.id_venta} estado={venta.estado} />
         </div>
 
         <div className="admin-card admin-detail-span">
