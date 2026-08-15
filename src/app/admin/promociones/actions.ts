@@ -192,3 +192,115 @@ export async function removePromocionProducto(id_promocion: number, id_producto:
   revalidatePromo(promo?.slug);
   revalidatePath(`/admin/promociones/${id_promocion}`);
 }
+
+/** Extrae SKUs de un CSV: una columna `sku`, o una fila/celda por SKU. */
+function parseSkusFromCsv(text: string): string[] {
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const skus: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const cells = lines[i]
+      .split(/[,;\t]/)
+      .map((c) => c.trim().replace(/^["']|["']$/g, ""))
+      .filter(Boolean);
+    if (!cells.length) continue;
+    // Saltar encabezado
+    if (i === 0 && cells.length === 1 && /^sku$/i.test(cells[0])) continue;
+    if (i === 0 && cells.length > 1) {
+      const skuIdx = cells.findIndex((c) => /^sku$/i.test(c));
+      if (skuIdx >= 0) {
+        // Header multi-columna: tomar solo la columna sku en el resto
+        for (let j = 1; j < lines.length; j++) {
+          const row = lines[j]
+            .split(/[,;\t]/)
+            .map((c) => c.trim().replace(/^["']|["']$/g, ""));
+          const v = row[skuIdx]?.trim();
+          if (v) skus.push(v);
+        }
+        return [...new Set(skus)];
+      }
+    }
+    // Una o más celdas por fila = SKUs
+    for (const c of cells) skus.push(c);
+  }
+  return [...new Set(skus)];
+}
+
+export async function importPromocionProductosCsv(id_promocion: number, formData: FormData) {
+  await guard();
+  const promo = await prisma.promocion.findUnique({ where: { id_promocion } });
+  if (!promo) throw new Error("Promoción no encontrada");
+
+  const file = formData.get("csv");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect(`/admin/promociones/${id_promocion}?csv_err=archivo`);
+  }
+
+  const text = await file.text();
+  const skus = parseSkusFromCsv(text);
+  if (!skus.length) {
+    redirect(`/admin/promociones/${id_promocion}?csv_err=vacio`);
+  }
+
+  const productos = await prisma.producto.findMany({
+    where: { sku: { in: skus } },
+    select: { id_producto: true, sku: true },
+  });
+
+  const bySku = new Map(
+    productos
+      .filter((p): p is { id_producto: number; sku: string } => Boolean(p.sku))
+      .map((p) => [p.sku, p.id_producto])
+  );
+  // Match case-insensitive por si la collation no lo hace
+  const bySkuLower = new Map(
+    [...bySku.entries()].map(([sku, id]) => [sku.toLowerCase(), id])
+  );
+
+  const existing = await prisma.promocion_producto.findMany({
+    where: { id_promocion },
+    select: { id_producto: true },
+  });
+  const linked = new Set(existing.map((e) => e.id_producto));
+
+  const toAdd = new Set<number>();
+  const missing: string[] = [];
+  let dup = 0;
+
+  for (const sku of skus) {
+    const id = bySku.get(sku) ?? bySkuLower.get(sku.toLowerCase());
+    if (!id) {
+      missing.push(sku);
+      continue;
+    }
+    if (linked.has(id) || toAdd.has(id)) {
+      dup += 1;
+      continue;
+    }
+    toAdd.add(id);
+  }
+
+  if (toAdd.size) {
+    await prisma.promocion_producto.createMany({
+      data: [...toAdd].map((id_producto) => ({ id_promocion, id_producto })),
+      skipDuplicates: true,
+    });
+  }
+
+  revalidatePromo(promo.slug);
+  revalidatePath(`/admin/promociones/${id_promocion}`);
+
+  const params = new URLSearchParams({
+    csv_added: String(toAdd.size),
+    csv_dup: String(dup),
+    csv_missing: String(missing.length),
+  });
+  if (missing.length) {
+    params.set("csv_miss_list", missing.slice(0, 15).join(","));
+  }
+  redirect(`/admin/promociones/${id_promocion}?${params.toString()}`);
+}
