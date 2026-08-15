@@ -245,7 +245,7 @@ Si la venta tiene `id_cupon` / `cupon`:
 
 Envío (`tipo_entrega = envio` y `costo_envio > 0`): línea con producto `odoo_shipping_product_id`, IVA 21% (tax id 116).
 
-Notas de cliente (`note`): retiro en tienda / receptor. Notas internas (`internal_notes`): cupón web.
+No usar `sale.order.note` (es “Términos y condiciones”). Retiro / receptor / referencias → `internal_notes` + `stock.picking.note`. Cupón web → `internal_notes`. En retiro, `partner_shipping_id` = partner del almacén Odoo (dirección de la tienda), no la del cliente.
 
 ---
 

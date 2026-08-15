@@ -482,11 +482,15 @@ async function main() {
     const [order] = await odooRead<{
       amount_total: number;
       order_line: number[];
+      note: string | false;
       internal_notes: string | false;
+      picking_ids: number[];
     }>("sale.order", [updated.odoo_order_id], [
       "amount_total",
       "order_line",
+      "note",
       "internal_notes",
+      "picking_ids",
     ]);
     const lines = order?.order_line?.length
       ? await odooRead<{
@@ -504,6 +508,20 @@ async function main() {
         ])
       : [];
 
+    const pickings = order?.picking_ids?.length
+      ? await odooRead<{
+          id: number;
+          name: string;
+          note: string | false;
+          observations: string | false;
+        }>("stock.picking", order.picking_ids, [
+          "id",
+          "name",
+          "note",
+          "observations",
+        ])
+      : [];
+
     const noteLines = lines.filter(
       (l) => l.display_type === "line_note" || l.display_type === "line_section"
     );
@@ -512,6 +530,16 @@ async function main() {
       typeof order?.internal_notes === "string" &&
       cuponCodigo != null &&
       order.internal_notes.includes(cuponCodigo);
+    const soNote = typeof order?.note === "string" ? order.note : "";
+    const deliveryInTerms =
+      /Retiro en tienda|Retira\/recibe|Timbre/i.test(soNote);
+    const pickingNote = pickings
+      .map((p) => (typeof p.note === "string" ? p.note : ""))
+      .join("\n");
+    const expectDeliveryComment =
+      updated.tipo_entrega === "envio"
+        ? /Timbre/i.test(pickingNote)
+        : /Retiro en tienda/i.test(pickingNote);
 
     console.log("\nOrden Odoo:");
     console.log(
@@ -522,8 +550,16 @@ async function main() {
           match:
             Math.abs(Number(order?.amount_total ?? 0) - Number(updated.total)) <=
             1,
+          note_terminos: order?.note || null,
           internal_notes: order?.internal_notes || null,
           cupon_en_internal_notes: cuponCodigo ? cuponInInternal : null,
+          delivery_en_terminos: deliveryInTerms,
+          picking_tiene_comentario: expectDeliveryComment,
+          pickings: pickings.map((p) => ({
+            name: p.name,
+            note: p.note || null,
+            observations: p.observations || null,
+          })),
           lineas_nota_en_order: noteLines.length,
           lines: lines.map((l) => ({
             name: l.name,
@@ -540,6 +576,18 @@ async function main() {
 
     if (cuponCodigo && !cuponInInternal) {
       console.error("FAIL: el cupón no está en internal_notes de la orden");
+      process.exitCode = 1;
+    }
+    if (deliveryInTerms) {
+      console.error(
+        "FAIL: comentarios de entrega no deben ir en note (términos/condiciones)"
+      );
+      process.exitCode = 1;
+    }
+    if (!expectDeliveryComment) {
+      console.error(
+        "FAIL: la entrega debería tener el comentario en stock.picking.note"
+      );
       process.exitCode = 1;
     }
     if (noteLines.length > 0) {

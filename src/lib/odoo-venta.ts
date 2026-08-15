@@ -333,8 +333,37 @@ async function upsertDeliveryContact(
   venta: NonNullable<VentaFull>,
   partnerId: number,
   invoicePartnerId: number,
+  warehouseOdooId: number,
   cfg: OdooConfig
 ): Promise<number> {
+  // Retiro en tienda: la entrega debe mostrar la dirección de la sucursal
+  // (partner del almacén Odoo), no la del cliente. Igual que pedidos WEB legacy.
+  if (venta.tipo_entrega === "retiro") {
+    const [wh] = await odooRead<{
+      partner_id: [number, string] | false;
+    }>("stock.warehouse", [warehouseOdooId], ["partner_id"]);
+    const storePartnerId = Array.isArray(wh?.partner_id)
+      ? wh.partner_id[0]
+      : null;
+    if (storePartnerId) return storePartnerId;
+
+    const tienda = venta.tienda_retiro;
+    if (!tienda) return partnerId;
+    return upsertChildAddressContact(
+      partnerId,
+      "delivery",
+      {
+        calle: tienda.direccion,
+        numero: "",
+        localidad: tienda.localidad,
+        provincia: tienda.provincia,
+        codigo_postal: tienda.codigo_postal,
+      },
+      `Retiro ${tienda.nombre}`,
+      cfg,
+    );
+  }
+
   if (venta.tipo_entrega !== "envio") return partnerId;
 
   const envio = venta.envios[0];
@@ -362,6 +391,45 @@ async function upsertDeliveryContact(
 }
 
 // ─── Sale order ──────────────────────────────────────────────────────────────
+
+/**
+ * El tipo de pedido Ecommerce (`sale.order.type`) trae `warehouse_id=Ecommerce`.
+ * En Odoo, `sale.order.warehouse_id` depende de `type_id` / partner / company:
+ * un create/write puede dejar el almacén del tipo aunque enviemos WH/DOT/sucursal.
+ * Las entregas ya generadas no se mueven, pero el pedido queda mal etiquetado.
+ * Re-escribimos el almacén destino real después de create/confirm.
+ */
+async function ensureSaleOrderWarehouse(
+  orderId: number,
+  warehouseOdooId: number,
+): Promise<void> {
+  const [row] = await odooRead<{
+    warehouse_id: [number, string] | false;
+  }>("sale.order", [orderId], ["warehouse_id"]);
+  const current = Array.isArray(row?.warehouse_id) ? row.warehouse_id[0] : null;
+  if (current === warehouseOdooId) return;
+  await odooWrite("sale.order", [orderId], {
+    warehouse_id: warehouseOdooId,
+  });
+}
+
+/** Comentarios de entrega → `stock.picking.note` (campo Notas de la entrega). */
+async function writePickingDeliveryNotes(
+  orderId: number,
+  comments: string[],
+): Promise<void> {
+  if (!comments.length) return;
+  const [order] = await odooRead<{ picking_ids: number[] }>(
+    "sale.order",
+    [orderId],
+    ["picking_ids"],
+  );
+  const pickingIds = order?.picking_ids ?? [];
+  if (!pickingIds.length) return;
+  await odooWrite("stock.picking", pickingIds, {
+    note: comments.map((n) => `<p>${n}</p>`).join(""),
+  });
+}
 
 type OdooTax = { id: number; amount: number };
 type OdooProduct = { id: number; taxes_id: number[] };
@@ -450,6 +518,7 @@ async function createOdooSaleOrder(
       [existingIds[0]],
       ["name", "state"]
     );
+    await ensureSaleOrderWarehouse(existingIds[0], warehouseOdooId);
     await prisma.venta.update({
       where: { id_venta: venta.id_venta },
       data: {
@@ -529,19 +598,30 @@ async function createOdooSaleOrder(
     ]);
   }
 
-  const notes: string[] = [];
+  /**
+   * En Odoo `sale.order.note` = "Términos y condiciones" (no es comentario).
+   * Comentarios operativos (retiro / receptor / referencias) van a:
+   * - `internal_notes` (Notas internas del pedido)
+   * - `stock.picking.note` (Notas/comentario de la entrega), post-confirm
+   * Igual que pedidos legacy OCW.
+   */
+  const deliveryComments: string[] = [];
   if (venta.tipo_entrega === "retiro" && venta.tienda_retiro) {
-    notes.push(
+    deliveryComments.push(
       `Retiro en tienda: ${venta.tienda_retiro.nombre} — ${venta.tienda_retiro.direccion}`
     );
   }
   if (venta.receptor_nombre) {
-    notes.push(
+    deliveryComments.push(
       `Retira/recibe: ${venta.receptor_nombre}${venta.receptor_dni ? ` (DNI ${venta.receptor_dni})` : ""}`
     );
   }
+  const envioRefs = venta.envios[0]?.direccion?.referencias?.trim();
+  if (envioRefs) {
+    deliveryComments.push(envioRefs);
+  }
 
-  const internalNotes: string[] = [];
+  const internalNotes: string[] = [...deliveryComments];
   if (venta.cupon && Number(venta.cupon.monto) > 0.009) {
     const monto = Number(venta.cupon.monto).toLocaleString("es-AR", {
       minimumFractionDigits: 2,
@@ -566,11 +646,14 @@ async function createOdooSaleOrder(
     client_order_ref: orderName,
     date_order: venta.fecha_hora.toISOString().slice(0, 19).replace("T", " "),
     order_line: orderLines,
-    note: notes.length ? notes.join("\n") : false,
+    // No tocar `note`: es términos/condiciones; Odoo puede copiarlo a picking.observations.
     internal_notes: internalNotes.length
       ? internalNotes.map((n) => `<p>${n}</p>`).join("")
       : false,
   });
+
+  // El tipo Ecommerce puede pisar warehouse_id al crear; lo reafirmamos ya.
+  await ensureSaleOrderWarehouse(orderId, warehouseOdooId);
 
   // La pricelist de Odoo puede aplicar descuentos promocionales; forzamos
   // price_unit + discount=0 (el cupón web ya está en el precio cobrado).
@@ -647,6 +730,10 @@ async function createOdooSaleOrder(
   if (created?.state === "draft") {
     await odooCallMethod("sale.order", "action_confirm", [orderId]);
   }
+
+  // Por si confirm / writes disparan el recompute desde type_id.
+  await ensureSaleOrderWarehouse(orderId, warehouseOdooId);
+  await writePickingDeliveryNotes(orderId, deliveryComments);
 
   const finalName = created?.name ?? orderName;
   await prisma.venta.update({
@@ -845,6 +932,7 @@ export async function syncVentaToOdoo(id_venta: number): Promise<OdooSyncResult>
       venta,
       partnerId,
       invoicePartnerId,
+      warehouseOdooId,
       cfg,
     );
     await createOdooSaleOrder(
