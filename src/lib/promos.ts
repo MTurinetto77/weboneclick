@@ -19,6 +19,8 @@ export type PromoDetail = {
   prioridad: number;
   slug: string;
   activo: boolean;
+  por_cuotas: boolean;
+  cuotas: number | null;
   categorias: { id_categoria: number }[];
   productos: { id_producto: number }[];
 };
@@ -51,6 +53,8 @@ export async function getPromoBySlug(slug: string): Promise<PromoDetail | null> 
       prioridad: true,
       slug: true,
       activo: true,
+      por_cuotas: true,
+      cuotas: true,
       categorias: { select: { id_categoria: true } },
       productos: { select: { id_producto: true } },
     },
@@ -58,12 +62,24 @@ export async function getPromoBySlug(slug: string): Promise<PromoDetail | null> 
 }
 
 /**
- * Unión de productos asociados directamente + productos de categorías
- * asociadas (incluyendo descendientes).
+ * Productos de la promo:
+ * - Si por_cuotas: todos los activos con cuotas_max = cuotas.
+ * - Si no: unión de lista manual + categorías asociadas (con descendientes).
  */
 export async function resolvePromoProductIds(
-  promo: Pick<PromoDetail, "productos" | "categorias">
+  promo: Pick<PromoDetail, "productos" | "categorias" | "por_cuotas" | "cuotas">
 ): Promise<number[]> {
+  if (promo.por_cuotas) {
+    if (promo.cuotas == null || !Number.isFinite(promo.cuotas) || promo.cuotas <= 0) {
+      return [];
+    }
+    const rows = await prisma.producto.findMany({
+      where: { activo: true, cuotas_max: promo.cuotas },
+      select: { id_producto: true },
+    });
+    return rows.map((r) => r.id_producto);
+  }
+
   const ids = new Set<number>();
 
   for (const p of promo.productos) {
@@ -85,7 +101,7 @@ export async function resolvePromoProductIds(
 
 /**
  * Mapa id_producto → etiqueta_imagen de la promo activa con menor prioridad
- * que tenga etiqueta y contenga al producto (directo o por categoría).
+ * que tenga etiqueta y contenga al producto (directo, por categoría o por cuotas).
  */
 export async function getPromoBadges(
   productIds: number[]
@@ -101,6 +117,8 @@ export async function getPromoBadges(
     select: {
       etiqueta_imagen: true,
       prioridad: true,
+      por_cuotas: true,
+      cuotas: true,
       productos: { select: { id_producto: true } },
       categorias: { select: { id_categoria: true } },
     },

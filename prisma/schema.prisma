@@ -317,6 +317,9 @@ model promocion {
   prioridad       Int     @default(0)
   slug            String  @unique @db.VarChar(255)
   activo          Boolean @default(true)
+  /// Si true, la promo incluye productos con producto.cuotas_max = cuotas (sin lista manual).
+  por_cuotas      Boolean @default(false)
+  cuotas          Int?
 
   categorias promocion_categoria[]
   productos promocion_producto[]

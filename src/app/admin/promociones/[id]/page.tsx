@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PromoCuotasFields } from "@/components/admin/promo-cuotas-fields";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { uploadPublicUrl } from "@/lib/utils";
@@ -51,9 +52,11 @@ export default async function AdminPromocionDetailPage({
   });
   if (!promo) notFound();
 
-  const [categorias, searchResults] = await Promise.all([
+  const porCuotas = promo.por_cuotas;
+
+  const [categorias, searchResults, cuotasProductCount] = await Promise.all([
     prisma.categoria.findMany({ orderBy: [{ nivel: "asc" }, { nombre: "asc" }] }),
-    q
+    !porCuotas && q
       ? prisma.producto.findMany({
           where: {
             activo: true,
@@ -64,6 +67,11 @@ export default async function AdminPromocionDetailPage({
           orderBy: { titulo: "asc" },
         })
       : Promise.resolve([]),
+    porCuotas && promo.cuotas != null
+      ? prisma.producto.count({
+          where: { activo: true, cuotas_max: promo.cuotas },
+        })
+      : Promise.resolve(0),
   ]);
 
   const selectedCats = new Set(promo.categorias.map((c) => c.id_categoria));
@@ -105,6 +113,11 @@ export default async function AdminPromocionDetailPage({
         >
           {csvErr === "archivo" && <p style={{ margin: 0 }}>Seleccioná un archivo CSV para importar.</p>}
           {csvErr === "vacio" && <p style={{ margin: 0 }}>El CSV no tiene SKUs válidos.</p>}
+          {csvErr === "por_cuotas" && (
+            <p style={{ margin: 0 }}>
+              Esta promoción usa productos por cuotas; la carga por lista está desactivada.
+            </p>
+          )}
           {!csvErr && (
             <p style={{ margin: 0 }}>
               Importación: <strong>{csvAdded || "0"}</strong> agregados
@@ -210,7 +223,12 @@ export default async function AdminPromocionDetailPage({
               </div>
             </div>
 
-            <div className="form-field" style={{ marginBottom: "0.35rem" }}>
+            <PromoCuotasFields
+              defaultPorCuotas={promo.por_cuotas}
+              defaultCuotas={promo.cuotas}
+            />
+
+            <div className="form-field" style={{ marginBottom: "0.35rem", marginTop: "0.5rem" }}>
               <label>Categorías asociadas</label>
               <div className="admin-cats-scroll">
                 {categorias.map((c) => (
@@ -238,140 +256,172 @@ export default async function AdminPromocionDetailPage({
         </div>
 
         <div className="admin-side-stack">
-          <div className="admin-card">
-            <h2 style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
-              Importar CSV por SKU
-              <a
-                href="/ejemplos/promocion-skus.csv"
-                download="promocion-skus.csv"
-                style={{ fontSize: "0.8rem", fontWeight: 400 }}
-              >
-                Descargar CSV de ejemplo
-              </a>
-            </h2>
-            <p className="muted" style={{ margin: "0 0 0.5rem", fontSize: "0.78rem" }}>
-              Una columna <code>sku</code> o un SKU por línea. Se omiten duplicados y se
-              reportan los que no existan.
-            </p>
-            <form
-              action={importPromocionProductosCsv.bind(null, id_promocion)}
-              className="admin-inline-form"
-            >
-              <input
-                name="csv"
-                type="file"
-                accept=".csv,text/csv,text/plain"
-                required
-                style={{ flex: "1 1 10rem" }}
-              />
-              <button className="btn btn-secondary" type="submit" style={btnSm}>
-                Importar
-              </button>
-            </form>
-          </div>
-
-          <div className="admin-card">
-            <h2>
-              Productos{" "}
-              <span className="muted" style={{ fontWeight: 400, fontSize: "0.8rem" }}>
-                ({promo.productos.length})
-              </span>
-            </h2>
-
-            <table className="admin-table table table-compact">
-              <thead>
-                <tr>
-                  <th style={{ width: "6rem" }}>SKU</th>
-                  <th>Título</th>
-                  <th style={{ width: "4.5rem" }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {promo.productos.map((row) => (
-                  <tr key={row.id_producto}>
-                    <td>
-                      <code style={{ fontSize: "0.78rem" }}>{row.producto.sku ?? "—"}</code>
-                    </td>
-                    <td>
-                      <Link href={`/admin/productos/${row.id_producto}`}>{row.producto.titulo}</Link>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      <form action={removePromocionProducto.bind(null, id_promocion, row.id_producto)}>
-                        <button type="submit" className="btn btn-ghost" style={btnSm}>
-                          Quitar
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-                {!promo.productos.length && (
-                  <tr>
-                    <td colSpan={3} className="muted">
-                      Sin productos (pueden usarse solo categorías).
-                    </td>
-                  </tr>
+          {porCuotas ? (
+            <div className="admin-card">
+              <h2>Productos por cuotas</h2>
+              <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+                Modo activo: se incluyen automáticamente los productos con{" "}
+                <code>cuotas_max = {promo.cuotas ?? "—"}</code>.
+                {promo.cuotas != null ? (
+                  <>
+                    {" "}
+                    Actualmente: <strong>{cuotasProductCount}</strong>{" "}
+                    {cuotasProductCount === 1 ? "producto activo" : "productos activos"}.
+                  </>
+                ) : (
+                  <> Definí la cantidad de cuotas y guardá.</>
                 )}
-              </tbody>
-            </table>
+              </p>
+              <p className="muted" style={{ margin: "0.5rem 0 0", fontSize: "0.78rem" }}>
+                La carga por lista / CSV está desactivada mientras este modo esté activo.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="admin-card">
+                <h2 style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", flexWrap: "wrap" }}>
+                  Importar CSV por SKU
+                  <a
+                    href="/ejemplos/promocion-skus.csv"
+                    download="promocion-skus.csv"
+                    style={{ fontSize: "0.8rem", fontWeight: 400 }}
+                  >
+                    Descargar CSV de ejemplo
+                  </a>
+                </h2>
+                <p className="muted" style={{ margin: "0 0 0.5rem", fontSize: "0.78rem" }}>
+                  Una columna <code>sku</code> o un SKU por línea. Se omiten duplicados y se
+                  reportan los que no existan.
+                </p>
+                <form
+                  action={importPromocionProductosCsv.bind(null, id_promocion)}
+                  className="admin-inline-form"
+                >
+                  <input
+                    name="csv"
+                    type="file"
+                    accept=".csv,text/csv,text/plain"
+                    required
+                    style={{ flex: "1 1 10rem" }}
+                  />
+                  <button className="btn btn-secondary" type="submit" style={btnSm}>
+                    Importar
+                  </button>
+                </form>
+              </div>
 
-            <form method="get" className="admin-inline-form" style={{ marginTop: "0.65rem" }}>
-              <input
-                name="q"
-                defaultValue={q}
-                placeholder="Buscar título o SKU…"
-                style={{ flex: "1 1 8rem" }}
-              />
-              <button className="btn btn-secondary" type="submit" style={btnSm}>
-                Buscar
-              </button>
-            </form>
+              <div className="admin-card">
+                <h2>
+                  Productos{" "}
+                  <span className="muted" style={{ fontWeight: 400, fontSize: "0.8rem" }}>
+                    ({promo.productos.length})
+                  </span>
+                </h2>
 
-            {q ? (
-              <table
-                className="admin-table table table-compact"
-                style={{ marginTop: "0.5rem" }}
-              >
-                <thead>
-                  <tr>
-                    <th style={{ width: "6rem" }}>SKU</th>
-                    <th>Título</th>
-                    <th style={{ width: "4rem" }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {searchResults.map((p) => (
-                    <tr key={p.id_producto}>
-                      <td>
-                        <code style={{ fontSize: "0.78rem" }}>{p.sku ?? "—"}</code>
-                      </td>
-                      <td>{p.titulo}</td>
-                      <td style={{ textAlign: "right" }}>
-                        {linkedIds.has(p.id_producto) ? (
-                          <span className="muted" style={{ fontSize: "0.75rem" }}>
-                            Ya
-                          </span>
-                        ) : (
-                          <form action={addPromocionProducto.bind(null, id_promocion)}>
-                            <input type="hidden" name="id_producto" value={p.id_producto} />
-                            <button type="submit" className="btn btn-secondary" style={btnSm}>
-                              +
+                <table className="admin-table table table-compact">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "6rem" }}>SKU</th>
+                      <th>Título</th>
+                      <th style={{ width: "4.5rem" }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {promo.productos.map((row) => (
+                      <tr key={row.id_producto}>
+                        <td>
+                          <code style={{ fontSize: "0.78rem" }}>{row.producto.sku ?? "—"}</code>
+                        </td>
+                        <td>
+                          <Link href={`/admin/productos/${row.id_producto}`}>
+                            {row.producto.titulo}
+                          </Link>
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <form
+                            action={removePromocionProducto.bind(
+                              null,
+                              id_promocion,
+                              row.id_producto
+                            )}
+                          >
+                            <button type="submit" className="btn btn-ghost" style={btnSm}>
+                              Quitar
                             </button>
                           </form>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {!searchResults.length && (
-                    <tr>
-                      <td colSpan={3} className="muted">
-                        Sin resultados para &quot;{q}&quot;.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            ) : null}
-          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {!promo.productos.length && (
+                      <tr>
+                        <td colSpan={3} className="muted">
+                          Sin productos (pueden usarse solo categorías).
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+
+                <form method="get" className="admin-inline-form" style={{ marginTop: "0.65rem" }}>
+                  <input
+                    name="q"
+                    defaultValue={q}
+                    placeholder="Buscar título o SKU…"
+                    style={{ flex: "1 1 8rem" }}
+                  />
+                  <button className="btn btn-secondary" type="submit" style={btnSm}>
+                    Buscar
+                  </button>
+                </form>
+
+                {q ? (
+                  <table
+                    className="admin-table table table-compact"
+                    style={{ marginTop: "0.5rem" }}
+                  >
+                    <thead>
+                      <tr>
+                        <th style={{ width: "6rem" }}>SKU</th>
+                        <th>Título</th>
+                        <th style={{ width: "4rem" }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchResults.map((p) => (
+                        <tr key={p.id_producto}>
+                          <td>
+                            <code style={{ fontSize: "0.78rem" }}>{p.sku ?? "—"}</code>
+                          </td>
+                          <td>{p.titulo}</td>
+                          <td style={{ textAlign: "right" }}>
+                            {linkedIds.has(p.id_producto) ? (
+                              <span className="muted" style={{ fontSize: "0.75rem" }}>
+                                Ya
+                              </span>
+                            ) : (
+                              <form action={addPromocionProducto.bind(null, id_promocion)}>
+                                <input type="hidden" name="id_producto" value={p.id_producto} />
+                                <button type="submit" className="btn btn-secondary" style={btnSm}>
+                                  +
+                                </button>
+                              </form>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {!searchResults.length && (
+                        <tr>
+                          <td colSpan={3} className="muted">
+                            Sin resultados para &quot;{q}&quot;.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

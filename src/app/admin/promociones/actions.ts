@@ -122,6 +122,13 @@ export async function updatePromocion(id_promocion: number, formData: FormData) 
     .map(Number)
     .filter((n) => Number.isFinite(n) && n > 0);
 
+  const por_cuotas = formData.get("por_cuotas") === "on";
+  const cuotasRaw = Number(formData.get("cuotas"));
+  const cuotas =
+    por_cuotas && Number.isFinite(cuotasRaw) && cuotasRaw > 0
+      ? Math.floor(cuotasRaw)
+      : null;
+
   await prisma.$transaction([
     prisma.promocion_categoria.deleteMany({ where: { id_promocion } }),
     prisma.promocion.update({
@@ -134,6 +141,8 @@ export async function updatePromocion(id_promocion: number, formData: FormData) 
         prioridad: Number.isFinite(prioridad) ? prioridad : 0,
         slug,
         activo,
+        por_cuotas,
+        cuotas,
         categorias: {
           create: categoriaIds.map((id_categoria) => ({ id_categoria })),
         },
@@ -172,6 +181,9 @@ export async function addPromocionProducto(id_promocion: number, formData: FormD
 
   const promo = await prisma.promocion.findUnique({ where: { id_promocion } });
   if (!promo) throw new Error("Promoción no encontrada");
+  if (promo.por_cuotas) {
+    redirect(`/admin/promociones/${id_promocion}?csv_err=por_cuotas`);
+  }
 
   await prisma.promocion_producto.upsert({
     where: {
@@ -234,6 +246,9 @@ export async function importPromocionProductosCsv(id_promocion: number, formData
   await guard();
   const promo = await prisma.promocion.findUnique({ where: { id_promocion } });
   if (!promo) throw new Error("Promoción no encontrada");
+  if (promo.por_cuotas) {
+    redirect(`/admin/promociones/${id_promocion}?csv_err=por_cuotas`);
+  }
 
   const file = formData.get("csv");
   if (!(file instanceof File) || file.size === 0) {
