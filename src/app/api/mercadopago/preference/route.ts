@@ -15,6 +15,13 @@ export const runtime = "nodejs";
 
 type PreferenceBody = {
   fields?: Record<string, string>;
+  /** Tope de cuotas del checkout (se recorta al de los productos). */
+  maxInstallments?: number;
+  /**
+   * `qr` = Checkout Pro por QR / link (sin wallet_purchase).
+   * Cualquier otro valor = Wallet Brick.
+   */
+  flow?: string;
 };
 
 function resolveTipoPago(fields: Record<string, string>): TipoPagoCheckout {
@@ -70,6 +77,10 @@ export async function POST(req: NextRequest) {
 
     const fields = body.fields ?? {};
     const tipo_pago = resolveTipoPago(fields);
+    const hintRaw = Number(body.maxInstallments);
+    const maxInstallmentsHint =
+      Number.isFinite(hintRaw) && hintRaw > 0 ? hintRaw : undefined;
+    const guestCheckout = body.flow === "qr";
     const session = await auth();
 
     let venta;
@@ -89,7 +100,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const result = await createOrReuseMercadoPagoPreference(venta, tipo_pago);
+      const result = await createOrReuseMercadoPagoPreference(venta, tipo_pago, {
+        guestCheckout,
+        maxInstallmentsHint,
+      });
       await finalizeCheckoutAfterPreference();
       revalidatePath("/carrito");
       return NextResponse.json({

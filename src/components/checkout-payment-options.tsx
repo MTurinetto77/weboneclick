@@ -212,7 +212,7 @@ export function CheckoutPaymentOptions({
     }
   }
 
-  async function createPreference(): Promise<{
+  async function createPreference(flow: "wallet" | "qr" = "wallet"): Promise<{
     preferenceId: string;
     init_point: string;
     confirmation_url: string;
@@ -231,7 +231,11 @@ export function CheckoutPaymentOptions({
     const res = await fetch("/api/mercadopago/preference", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fields }),
+      body: JSON.stringify({
+        fields,
+        flow,
+        maxInstallments: modo === "contado" ? 1 : maxInstallments,
+      }),
     });
     const data = await readJsonResponse<{
       preferenceId?: string;
@@ -293,7 +297,7 @@ export function CheckoutPaymentOptions({
   }
 
   async function onWalletSubmit(): Promise<string> {
-    const pref = await createPreference();
+    const pref = await createPreference("wallet");
     return pref.preferenceId;
   }
 
@@ -301,7 +305,7 @@ export function CheckoutPaymentOptions({
     if (!canPayDelivery || !mpConfigured) return;
     setQrLoading(true);
     try {
-      const pref = await createPreference();
+      const pref = await createPreference("qr");
       setQr({
         init_point: pref.init_point,
         confirmation_url: pref.confirmation_url,
@@ -466,7 +470,7 @@ export function CheckoutPaymentOptions({
                 void (async () => {
                   setQrLoading(true);
                   try {
-                    const pref = await createPreference();
+                    const pref = await createPreference("qr");
                     window.location.href = pref.init_point;
                   } catch {
                     // error ya seteado

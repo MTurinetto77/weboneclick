@@ -46,18 +46,34 @@ export type ResolvedCartItem = {
 /** Default comercial cuando el producto no tiene tope cargado (paridad PDP). */
 export const DEFAULT_CUOTAS_MAX = 12;
 
+/** Mercado Pago acepta 1–36 en `payment_methods.installments`. */
+export function clampMpInstallments(n: number): number {
+  const v = Math.floor(n);
+  if (!Number.isFinite(v) || v < 1) return 1;
+  return Math.min(36, v);
+}
+
+/**
+ * Tope comercial a partir de `cuotas_max` de productos.
+ * Sin valores, o con null/0, usa DEFAULT_CUOTAS_MAX.
+ */
+export function maxInstallmentsFromCuotas(
+  cuotas: Array<number | null | undefined>,
+): number {
+  if (cuotas.length === 0) return DEFAULT_CUOTAS_MAX;
+  return Math.min(
+    ...cuotas.map((c) => (c != null && c > 0 ? c : DEFAULT_CUOTAS_MAX)),
+  );
+}
+
 /**
  * Máximo de cuotas del carrito: el menor `cuotas_max` entre ítems disponibles
  * (carrito mixto no puede superar el producto más restrictivo).
  */
 export function cartMaxInstallments(items: ResolvedCartItem[]): number {
-  const caps = items
-    .filter((i) => i.disponible)
-    .map((i) =>
-      i.cuotas_max != null && i.cuotas_max > 0 ? i.cuotas_max : DEFAULT_CUOTAS_MAX,
-    );
-  if (caps.length === 0) return DEFAULT_CUOTAS_MAX;
-  return Math.min(...caps);
+  return maxInstallmentsFromCuotas(
+    items.filter((i) => i.disponible).map((i) => i.cuotas_max),
+  );
 }
 
 /** Fallback si falta el parámetro valor_para_envio_gratis. */

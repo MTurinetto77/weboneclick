@@ -1,5 +1,9 @@
 import { clearCartCookie } from "@/lib/cart";
-import { cartMaxInstallments, resolveCart } from "@/lib/cart";
+import {
+  clampMpInstallments,
+  DEFAULT_CUOTAS_MAX,
+  maxInstallmentsFromCuotas,
+} from "@/lib/cart";
 import { rotateCheckoutIdempotencyKey } from "@/lib/checkout-idempotency";
 import {
   confirmationPath,
@@ -23,13 +27,61 @@ export type CreatePreferenceResult = {
   id_venta: number;
 };
 
+export type CreatePreferenceOptions = {
+  /**
+   * Checkout Pro abierto por QR / link (continuar en el celular).
+   * Sin `purpose: wallet_purchase` para que MP respete el tope de cuotas.
+   */
+  guestCheckout?: boolean;
+  /** Tope informado por el checkout; se recorta al de los productos de la venta. */
+  maxInstallmentsHint?: number;
+};
+
+async function maxInstallmentsForVenta(
+  venta: VentaPendiente,
+): Promise<number> {
+  const ids = [
+    ...new Set(
+      venta.itemsCobro
+        .map((i) => i.id_producto)
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  ];
+  if (ids.length === 0) return DEFAULT_CUOTAS_MAX;
+  const rows = await prisma.producto.findMany({
+    where: { id_producto: { in: ids } },
+    select: { cuotas_max: true },
+  });
+  return maxInstallmentsFromCuotas(rows.map((r) => r.cuotas_max));
+}
+
+function resolvePreferenceInstallments(
+  tipo_pago: TipoPagoCheckout,
+  fromVenta: number,
+  hint?: number,
+): number {
+  const cap = clampMpInstallments(
+    hint != null && hint > 0 ? Math.min(fromVenta, hint) : fromVenta,
+  );
+  return tipo_pago === "mercado_pago" ? 1 : cap;
+}
+
+function paymentMethodsForPreference(installments: number) {
+  return {
+    installments,
+    default_installments: 1,
+  };
+}
+
 /**
  * Crea (o reutiliza) una preference de Mercado Pago para Wallet / Checkout Pro.
- * Contado (`mercado_pago`): 1 cuota. Cuotas (`tarjeta`): hasta maxInstallments del carrito.
+ * Contado (`mercado_pago`): 1 cuota. Cuotas (`tarjeta`): hasta maxInstallments
+ * de los productos de la venta (no del carrito, que puede ya estar vacío).
  */
 export async function createOrReuseMercadoPagoPreference(
   venta: VentaPendiente,
   tipo_pago: TipoPagoCheckout,
+  options?: CreatePreferenceOptions,
 ): Promise<CreatePreferenceResult> {
   const siteUrl = publicSiteUrl();
   const confBase = `${siteUrl}${confirmationPath(venta.id_venta, venta.access_token)}`;
@@ -38,12 +90,31 @@ export async function createOrReuseMercadoPagoPreference(
     siteUrl.startsWith("https://") &&
     !/localhost|127\.0\.0\.1/i.test(siteUrl);
 
+  const fromVenta = await maxInstallmentsForVenta(venta);
+  const installments = resolvePreferenceInstallments(
+    tipo_pago,
+    fromVenta,
+    options?.maxInstallmentsHint,
+  );
+  const payment_methods = paymentMethodsForPreference(installments);
+
   const pagoExistente = await prisma.pago.findFirst({
     where: { id_venta: venta.id_venta, tipo_pago },
     select: { referencia: true },
   });
   if (pagoExistente?.referencia) {
     const preferenceId = pagoExistente.referencia;
+    await mercadoPagoPreference()
+      .update({
+        id: preferenceId,
+        updatePreferenceRequest: { payment_methods },
+      })
+      .catch((error) => {
+        console.warn(
+          "[mp-preference] no se pudo actualizar cuotas de preference existente:",
+          error,
+        );
+      });
     return {
       preferenceId,
       init_point: `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(preferenceId)}`,
@@ -51,11 +122,6 @@ export async function createOrReuseMercadoPagoPreference(
       id_venta: venta.id_venta,
     };
   }
-
-  const cart = await resolveCart();
-  const maxInstallments = Math.max(1, cartMaxInstallments(cart.items));
-  // Contado: solo 1 pago. Cuotas: tope del producto.
-  const installments = tipo_pago === "mercado_pago" ? 1 : maxInstallments;
 
   const src = toMpPayerSource(venta);
   const preferenceItems = buildMpItems(src).map((item) => ({
@@ -68,12 +134,12 @@ export async function createOrReuseMercadoPagoPreference(
     payer: buildPreferencePayer(src),
     shipments: buildPreferenceShipments(src),
     external_reference: String(venta.id_venta),
-    metadata: { id_venta: String(venta.id_venta) },
-    statement_descriptor: "ONECLICK",
-    payment_methods: {
-      installments,
-      default_installments: 1,
+    metadata: {
+      id_venta: String(venta.id_venta),
+      max_installments: String(installments),
     },
+    statement_descriptor: "ONECLICK",
+    payment_methods,
     ...(publicHttps
       ? {
           back_urls: {
@@ -89,18 +155,26 @@ export async function createOrReuseMercadoPagoPreference(
 
   let preference;
   try {
-    try {
-      preference = await mercadoPagoPreference().create({
-        body: {
-          ...preferenceBody,
-          purpose: "wallet_purchase",
-        },
-      });
-    } catch (firstError) {
-      console.warn(
-        "[mp-preference] wallet_purchase falló, reintento sin purpose:",
-        firstError,
-      );
+    const useWalletPurpose = !options?.guestCheckout;
+    if (useWalletPurpose) {
+      try {
+        preference = await mercadoPagoPreference().create({
+          body: {
+            ...preferenceBody,
+            purpose: "wallet_purchase",
+          },
+        });
+      } catch (firstError) {
+        console.warn(
+          "[mp-preference] wallet_purchase falló, reintento sin purpose:",
+          firstError,
+        );
+        preference = await mercadoPagoPreference().create({
+          body: preferenceBody,
+        });
+      }
+    } else {
+      // QR / link: Checkout Pro completo para que `installments` limite cuotas.
       preference = await mercadoPagoPreference().create({
         body: preferenceBody,
       });
