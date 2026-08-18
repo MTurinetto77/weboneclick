@@ -102,19 +102,10 @@ export async function createOrReuseMercadoPagoPreference(
     where: { id_venta: venta.id_venta, tipo_pago },
     select: { referencia: true },
   });
-  if (pagoExistente?.referencia) {
+  // Wallet Brick: reutilizar la preference (purpose wallet_purchase).
+  // QR: nunca reutilizar esa preference; Checkout Pro necesita la suya con `installments`.
+  if (pagoExistente?.referencia && !options?.guestCheckout) {
     const preferenceId = pagoExistente.referencia;
-    await mercadoPagoPreference()
-      .update({
-        id: preferenceId,
-        updatePreferenceRequest: { payment_methods },
-      })
-      .catch((error) => {
-        console.warn(
-          "[mp-preference] no se pudo actualizar cuotas de preference existente:",
-          error,
-        );
-      });
     return {
       preferenceId,
       init_point: `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${encodeURIComponent(preferenceId)}`,
