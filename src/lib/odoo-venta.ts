@@ -329,6 +329,63 @@ async function upsertInvoiceContact(
   return upsertChildAddressContact(partnerId, "invoice", factDir, name, cfg);
 }
 
+let cachedCompanyPartnerId: number | null = null;
+
+async function getCompanyPartnerId(cfg: OdooConfig): Promise<number> {
+  if (cachedCompanyPartnerId) return cachedCompanyPartnerId;
+  const [company] = await odooRead<{
+    partner_id: [number, string] | false;
+  }>("res.company", [cfg.companyId], ["partner_id"]);
+  const id = Array.isArray(company?.partner_id) ? company.partner_id[0] : null;
+  if (!id) {
+    throw new Error("La compañía Odoo no tiene partner_id");
+  }
+  cachedCompanyPartnerId = id;
+  return id;
+}
+
+/**
+ * Retiro: contacto delivery hijo de Oneclick Argentino SRL
+ * (display "Oneclick Argentino SRL, OneClick Córdoba Shopping").
+ *
+ * No usar `stock.warehouse.partner_id`: ese contacto de almacén tiene
+ * `property_stock_customer` = Tránsito entre almacenes y al confirmar
+ * el pedido Odoo busca reglas de reabastecimiento en esa ubicación.
+ */
+async function resolvePickupShippingPartnerId(
+  warehouseOdooId: number,
+  cfg: OdooConfig
+): Promise<number> {
+  const companyPartnerId = await getCompanyPartnerId(cfg);
+  const [wh] = await odooRead<{
+    name: string;
+    partner_id: [number, string] | false;
+  }>("stock.warehouse", [warehouseOdooId], ["name", "partner_id"]);
+
+  const storeName = Array.isArray(wh?.partner_id) ? wh.partner_id[1] : null;
+  if (storeName) {
+    const exact = await odooSearch("res.partner", [
+      ["parent_id", "=", companyPartnerId],
+      ["type", "=", "delivery"],
+      ["name", "=", storeName],
+    ]);
+    if (exact[0]) return exact[0];
+  }
+
+  if (wh?.name) {
+    const fuzzy = await odooSearch("res.partner", [
+      ["parent_id", "=", companyPartnerId],
+      ["type", "=", "delivery"],
+      ["name", "ilike", wh.name],
+    ]);
+    if (fuzzy[0]) return fuzzy[0];
+  }
+
+  throw new Error(
+    `No hay contacto de entrega de compañía para el almacén ${wh?.name ?? warehouseOdooId} (esperado: Oneclick Argentino SRL, OneClick …)`
+  );
+}
+
 async function upsertDeliveryContact(
   venta: NonNullable<VentaFull>,
   partnerId: number,
@@ -336,32 +393,10 @@ async function upsertDeliveryContact(
   warehouseOdooId: number,
   cfg: OdooConfig
 ): Promise<number> {
-  // Retiro en tienda: la entrega debe mostrar la dirección de la sucursal
-  // (partner del almacén Odoo), no la del cliente. Igual que pedidos WEB legacy.
+  // Retiro en tienda: dirección de la sucursal como hijo de la compañía,
+  // no el partner del almacén ni el del cliente.
   if (venta.tipo_entrega === "retiro") {
-    const [wh] = await odooRead<{
-      partner_id: [number, string] | false;
-    }>("stock.warehouse", [warehouseOdooId], ["partner_id"]);
-    const storePartnerId = Array.isArray(wh?.partner_id)
-      ? wh.partner_id[0]
-      : null;
-    if (storePartnerId) return storePartnerId;
-
-    const tienda = venta.tienda_retiro;
-    if (!tienda) return partnerId;
-    return upsertChildAddressContact(
-      partnerId,
-      "delivery",
-      {
-        calle: tienda.direccion,
-        numero: "",
-        localidad: tienda.localidad,
-        provincia: tienda.provincia,
-        codigo_postal: tienda.codigo_postal,
-      },
-      `Retiro ${tienda.nombre}`,
-      cfg,
-    );
+    return resolvePickupShippingPartnerId(warehouseOdooId, cfg);
   }
 
   if (venta.tipo_entrega !== "envio") return partnerId;
@@ -410,6 +445,22 @@ async function ensureSaleOrderWarehouse(
   if (current === warehouseOdooId) return;
   await odooWrite("sale.order", [orderId], {
     warehouse_id: warehouseOdooId,
+  });
+}
+
+async function ensureSaleOrderShippingPartner(
+  orderId: number,
+  shippingPartnerId: number,
+): Promise<void> {
+  const [row] = await odooRead<{
+    partner_shipping_id: [number, string] | false;
+  }>("sale.order", [orderId], ["partner_shipping_id"]);
+  const current = Array.isArray(row?.partner_shipping_id)
+    ? row.partner_shipping_id[0]
+    : null;
+  if (current === shippingPartnerId) return;
+  await odooWrite("sale.order", [orderId], {
+    partner_shipping_id: shippingPartnerId,
   });
 }
 
@@ -519,6 +570,7 @@ async function createOdooSaleOrder(
       ["name", "state"]
     );
     await ensureSaleOrderWarehouse(existingIds[0], warehouseOdooId);
+    await ensureSaleOrderShippingPartner(existingIds[0], shippingPartnerId);
     await prisma.venta.update({
       where: { id_venta: venta.id_venta },
       data: {
@@ -654,6 +706,7 @@ async function createOdooSaleOrder(
 
   // El tipo Ecommerce puede pisar warehouse_id al crear; lo reafirmamos ya.
   await ensureSaleOrderWarehouse(orderId, warehouseOdooId);
+  await ensureSaleOrderShippingPartner(orderId, shippingPartnerId);
 
   // La pricelist de Odoo puede aplicar descuentos promocionales; forzamos
   // price_unit + discount=0 (el cupón web ya está en el precio cobrado).
@@ -733,6 +786,7 @@ async function createOdooSaleOrder(
 
   // Por si confirm / writes disparan el recompute desde type_id.
   await ensureSaleOrderWarehouse(orderId, warehouseOdooId);
+  await ensureSaleOrderShippingPartner(orderId, shippingPartnerId);
   await writePickingDeliveryNotes(orderId, deliveryComments);
 
   const finalName = created?.name ?? orderName;

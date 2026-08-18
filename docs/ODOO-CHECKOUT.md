@@ -245,7 +245,7 @@ Si la venta tiene `id_cupon` / `cupon`:
 
 Envío (`tipo_entrega = envio` y `costo_envio > 0`): línea con producto `odoo_shipping_product_id`, IVA 21% (tax id 116).
 
-No usar `sale.order.note` (es “Términos y condiciones”). Retiro / receptor / referencias → `internal_notes` + `stock.picking.note`. Cupón web → `internal_notes`. En retiro, `partner_shipping_id` = partner del almacén Odoo (dirección de la tienda), no la del cliente.
+No usar `sale.order.note` (es “Términos y condiciones”). Retiro / receptor / referencias → `internal_notes` + `stock.picking.note`. Cupón web → `internal_notes`. En retiro, `partner_shipping_id` = contacto **delivery hijo de Oneclick Argentino SRL** (display `Oneclick Argentino SRL, OneClick Córdoba Shopping`), no el `partner_id` del almacén (ese apunta a Tránsito entre almacenes) ni el del cliente.
 
 ---
 
