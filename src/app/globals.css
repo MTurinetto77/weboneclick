@@ -1977,42 +1977,159 @@ img { max-width: 100%; display: block; }
   margin-bottom: 0.75rem;
 }
 
+.oc-pdp-section-nav {
+  position: sticky;
+  top: 95px;
+  z-index: 40;
+  background: #fff;
+  border-bottom: 1px solid #ececec;
+  margin: 0 0 0.5rem;
+}
+
+.oc-pdp-section-nav-inner {
+  width: min(1320px, calc(100% - 2rem));
+  margin-inline: auto;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.oc-pdp-section-nav-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.oc-pdp-section-nav-item {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.9rem 0.9rem 0.8rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--oc-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.oc-pdp-section-nav-item:hover {
+  color: var(--oc-ink);
+}
+
+.oc-pdp-section-nav-item.is-active {
+  color: var(--oc-ink);
+  border-bottom-color: var(--oc-ink);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .oc-pdp-section-nav {
+    top: 72px;
+  }
+}
+
 .oc-product-detail {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  gap: 3rem;
+  align-items: start;
   padding: 1.5rem 0 3rem;
 }
 
 .oc-gallery {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 769px) {
+  .oc-gallery {
+    position: sticky;
+    top: calc(95px + 53px + 1.5rem);
+  }
+}
+
+.oc-gallery-stage {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
-  align-items: stretch;
-  min-height: 360px;
-  background: transparent;
+  place-items: center;
+  background: #fff;
+  border-radius: var(--oc-radius);
+  padding: 2.5rem;
+  min-height: 400px;
+}
+
+.oc-gallery-main {
+  max-width: 100%;
+  max-height: 480px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.oc-gallery-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  color: #6e6e73;
+  cursor: pointer;
   padding: 0;
 }
 
-.oc-gallery.has-thumbs {
-  grid-template-columns: 72px minmax(0, 1fr);
+.oc-gallery-arrow:hover {
+  color: #1d1d1f;
 }
 
-.oc-gallery-thumbs-col {
+.oc-gallery-arrow--prev {
+  left: 0.85rem;
+}
+
+.oc-gallery-arrow--next {
+  right: 0.85rem;
+}
+
+.oc-pdp-badge-oos {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 3;
+  background: #1d1d1f;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.65rem;
+  border-radius: 6px;
+}
+
+.oc-gallery-thumbs-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.35rem;
-  min-height: 0;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .oc-gallery-thumb-nav {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 22px;
+  width: 24px;
+  height: 28px;
   border: 0;
   background: transparent;
   color: #9a9a9a;
@@ -2027,14 +2144,10 @@ img { max-width: 100%; display: block; }
 
 .oc-gallery-thumbs {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 420px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  gap: 0.6rem;
+  overflow-x: auto;
   scrollbar-width: none;
-  width: 100%;
-  padding: 0.1rem 0;
+  padding: 0.1rem;
 }
 
 .oc-gallery-thumbs::-webkit-scrollbar {
@@ -2043,8 +2156,8 @@ img { max-width: 100%; display: block; }
 
 .oc-gallery-thumb {
   display: block;
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   padding: 0.3rem;
   border: 1px solid #e8e8e8;
   border-radius: 10px;
@@ -2066,160 +2179,179 @@ img { max-width: 100%; display: block; }
   display: block;
 }
 
-.oc-gallery-stage {
-  position: relative;
-  display: grid;
-  place-items: center;
-  background: #fff;
-  border-radius: 16px;
-  padding: 2rem 2.5rem 2.75rem;
-  min-height: 360px;
-}
-
-.oc-gallery-main {
-  max-width: 100%;
-  max-height: 460px;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  display: block;
-}
-
-.oc-gallery-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 0;
-  background: transparent;
-  color: #b0b0b0;
-  cursor: pointer;
-  padding: 0;
-}
-
-.oc-gallery-arrow:hover {
-  color: #1d1d1f;
-}
-
-.oc-gallery-arrow--prev {
-  left: 0.35rem;
-}
-
-.oc-gallery-arrow--next {
-  right: 0.35rem;
-}
-
-.oc-gallery-dots {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0.85rem;
-  display: flex;
-  justify-content: center;
-  gap: 0.4rem;
-}
-
-.oc-gallery-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: 1px solid #9a9a9a;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-}
-
-.oc-gallery-dot.is-active {
-  background: #9a9a9a;
-  border-color: #9a9a9a;
-}
-
-.oc-gallery-oos .oc-gallery-stage {
-  background: #f7f7f8;
-}
-
-.oc-pdp-badge-oos {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  z-index: 3;
-  background: #1d1d1f;
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0.35rem 0.65rem;
-  border-radius: 6px;
-}
-
-@media (max-width: 900px) {
-  .oc-gallery.has-thumbs {
-    grid-template-columns: 1fr;
-  }
-
-  .oc-gallery-thumbs-col {
-    order: 2;
-    flex-direction: row;
-    width: 100%;
-  }
-
-  .oc-gallery-thumb-nav {
-    display: none;
-  }
-
-  .oc-gallery-thumbs {
-    flex-direction: row;
-    max-height: none;
-    overflow-x: auto;
-    overflow-y: hidden;
-    width: 100%;
-    padding-bottom: 0.15rem;
-  }
-
+@media (max-width: 768px) {
   .oc-gallery-stage {
-    order: 1;
-    padding: 1.5rem 2rem 2.5rem;
+    padding: 1.5rem;
     min-height: 280px;
   }
 
   .oc-gallery-main {
-    max-height: 340px;
+    max-height: 320px;
+  }
+
+  .oc-gallery-thumb {
+    width: 60px;
+    height: 60px;
   }
 }
 
+.oc-pdp-buybox {
+  padding-top: 0.25rem;
+}
+
 .oc-pdp-buybox h1 {
-  margin: 0.15rem 0 0.5rem;
-  font-size: clamp(1.45rem, 2.4vw, 1.85rem);
-  line-height: 1.2;
+  margin: 0.15rem 0 0.6rem;
+  font-size: clamp(1.65rem, 2.6vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.15;
   letter-spacing: -0.02em;
 }
 
 .oc-pdp-brand {
   margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-brand a { color: inherit; }
+
+.oc-pdp-spec-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.9rem;
+  padding: 0;
+  list-style: none;
+}
+
+.oc-pdp-spec-chips li {
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--oc-border);
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-colors {
+  margin: 1rem 0 0.5rem;
+}
+
+.oc-pdp-colors-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-colors-label strong {
+  color: var(--oc-ink);
+}
+
+.oc-pdp-colors-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.oc-pdp-color-swatch {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  outline-offset: 3px;
+  transition: border-color 0.15s ease;
+}
+
+.oc-pdp-color-swatch.is-active {
+  border-color: var(--oc-ink);
+}
+
+.oc-pdp-buybox .oc-price {
+  margin: 0.35rem 0 0;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.oc-pdp-buybox .oc-price-block {
+  margin: 0.35rem 0 0;
+}
+
+.oc-pdp-buybox .oc-price-old {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--oc-muted);
+  text-decoration: line-through;
+}
+
+.oc-pdp-buybox .oc-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-top: 0.15rem;
+}
+
+.oc-pdp-buybox .oc-price-pct {
+  display: inline-block;
+  background: var(--oc-red);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  order: 2;
+}
+
+.oc-pdp-buybox .oc-price-sale {
+  order: 1;
+}
+
+.oc-pdp-cuotas-badge {
+  display: inline-block;
+  margin: 0.9rem 0 0.6rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: #f5f5f7;
+  color: var(--oc-ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.oc-pdp-stock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.4rem 0 1.1rem;
   font-size: 0.92rem;
   font-weight: 600;
 }
 
-.oc-pdp-brand a { color: var(--oc-ink); }
+.oc-pdp-stock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
 
-.oc-pdp-in-stock {
-  margin: 0.85rem 0 1rem;
-  font-size: 0.98rem;
-  font-weight: 600;
+.oc-pdp-stock-badge--ok {
   color: #1a7f37;
 }
 
-.oc-pdp-oos-label {
-  margin: 0.35rem 0 1.15rem;
-  font-size: 1rem;
-  font-weight: 600;
+.oc-pdp-stock-badge--ok .oc-pdp-stock-dot {
+  background: #1a7f37;
+}
+
+.oc-pdp-stock-badge--no {
   color: #b42318;
+}
+
+.oc-pdp-stock-badge--no .oc-pdp-stock-dot {
+  background: #b42318;
 }
 
 .oc-pdp-cart-form {
@@ -2239,7 +2371,7 @@ img { max-width: 100%; display: block; }
   align-items: stretch;
   height: 2.35rem;
   border: 1px solid var(--oc-border);
-  border-radius: 4px;
+  border-radius: 14px;
   overflow: hidden;
   background: #fff;
 }
@@ -2277,7 +2409,7 @@ img { max-width: 100%; display: block; }
   max-width: none;
   height: 2.35rem;
   padding: 0 1.15rem;
-  border-radius: 4px;
+  border-radius: 14px;
   background: #1d1d1f;
   color: #fff;
   font-size: 0.8125rem;
@@ -2602,30 +2734,666 @@ img { max-width: 100%; display: block; }
   }
 }
 
-.oc-pdp-description {
-  padding: 0 0 2.5rem;
+.oc-pdp-description,
+.oc-pdp-features-section,
+.oc-pdp-specs-section {
+  margin: 0 0 2rem;
+  padding: 2rem clamp(1.25rem, 3vw, 2.5rem);
+  background: #fff;
+  border-radius: var(--oc-radius);
+  scroll-margin-top: calc(95px + 53px + 1rem);
 }
 
-.oc-pdp-description h2 {
-  margin: 0 0 0.85rem;
-  font-size: 1.25rem;
+.oc-pdp-description h2,
+.oc-pdp-features-section h2,
+.oc-pdp-specs-section h2 {
+  margin: 0 0 1.1rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.oc-pdp-specs { margin-top: 1.5rem; }
+.oc-pdp-description > div {
+  color: var(--oc-muted);
+  line-height: 1.65;
+}
 
-.oc-pdp-specs ul {
-  margin: 0.5rem 0 0;
-  padding-left: 1.1rem;
-  line-height: 1.55;
+.oc-pdp-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.75rem;
+}
+
+.oc-pdp-feature-icon {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  margin: 0 0 0.75rem;
+}
+
+.oc-pdp-feature h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.oc-pdp-feature p {
+  margin: 0;
+  color: var(--oc-muted);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.oc-pdp-specs-grid {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.oc-pdp-specs-row {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) 1fr;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #ececec;
+}
+
+.oc-pdp-specs-row:last-child {
+  border-bottom: 0;
+}
+
+.oc-pdp-specs-row dt {
+  font-weight: 600;
+  color: var(--oc-ink);
+}
+
+.oc-pdp-specs-row dd {
+  margin: 0;
+  color: var(--oc-muted);
+}
+
+@media (max-width: 560px) {
+  .oc-pdp-specs-row {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
 }
 
 .oc-pdp-related {
   padding: 0 0 3.5rem;
+  scroll-margin-top: calc(95px + 53px + 1rem);
 }
 
 .oc-pdp-related h2 {
   margin: 0 0 1.25rem;
   font-size: 1.35rem;
+  font-weight: 700;
+}
+
+/* ============================================================
+   Tema "MacBook Neo" — piloto de diseño estilo JBL (acento rojo).
+   Todo scopeado bajo .oc-pdp-theme-neo para no afectar otros productos.
+   ============================================================ */
+body:has(.oc-pdp-theme-neo) {
+  background: #fff;
+}
+
+.oc-pdp-theme-neo .oc-product-detail {
+  grid-template-columns: 1.15fr 0.85fr;
+}
+
+.oc-pdp-theme-neo .oc-gallery-stage {
+  min-height: 560px;
+  padding: 3rem;
+}
+
+.oc-pdp-theme-neo .oc-gallery-main {
+  max-height: 620px;
+}
+
+.oc-pdp-theme-neo .oc-gallery-thumb {
+  width: 84px;
+  height: 84px;
+}
+
+@media (max-width: 768px) {
+  .oc-pdp-theme-neo .oc-product-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .oc-pdp-theme-neo .oc-gallery-stage {
+    min-height: 340px;
+    padding: 1.75rem;
+  }
+
+  .oc-pdp-theme-neo .oc-gallery-main {
+    max-height: 380px;
+  }
+}
+
+.oc-pdp-theme-neo .oc-pdp-brand {
+  color: #e30613;
+}
+
+.oc-pdp-theme-neo .oc-pdp-cuotas-badge {
+  background: #fff5f5;
+  color: #e30613;
+}
+
+/* Títulos grandes pero de trazo liviano (semibold, no black) */
+.oc-pdp-theme-neo .oc-pdp-buybox h1 {
+  font-size: clamp(2.3rem, 4vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  margin: 0.2rem 0 0.75rem;
+}
+
+.oc-pdp-theme-neo .oc-pdp-description > h2,
+.oc-pdp-theme-neo .oc-pdp-specs-section h2,
+.oc-pdp-theme-neo .oc-neo-compare h2,
+.oc-pdp-theme-neo .oc-pdp-related h2 {
+  font-size: clamp(1.6rem, 2.6vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.oc-pdp-theme-neo .oc-neo-feature-copy h2 {
+  font-size: clamp(2.1rem, 3.4vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+/* La descripción viene como HTML crudo de Odoo y puede traer su propio
+   h2/h3 duplicando el título — se muestra discreto, no como otro título. */
+.oc-pdp-theme-neo .oc-pdp-description > div h2,
+.oc-pdp-theme-neo .oc-pdp-description > div h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--oc-ink);
+  margin: 1.5rem 0 0.5rem;
+}
+
+/* Datos rápidos (tarjetas estilo Apple) */
+.oc-neo-quickfacts {
+  padding: 0 clamp(1rem, 3vw, 2rem) 2rem;
+}
+
+.oc-neo-quickfacts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.oc-neo-quickfact {
+  background: #f5f5f7;
+  border-radius: 14px;
+  padding: 1.5rem 1.5rem 1.3rem;
+}
+
+.oc-neo-quickfact-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+  margin: 0 0 0.6rem;
+}
+
+.oc-neo-quickfact-value {
+  font-size: clamp(1.3rem, 2vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--oc-ink);
+}
+
+.oc-neo-quickfact-caption {
+  margin-top: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--oc-muted);
+  line-height: 1.4;
+}
+
+@media (max-width: 700px) {
+  .oc-neo-quickfacts-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Selector de color + almacenamiento */
+.oc-neo-variants {
+  margin: 0.35rem 0 0.6rem;
+}
+
+.oc-neo-variant-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--oc-ink);
+}
+
+.oc-neo-variant-label strong {
+  font-weight: 700;
+}
+
+.oc-neo-variant-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.oc-neo-variant-label-value {
+  font-weight: 400;
+  color: var(--oc-muted);
+}
+
+.oc-neo-colors {
+  margin: 0 0 1.1rem;
+}
+
+.oc-neo-colors-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.oc-neo-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: var(--oc-ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.oc-neo-swatch-dot {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.oc-neo-swatch.is-selected {
+  border: 2px solid #e30613;
+  padding: calc(0.5rem - 1px) calc(0.9rem - 1px);
+}
+
+.oc-neo-swatch.is-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.oc-neo-storages {
+  margin: 0 0 0.5rem;
+}
+
+.oc-neo-storages-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.oc-neo-storage-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.55rem 1.05rem;
+  border-radius: 14px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: var(--oc-ink);
+  cursor: pointer;
+}
+
+.oc-neo-storage-btn-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.oc-neo-storage-btn-touchid {
+  font-size: 0.7rem;
+  color: var(--oc-muted);
+}
+
+.oc-neo-storage-btn.is-selected {
+  border: 2px solid #e30613;
+  background: #fff5f5;
+  padding: calc(0.55rem - 1px) calc(1.05rem - 1px);
+}
+
+.oc-neo-storage-btn.is-selected .oc-neo-storage-btn-touchid {
+  color: #e30613;
+}
+
+/* Bloques de características, alternados imagen/texto — siempre la misma
+   lógica (izq/der, der/izq...) sea cual sea el origen de la imagen. */
+.oc-neo-features {
+  padding: 3.5rem clamp(1rem, 3vw, 2rem);
+  background: #fff;
+  margin: 0 0 2rem;
+  scroll-margin-top: calc(95px + 53px + 1rem);
+}
+
+.oc-neo-features-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.oc-neo-feature-block {
+  margin: 0 0 5.5rem;
+}
+
+.oc-neo-feature-block:last-child {
+  margin-bottom: 0;
+}
+
+.oc-neo-feature {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.5fr) minmax(240px, 1fr);
+  gap: 3rem;
+  align-items: center;
+}
+
+.oc-neo-feature.image-right {
+  grid-template-columns: minmax(240px, 1fr) minmax(280px, 1.5fr);
+}
+
+.oc-neo-feature.image-right .oc-neo-feature-image {
+  order: 2;
+}
+
+.oc-neo-feature.image-right .oc-neo-feature-copy {
+  order: 1;
+}
+
+@media (max-width: 900px) {
+  .oc-neo-feature,
+  .oc-neo-feature.image-right {
+    grid-template-columns: 1fr;
+  }
+}
+
+.oc-neo-feature-image {
+  width: 100%;
+  height: 560px;
+  object-fit: contain;
+  background: transparent;
+  border-radius: 20px;
+  display: block;
+}
+
+.oc-neo-feature-image-zoom {
+  height: 680px;
+  object-fit: cover;
+  object-position: center bottom;
+}
+
+.oc-neo-feature-image-cover {
+  height: 380px;
+  object-fit: cover;
+}
+
+.oc-neo-feature-stacked {
+  display: block;
+}
+
+.oc-neo-feature-stacked .oc-neo-feature-copy {
+  max-width: 720px;
+  margin: 0 auto 2.5rem;
+  text-align: center;
+}
+
+.oc-neo-feature-stacked .oc-neo-feature-copy h2 {
+  font-size: clamp(2rem, 3.6vw, 2.75rem);
+}
+
+.oc-neo-feature-stacked .oc-neo-feature-copy p {
+  font-size: 1.15rem;
+}
+
+.oc-neo-feature-image-stacked {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 2000 / 724;
+  max-height: 480px;
+  object-fit: cover;
+  border-radius: 20px;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.oc-neo-feature-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #e30613;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.oc-neo-feature-copy h2 {
+  margin: 0.5rem 0 0.75rem;
+  font-size: clamp(1.6rem, 2.8vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.oc-neo-feature-copy p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+.oc-neo-hero-feature-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: 2rem 0 0;
+}
+
+.oc-neo-hero-feature-item {
+  padding: 1.1rem 0;
+  border-top: 1px solid #e5e5e5;
+}
+
+.oc-neo-hero-feature-item:last-child {
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.oc-neo-hero-feature-item h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.oc-neo-hero-feature-item p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: #666;
+}
+
+/* Acordeón estilo JBL debajo de los bloques de Características. */
+.oc-neo-accordion {
+  margin: 4rem 0 0;
+  border-top: 1px solid #1d1d1f;
+}
+
+.oc-neo-accordion-item {
+  border-bottom: 1px solid #1d1d1f;
+}
+
+.oc-neo-accordion-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 1.6rem 0.25rem;
+  font: inherit;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-stretch: condensed;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+  color: #1d1d1f;
+  text-align: left;
+}
+
+.oc-neo-accordion-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: #1d1d1f;
+  transition: transform 0.2s ease;
+}
+
+.oc-neo-accordion-icon.is-open {
+  transform: rotate(180deg);
+}
+
+.oc-neo-accordion-panel {
+  padding: 0 0.25rem 1.75rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #333;
+}
+
+.oc-neo-accordion-panel .oc-pdp-specs-grid {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.oc-neo-accordion-panel .oc-pdp-specs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ececec;
+}
+
+.oc-neo-accordion-panel .oc-pdp-specs-row dt {
+  color: var(--oc-muted);
+}
+
+.oc-neo-accordion-panel .oc-pdp-specs-row dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .oc-neo-feature-image {
+    height: 360px;
+    border-radius: 16px;
+  }
+
+  .oc-neo-feature-image-stacked {
+    height: auto;
+    max-height: none;
+    border-radius: 16px;
+  }
+
+  .oc-neo-feature-image-zoom {
+    height: 480px;
+  }
+}
+
+/* Comparativa vs. MacBook Air */
+.oc-neo-compare {
+  padding: 0 0 3rem;
+  max-width: 900px;
+  margin: 0 auto;
+  overflow-x: auto;
+  scroll-margin-top: calc(95px + 53px + 1rem);
+}
+
+.oc-neo-compare h2 {
+  margin: 0 0 1.25rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.oc-neo-compare-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  min-width: 520px;
+  border: 1px solid #eee;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.oc-neo-compare-cell {
+  padding: 0.85rem 1rem;
+  font-size: 0.82rem;
+  border-top: 1px solid #eee;
+}
+
+.oc-neo-compare-cell:nth-child(3n+2),
+.oc-neo-compare-cell:nth-child(3n) {
+  border-left: 1px solid #eee;
+}
+
+.oc-neo-compare-table .oc-neo-compare-cell:nth-child(-n+3) {
+  border-top: 0;
+}
+
+.oc-neo-compare-head {
+  background: #fafafa;
+  font-weight: 700;
+  color: var(--oc-ink);
+}
+
+.oc-neo-compare-label {
+  color: var(--oc-muted);
+  font-weight: 600;
+}
+
+.oc-neo-compare-link {
+  margin: 1rem 0 0;
+  font-size: 0.85rem;
+}
+
+.oc-neo-compare-link a {
+  color: #e30613;
+  font-weight: 600;
+}
+
+/* En la caja / Garantía / Medios de pago */
+.oc-neo-box-section {
+  margin: 0 0 2rem;
+  padding: 2rem clamp(1.25rem, 3vw, 2.5rem);
+  background: #fff;
+  border-radius: var(--oc-radius);
+}
+
+.oc-neo-box-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+}
+
+.oc-neo-box-grid h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.oc-neo-box-grid p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--oc-muted);
 }
 
 .oc-static-page { padding: 2rem 0 3rem; max-width: 800px; }

@@ -31,55 +31,18 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
 
   useEffect(() => {
     const el = thumbsRef.current?.querySelector<HTMLElement>(`[data-thumb="${index}"]`);
-    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    el?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [index]);
 
   function scrollThumbs(dir: -1 | 1) {
     const box = thumbsRef.current;
     if (!box) return;
-    box.scrollBy({ top: dir * 88, behavior: "smooth" });
+    box.scrollBy({ left: dir * 96, behavior: "smooth" });
   }
 
   return (
-    <div className={`oc-gallery${outOfStock ? " oc-gallery-oos" : ""}${multi ? " has-thumbs" : ""}`}>
+    <div className={`oc-gallery${outOfStock ? " oc-gallery-oos" : ""}`}>
       {outOfStock && <span className="oc-pdp-badge-oos">Sin Stock</span>}
-
-      {multi && (
-        <div className="oc-gallery-thumbs-col">
-          <button
-            type="button"
-            className="oc-gallery-thumb-nav"
-            aria-label="Miniaturas anteriores"
-            onClick={() => scrollThumbs(-1)}
-          >
-            <ChevronUp />
-          </button>
-          <div className="oc-gallery-thumbs" ref={thumbsRef}>
-            {urls.map((src, i) => (
-              <button
-                key={`${src}-${i}`}
-                type="button"
-                data-thumb={i}
-                className={`oc-gallery-thumb${i === index ? " is-active" : ""}`}
-                aria-label={`Imagen ${i + 1}`}
-                aria-current={i === index}
-                onClick={() => setIndex(i)}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" />
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            className="oc-gallery-thumb-nav"
-            aria-label="Miniaturas siguientes"
-            onClick={() => scrollThumbs(1)}
-          >
-            <ChevronDown />
-          </button>
-        </div>
-      )}
 
       <div className="oc-gallery-stage">
         {multi && (
@@ -106,46 +69,51 @@ export function ProductGallery({ images, alt, outOfStock }: Props) {
             <ChevronRight />
           </button>
         )}
+      </div>
 
-        {multi && (
-          <div className="oc-gallery-dots" role="tablist" aria-label="Imágenes">
-            {urls.map((_, i) => (
+      {multi && (
+        <div className="oc-gallery-thumbs-row">
+          <button
+            type="button"
+            className="oc-gallery-thumb-nav"
+            aria-label="Miniaturas anteriores"
+            onClick={() => scrollThumbs(-1)}
+          >
+            <ChevronLeft />
+          </button>
+          <div className="oc-gallery-thumbs" ref={thumbsRef}>
+            {urls.map((src, i) => (
               <button
-                key={i}
+                key={`${src}-${i}`}
                 type="button"
-                role="tab"
-                aria-selected={i === index}
-                aria-label={`Ir a imagen ${i + 1}`}
-                className={`oc-gallery-dot${i === index ? " is-active" : ""}`}
+                data-thumb={i}
+                className={`oc-gallery-thumb${i === index ? " is-active" : ""}`}
+                aria-label={`Imagen ${i + 1}`}
+                aria-current={i === index}
                 onClick={() => setIndex(i)}
-              />
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" />
+              </button>
             ))}
           </div>
-        )}
-      </div>
+          <button
+            type="button"
+            className="oc-gallery-thumb-nav"
+            aria-label="Miniaturas siguientes"
+            onClick={() => scrollThumbs(1)}
+          >
+            <ChevronRight />
+          </button>
+        </div>
+      )}
     </div>
-  );
-}
-
-function ChevronUp() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 14l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ChevronDown() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M6 10l6 6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
   );
 }
 
 function ChevronLeft() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
@@ -153,7 +121,7 @@ function ChevronLeft() {
 
 function ChevronRight() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
