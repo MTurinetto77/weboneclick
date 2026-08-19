@@ -451,17 +451,19 @@ function NeoCompareTableContent({ air, neoChip, neoRam, neoStorageLabel, neoPric
   return (
     <>
       <h2>MacBook Neo vs. {airName}</h2>
-      <div className="oc-neo-compare-table">
-        <div className="oc-neo-compare-cell oc-neo-compare-head">Característica</div>
-        <div className="oc-neo-compare-cell oc-neo-compare-head">MacBook Neo</div>
-        <div className="oc-neo-compare-cell oc-neo-compare-head">{airName}</div>
-        {rows.map((r) => (
-          <Fragment key={r.label}>
-            <div className="oc-neo-compare-cell oc-neo-compare-label">{r.label}</div>
-            <div className="oc-neo-compare-cell">{r.neo}</div>
-            <div className="oc-neo-compare-cell">{r.air}</div>
-          </Fragment>
-        ))}
+      <div className="oc-neo-compare-table-wrap">
+        <div className="oc-neo-compare-table">
+          <div className="oc-neo-compare-cell oc-neo-compare-head">Característica</div>
+          <div className="oc-neo-compare-cell oc-neo-compare-head">MacBook Neo</div>
+          <div className="oc-neo-compare-cell oc-neo-compare-head">{airName}</div>
+          {rows.map((r) => (
+            <Fragment key={r.label}>
+              <div className="oc-neo-compare-cell oc-neo-compare-label">{r.label}</div>
+              <div className="oc-neo-compare-cell">{r.neo}</div>
+              <div className="oc-neo-compare-cell">{r.air}</div>
+            </Fragment>
+          ))}
+        </div>
       </div>
       <p className="oc-neo-compare-link">
         <Link href={`/producto/${air.slug}`}>Ver {airName} →</Link>

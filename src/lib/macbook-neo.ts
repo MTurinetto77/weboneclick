@@ -316,7 +316,6 @@ export type ProductFeature = {
  * Teclado/Touch ID, que sí tienen foto real).
  */
 export function getMacbookNeoFeatures(color: string | null): ProductFeature[] {
-  const folder = (color && GALLERY_COLOR_FOLDER[color]) || "indigo";
   return [
     {
       eyebrow: "Rendimiento",
@@ -327,7 +326,7 @@ export function getMacbookNeoFeatures(color: string | null): ProductFeature[] {
     },
     {
       eyebrow: "Teclado",
-      image: `mock/macbook-neo/keyboard-${folder}.jpg`,
+      image: "mock/macbook-neo/feature-keyboard-detail.png",
       title: "Cómoda, precisa y siempre a mano",
       text: "Un teclado de recorrido completo y un trackpad amplio para que trabajes con precisión — con Touch ID en las configuraciones que lo incluyen.",
       imageSide: "right",
