@@ -1,0 +1,843 @@
+/* ============================================================
+   PDP v2 — vista previa
+   Prefijo `ocx-` propio para no pisar nada de globals.css.
+   ============================================================ */
+
+.ocx-pdp {
+  --ocx-header: 95px;
+  --ocx-ink: #1d1d1f;
+  --ocx-muted: #6e6e73;
+  --ocx-linea: #d2d2d7;
+  --ocx-papel: #fbfbfd;
+  --ocx-humo: #f5f5f7;
+  --ocx-noche: #101014;
+  --ocx-azul: #0071e3;
+  --ocx-radio: 22px;
+  --ocx-transicion: cubic-bezier(0.16, 1, 0.3, 1);
+
+  color: var(--ocx-ink);
+  background: #fff;
+  overflow-x: clip;
+}
+
+/* El revelado al scrollear lo maneja <Reveal> con estilos en línea
+   (src/components/reveal.tsx), así que acá no hay nada de eso. */
+
+/* ---------- Migas ---------- */
+
+.ocx-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ocx-muted);
+}
+.ocx-breadcrumb a {
+  color: var(--ocx-muted);
+  text-decoration: none;
+}
+.ocx-breadcrumb a:hover {
+  color: var(--ocx-ink);
+}
+
+/* ---------- Hero: imagen fija + compra que scrollea ---------- */
+
+.ocx-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+  gap: clamp(1.5rem, 4vw, 4.5rem);
+  padding: 1rem 0 clamp(3rem, 7vw, 7rem);
+  align-items: start;
+  /* Pista de scroll para que las cuatro tomas se sucedan con calma: con la
+     altura natural del buybox quedaban ~57 px por imagen y se atropellaban. */
+  min-height: 145vh;
+}
+
+.ocx-stage-media {
+  position: sticky;
+  top: calc(var(--ocx-header) + 1.25rem);
+  align-self: start;
+  display: grid;
+  gap: 1rem;
+}
+
+.ocx-stage-frame {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  max-height: min(70vh, 620px);
+  border-radius: var(--ocx-radio);
+  background:
+    radial-gradient(120% 90% at 50% 8%, #fff 0%, var(--ocx-humo) 68%, #ededf0 100%);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* El halo toma el color de la variante elegida. */
+.ocx-stage-frame::after {
+  content: "";
+  position: absolute;
+  inset: auto -18% -42% -18%;
+  height: 70%;
+  background: radial-gradient(60% 100% at 50% 100%, var(--ocx-acento) 0%, transparent 72%);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+  transition: background 0.6s var(--ocx-transicion);
+}
+
+.ocx-stage-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: clamp(1rem, 4%, 2.5rem);
+  z-index: 1;
+  opacity: 0;
+  transform: scale(1.04);
+  transition:
+    opacity 0.85s var(--ocx-transicion),
+    transform 1.1s var(--ocx-transicion);
+  user-select: none;
+  /* Las fotos de Odoo vienen con fondo blanco recortado: multiplicar hace que
+     ese blanco desaparezca sobre el degradé del marco en vez de dibujar una
+     caja blanca. */
+  mix-blend-mode: multiply;
+}
+.ocx-stage-img.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ocx-stage-img {
+    transition: opacity 0.2s linear;
+    transform: none;
+  }
+  .ocx-stage-img.is-active {
+    transform: none;
+  }
+}
+
+.ocx-stage-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+}
+.ocx-dot {
+  width: 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--ocx-linea);
+  transition: background 0.4s var(--ocx-transicion);
+}
+.ocx-dot.is-active {
+  background: var(--ocx-ink);
+}
+
+/* El riel horizontal sólo existe en mobile. */
+.ocx-stage-rail {
+  display: none;
+}
+
+/* ---------- Columna de compra ---------- */
+
+.ocx-stage-buy {
+  display: grid;
+  align-content: start;
+  gap: clamp(1.5rem, 3vw, 2.25rem);
+  padding-top: clamp(0.5rem, 3vw, 2.5rem);
+}
+
+.ocx-buybox {
+  display: grid;
+  gap: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.ocx-eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ocx-muted);
+}
+
+.ocx-title {
+  margin: 0;
+  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.ocx-subtitle {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--ocx-muted);
+}
+
+.ocx-price-block {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--ocx-linea);
+  border-bottom: 1px solid var(--ocx-linea);
+}
+.ocx-price {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.ocx-price-old {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--ocx-muted);
+  text-decoration: line-through;
+}
+.ocx-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0;
+}
+.ocx-price-pct {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #e3002b;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.ocx-price-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+  color: var(--ocx-ink);
+}
+.ocx-price-contado {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1d8348;
+}
+.ocx-price-imp {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ocx-muted);
+}
+
+/* ---------- Selectores de variante ---------- */
+
+.ocx-pickers {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.ocx-picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+.ocx-picker-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.ocx-picker-value {
+  font-size: 0.85rem;
+  color: var(--ocx-muted);
+}
+
+.ocx-picker-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+/* Pastillas: tamaño, almacenamiento, teclado. */
+.ocx-pill {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.7rem 1.05rem;
+  border: 1px solid var(--ocx-linea);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ocx-ink);
+  text-decoration: none;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  transition:
+    border-color 0.25s var(--ocx-transicion),
+    box-shadow 0.25s var(--ocx-transicion),
+    transform 0.25s var(--ocx-transicion);
+}
+.ocx-pill:hover {
+  border-color: var(--ocx-ink);
+  transform: translateY(-1px);
+}
+.ocx-pill.is-active {
+  border-color: var(--ocx-ink);
+  box-shadow: 0 0 0 1px var(--ocx-ink) inset;
+}
+.ocx-pill.is-off {
+  opacity: 0.38;
+  border-style: dashed;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.ocx-pill-label {
+  font-weight: 500;
+}
+.ocx-pill-delta,
+.ocx-pill-oos {
+  font-size: 0.74rem;
+  color: var(--ocx-muted);
+}
+.ocx-pill-oos {
+  color: #b0122f;
+}
+
+/* Muestras de color. */
+.ocx-picker-swatch {
+  gap: 0.9rem;
+}
+.ocx-swatch {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  width: 76px;
+  text-decoration: none;
+  color: var(--ocx-muted);
+  font-size: 0.7rem;
+  text-align: center;
+  line-height: 1.2;
+}
+.ocx-swatch-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.14),
+    0 1px 3px rgba(0, 0, 0, 0.14);
+  outline: 2px solid transparent;
+  outline-offset: 3px;
+  transition:
+    outline-color 0.25s var(--ocx-transicion),
+    transform 0.25s var(--ocx-transicion);
+}
+.ocx-swatch:hover .ocx-swatch-dot {
+  transform: scale(1.08);
+}
+.ocx-swatch.is-active {
+  color: var(--ocx-ink);
+  font-weight: 600;
+}
+.ocx-swatch.is-active .ocx-swatch-dot {
+  outline-color: var(--ocx-ink);
+}
+.ocx-swatch.is-off {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---------- Compra ---------- */
+
+.ocx-buy {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.ocx-stock {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1d8348;
+}
+.ocx-stock.is-off {
+  color: #b0122f;
+}
+.ocx-stock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ocx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9rem 1.6rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.25s var(--ocx-transicion),
+    transform 0.2s var(--ocx-transicion);
+}
+.ocx-btn-primary {
+  background: var(--ocx-azul);
+  color: #fff;
+}
+.ocx-btn-primary:hover {
+  background: #0077ed;
+  transform: translateY(-1px);
+}
+.ocx-btn-ghost {
+  border-color: var(--ocx-linea);
+  color: var(--ocx-ink);
+}
+.ocx-btn-ghost:hover {
+  border-color: var(--ocx-ink);
+}
+
+.ocx-perks {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.86rem;
+  color: var(--ocx-muted);
+}
+.ocx-perks li {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.ocx-perks li::before {
+  content: "✓";
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ocx-ink);
+  color: #fff;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+/* ---------- Bandas narrativas ---------- */
+
+.ocx-banda {
+  padding: clamp(3.5rem, 9vw, 8rem) 0;
+}
+.ocx-tono-claro {
+  background: var(--ocx-papel);
+}
+.ocx-tono-oscuro {
+  background: var(--ocx-noche);
+  color: #f5f5f7;
+}
+.ocx-tono-color {
+  background:
+    radial-gradient(90% 130% at 50% 0%, var(--ocx-acento-suave) 0%, var(--ocx-acento) 78%);
+  color: var(--ocx-acento-tinta, #fff);
+}
+
+.ocx-banda-inner {
+  display: grid;
+  gap: clamp(2rem, 5vw, 4.5rem);
+  align-items: center;
+}
+
+.ocx-kicker {
+  margin: 0 0 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.ocx-banda-titulo {
+  margin: 0;
+  font-size: clamp(1.75rem, 3.8vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.ocx-banda-copy {
+  margin: 1rem 0 0;
+  max-width: 46ch;
+  font-size: clamp(1rem, 1.3vw, 1.12rem);
+  line-height: 1.6;
+  opacity: 0.78;
+}
+
+.ocx-banda-figura {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.ocx-banda-img {
+  width: 100%;
+  height: auto;
+  max-height: 68vh;
+  border-radius: var(--ocx-radio);
+}
+.ocx-tono-claro .ocx-banda-img {
+  mix-blend-mode: multiply;
+}
+/* Sobre fondo oscuro o de color, multiplicar apagaría la foto: ahí la dejamos
+   como tarjeta blanca. */
+.ocx-tono-oscuro .ocx-banda-img,
+.ocx-tono-color .ocx-banda-img {
+  background: #fff;
+  padding: clamp(0.75rem, 2vw, 1.75rem);
+}
+
+/* Datos duros bajo el texto. */
+.ocx-datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  margin: 2rem 0 0;
+}
+.ocx-dato dt {
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.ocx-dato dd {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  opacity: 0.66;
+}
+
+/* Variantes de composición. */
+/* La figura siempre se lleva la columna ancha, esté a izquierda o a derecha. */
+.ocx-banda-figura-derecha .ocx-banda-inner,
+.ocx-banda-duo .ocx-banda-inner {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+.ocx-banda-figura-izquierda .ocx-banda-inner {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+.ocx-banda-figura-izquierda .ocx-banda-texto {
+  order: 2;
+}
+.ocx-banda-figura-izquierda .ocx-banda-figura {
+  order: 1;
+}
+.ocx-banda-duo .ocx-banda-figura {
+  grid-template-columns: 1fr 1fr;
+}
+/* Las tomas de teclado y perfil son cuadradas con mucho aire arriba y abajo.
+   Recortarlas a 4:3 deja el producto ocupando la tarjeta en vez de flotar. */
+.ocx-banda-duo .ocx-banda-img {
+  aspect-ratio: 4 / 3;
+}
+.ocx-banda-figura-completa .ocx-banda-inner {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  text-align: center;
+}
+.ocx-banda-figura-completa .ocx-banda-copy {
+  margin-inline: auto;
+}
+.ocx-banda-figura-completa .ocx-datos {
+  justify-content: center;
+}
+.ocx-banda-figura-completa .ocx-banda-figura {
+  width: min(100%, 980px);
+}
+
+/* ---------- Ficha técnica ---------- */
+
+.ocx-ficha {
+  padding: clamp(3.5rem, 8vw, 7rem) 0;
+  background: #fff;
+}
+.ocx-ficha-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  column-gap: clamp(1.5rem, 3vw, 3rem);
+  margin: 2.5rem 0 0;
+  border-top: 1px solid var(--ocx-linea);
+}
+/* Etiqueta arriba y valor abajo: con varias columnas, poner label y valor en
+   la misma línea hacía que el valor de una celda se pegara a la etiqueta de la
+   siguiente y se leyera como una sola frase. */
+.ocx-ficha-fila {
+  display: grid;
+  gap: 0.3rem;
+  align-content: start;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--ocx-linea);
+}
+.ocx-ficha-fila dt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ocx-muted);
+}
+.ocx-ficha-fila dd {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- La línea completa ---------- */
+
+.ocx-linea {
+  padding: clamp(3.5rem, 8vw, 7rem) 0 clamp(5rem, 10vw, 9rem);
+  background: var(--ocx-humo);
+}
+.ocx-linea-copy {
+  margin-top: 0.9rem;
+}
+.ocx-linea-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+.ocx-linea-card {
+  display: grid;
+  gap: 0.3rem;
+  height: 100%;
+  padding: 1.25rem;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--ocx-ink);
+  text-decoration: none;
+  transition:
+    transform 0.3s var(--ocx-transicion),
+    box-shadow 0.3s var(--ocx-transicion),
+    border-color 0.3s var(--ocx-transicion);
+}
+.ocx-linea-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.09);
+}
+.ocx-linea-card.is-active {
+  border-color: var(--ocx-ink);
+}
+.ocx-linea-swatch {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 0.5rem;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
+}
+.ocx-linea-nombre {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.ocx-linea-config,
+.ocx-linea-teclado {
+  font-size: 0.78rem;
+  color: var(--ocx-muted);
+}
+.ocx-linea-precio {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.ocx-linea-oos {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b0122f;
+}
+
+/* ---------- Barra de compra fija ---------- */
+
+.ocx-buybar-anchor {
+  height: 1px;
+  margin-top: -1px;
+}
+.ocx-buybar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 60;
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid var(--ocx-linea);
+  transform: translateY(110%);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform 0.45s var(--ocx-transicion),
+    opacity 0.35s var(--ocx-transicion),
+    visibility 0s linear 0.45s;
+}
+.ocx-buybar.is-visible {
+  transform: none;
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.ocx-buybar-inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: min(1320px, 100%);
+  margin: 0 auto;
+}
+.ocx-buybar-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.ocx-buybar-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ocx-buybar-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ocx-buybar-config {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--ocx-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ocx-buybar-price {
+  text-align: right;
+  flex-shrink: 0;
+}
+.ocx-buybar-amount {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.ocx-buybar-cuotas {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--ocx-muted);
+}
+.ocx-buybar-cta {
+  flex-shrink: 0;
+  padding: 0.7rem 1.5rem;
+}
+.ocx-buybar-oos {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #b0122f;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ocx-buybar {
+    transition: opacity 0.2s linear;
+  }
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
+@media (max-width: 1100px) {
+  .ocx-banda-figura-derecha .ocx-banda-inner,
+  .ocx-banda-figura-izquierda .ocx-banda-inner,
+  .ocx-banda-duo .ocx-banda-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ocx-banda-figura-izquierda .ocx-banda-texto,
+  .ocx-banda-figura-izquierda .ocx-banda-figura {
+    order: initial;
+  }
+}
+
+@media (max-width: 900px) {
+  .ocx-pdp {
+    --ocx-header: 72px;
+  }
+
+  .ocx-stage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+    padding-bottom: 3rem;
+    min-height: 0;
+  }
+
+  /* Sin sticky: la galería pasa a ser un riel que se desliza con el dedo. */
+  .ocx-stage-media {
+    position: static;
+  }
+  .ocx-stage-frame,
+  .ocx-stage-dots {
+    display: none;
+  }
+  .ocx-stage-rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 86%;
+    gap: 0.75rem;
+    margin-inline: calc(50% - 50vw);
+    padding-inline: max(1rem, calc(50vw - 50% + 1rem));
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .ocx-stage-rail::-webkit-scrollbar {
+    display: none;
+  }
+  .ocx-rail-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+    padding: 1rem;
+    border-radius: var(--ocx-radio);
+    background: var(--ocx-humo);
+    scroll-snap-align: center;
+  }
+
+  .ocx-banda-figura-completa .ocx-banda-inner {
+    text-align: left;
+    justify-items: start;
+  }
+  .ocx-banda-figura-completa .ocx-datos {
+    justify-content: flex-start;
+  }
+
+  .ocx-buybar-text {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .ocx-swatch {
+    width: 62px;
+  }
+  .ocx-ficha-fila {
+    padding: 0.85rem 0.15rem;
+  }
+  .ocx-buybar-thumb {
+    display: none;
+  }
+  .ocx-buybar-inner {
+    gap: 0.75rem;
+  }
+  .ocx-buybar-cta {
+    flex: 1 1 auto;
+  }
+}
