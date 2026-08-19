@@ -10,7 +10,7 @@ async function guard() {
 }
 
 function revalidateMenu() {
-  revalidateTag("main-nav");
+  revalidateTag("main-nav", { expire: 0 });
   revalidatePath("/admin/menu");
 }
 

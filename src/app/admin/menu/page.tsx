@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { toggleMenuItem, moveMenuItem, deleteMenuItem, createMenuItem } from "./actions";
 import { MenuItemModal } from "./menu-item-modal";
+import { ConfirmDeleteForm } from "./confirm-delete-form";
 
 export default async function AdminMenuPage() {
   await requireAdmin();
@@ -127,14 +128,14 @@ export default async function AdminMenuPage() {
                   Editar
                 </Link>
                 {item.tipo !== "fijo" && (
-                  <form
+                  <ConfirmDeleteForm
                     action={deleteMenuItem.bind(null, item.id_menu_item)}
-                    onSubmit="return confirm('¿Eliminar este item del menú?')"
+                    message="¿Eliminar este item del menú?"
                   >
                     <button type="submit" className="btn btn-sm btn-danger">
                       ✕
                     </button>
-                  </form>
+                  </ConfirmDeleteForm>
                 )}
               </td>
             </tr>
