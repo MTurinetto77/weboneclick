@@ -12,6 +12,7 @@ const links = [
   { href: "/admin/secciones-productos", label: "Secciones productos" },
   { href: "/admin/categorias", label: "Categorías" },
   { href: "/admin/marcas", label: "Marcas" },
+  { href: "/admin/menu", label: "Menú principal" },
   { href: "/admin/banners", label: "Banners" },
   { href: "/admin/promociones", label: "Promociones" },
   { href: "/admin/regalos", label: "Regalos" },

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { resolveCart } from "@/lib/cart";
 import { getValorEnvioGratis } from "@/lib/parametros";
-import { MAIN_NAV, type NavItem, type NavLink } from "@/lib/nav";
+import { type NavItem, type NavLink } from "@/lib/nav";
+import { getMainNav } from "@/lib/menu";
 import { getActivePromosNav, isPromoIconImage } from "@/lib/promos";
 import { CartDrawer, CartTrigger, type CartDrawerItem } from "@/components/cart-drawer";
 import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
@@ -12,11 +13,12 @@ import { uploadPublicUrl } from "@/lib/utils";
 import { canAccessAdminPanel, isAdmin } from "@/lib/auth-guard";
 
 export async function SiteHeader() {
-  const [cart, session, valorEnvioGratis, promos] = await Promise.all([
+  const [cart, session, valorEnvioGratis, promos, dbNav] = await Promise.all([
     resolveCart(),
     auth(),
     getValorEnvioGratis(),
     getActivePromosNav(),
+    getMainNav(),
   ]);
   const email = session?.user?.email;
   const hasPanelAccess = canAccessAdminPanel(session?.user?.role);
@@ -32,7 +34,7 @@ export async function SiteHeader() {
     disponible: i.disponible,
   }));
 
-  const nav: NavItem[] = MAIN_NAV.map((item) => {
+  const nav: NavItem[] = dbNav.map((item) => {
     if (item.dynamicChildren !== "promociones") return item;
     const children: NavLink[] = promos.map((p) => ({
       label: p.nombre,
@@ -86,6 +88,7 @@ export async function SiteHeader() {
             <div key={item.href + item.label} className="oc-pill-item">
               <Link href={item.href}>
                 {item.label}
+                {item.badge ? <span className="oc-pill-badge">{item.badge}</span> : null}
                 {item.children && item.children.length > 0 && (
                   <span className="oc-pill-caret" aria-hidden />
                 )}

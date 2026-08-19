@@ -1,0 +1,183 @@
+"use server";
+
+import { revalidatePath, revalidateTag } from "next/cache";
+import { redirect } from "next/navigation";
+import { requireAdmin } from "@/lib/auth-guard";
+import { prisma } from "@/lib/prisma";
+
+async function guard() {
+  await requireAdmin();
+}
+
+function revalidateMenu() {
+  revalidateTag("main-nav");
+  revalidatePath("/admin/menu");
+}
+
+// --------------- Menu Item ---------------
+
+export async function createMenuItem(formData: FormData) {
+  await guard();
+
+  const label = String(formData.get("label") || "").trim();
+  if (!label) throw new Error("Label requerido");
+  const href = String(formData.get("href") || "").trim();
+  if (!href) throw new Error("Href requerido");
+
+  const tipo = String(formData.get("tipo") || "dinamico").trim();
+  const shop_label = String(formData.get("shop_label") || "").trim() || null;
+  const dynamic_children = String(formData.get("dynamic_children") || "").trim() || null;
+  const badge = String(formData.get("badge") || "").trim() || null;
+  const orden = Number(formData.get("orden") || 0);
+
+  const item = await prisma.menu_item.create({
+    data: {
+      label,
+      href,
+      shop_label,
+      tipo,
+      dynamic_children,
+      badge,
+      orden: Number.isFinite(orden) ? orden : 0,
+      activo: true,
+    },
+  });
+
+  revalidateMenu();
+  redirect(`/admin/menu/${item.id_menu_item}`);
+}
+
+export async function updateMenuItem(id: number, formData: FormData) {
+  await guard();
+  const existing = await prisma.menu_item.findUnique({ where: { id_menu_item: id } });
+  if (!existing) throw new Error("Item no encontrado");
+
+  const label = String(formData.get("label") || "").trim();
+  if (!label) throw new Error("Label requerido");
+  const href = String(formData.get("href") || "").trim();
+  if (!href) throw new Error("Href requerido");
+
+  await prisma.menu_item.update({
+    where: { id_menu_item: id },
+    data: {
+      label,
+      href,
+      shop_label: String(formData.get("shop_label") || "").trim() || null,
+      tipo: existing.tipo === "fijo" ? "fijo" : String(formData.get("tipo") || "dinamico").trim(),
+      dynamic_children: String(formData.get("dynamic_children") || "").trim() || null,
+      badge: String(formData.get("badge") || "").trim() || null,
+      orden: Number(formData.get("orden") || 0),
+      activo: formData.get("activo") === "on",
+    },
+  });
+
+  revalidateMenu();
+  revalidatePath(`/admin/menu/${id}`);
+}
+
+export async function deleteMenuItem(id: number) {
+  await guard();
+  const existing = await prisma.menu_item.findUnique({ where: { id_menu_item: id } });
+  if (!existing) throw new Error("Item no encontrado");
+  if (existing.tipo === "fijo") throw new Error("No se puede eliminar un item fijo");
+
+  await prisma.menu_item.delete({ where: { id_menu_item: id } });
+  revalidateMenu();
+  redirect("/admin/menu");
+}
+
+export async function toggleMenuItem(id: number) {
+  await guard();
+  const existing = await prisma.menu_item.findUnique({ where: { id_menu_item: id } });
+  if (!existing) throw new Error("Item no encontrado");
+
+  await prisma.menu_item.update({
+    where: { id_menu_item: id },
+    data: { activo: !existing.activo },
+  });
+
+  revalidateMenu();
+}
+
+export async function moveMenuItem(id: number, direction: "up" | "down") {
+  await guard();
+  const all = await prisma.menu_item.findMany({ orderBy: { orden: "asc" } });
+  const idx = all.findIndex((i) => i.id_menu_item === id);
+  if (idx < 0) return;
+
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= all.length) return;
+
+  const a = all[idx];
+  const b = all[swapIdx];
+
+  await prisma.$transaction([
+    prisma.menu_item.update({ where: { id_menu_item: a.id_menu_item }, data: { orden: b.orden } }),
+    prisma.menu_item.update({ where: { id_menu_item: b.id_menu_item }, data: { orden: a.orden } }),
+  ]);
+
+  revalidateMenu();
+}
+
+// --------------- Menu Item Hijo ---------------
+
+export async function upsertMenuChild(id_menu_item: number, formData: FormData) {
+  await guard();
+
+  const id_menu_hijo = Number(formData.get("id_menu_hijo") || 0);
+  const label = String(formData.get("label") || "").trim();
+  if (!label) throw new Error("Label requerido");
+  const href = String(formData.get("href") || "").trim();
+  if (!href) throw new Error("Href requerido");
+
+  const data = {
+    id_menu_item,
+    label,
+    href,
+    badge: String(formData.get("badge") || "").trim() || null,
+    icon: String(formData.get("icon") || "").trim() || null,
+    variant: String(formData.get("variant") || "product").trim(),
+    orden: Number(formData.get("orden") || 0),
+    activo: formData.get("activo") === "on",
+  };
+
+  if (id_menu_hijo > 0) {
+    await prisma.menu_item_hijo.update({ where: { id_menu_hijo }, data });
+  } else {
+    await prisma.menu_item_hijo.create({ data });
+  }
+
+  revalidateMenu();
+  revalidatePath(`/admin/menu/${id_menu_item}`);
+}
+
+export async function deleteMenuChild(id_menu_hijo: number, id_menu_item: number) {
+  await guard();
+  await prisma.menu_item_hijo.delete({ where: { id_menu_hijo } });
+  revalidateMenu();
+  revalidatePath(`/admin/menu/${id_menu_item}`);
+}
+
+export async function moveMenuChild(id_menu_hijo: number, id_menu_item: number, direction: "up" | "down") {
+  await guard();
+  const all = await prisma.menu_item_hijo.findMany({
+    where: { id_menu_item },
+    orderBy: { orden: "asc" },
+  });
+  const idx = all.findIndex((i) => i.id_menu_hijo === id_menu_hijo);
+  if (idx < 0) return;
+
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= all.length) return;
+
+  const a = all[idx];
+  const b = all[swapIdx];
+
+  await prisma.$transaction([
+    prisma.menu_item_hijo.update({ where: { id_menu_hijo: a.id_menu_hijo }, data: { orden: b.orden } }),
+    prisma.menu_item_hijo.update({ where: { id_menu_hijo: b.id_menu_hijo }, data: { orden: a.orden } }),
+  ]);
+
+  revalidateMenu();
+  revalidatePath(`/admin/menu/${id_menu_item}`);
+}

@@ -624,3 +624,39 @@ model codigo_postal_envio {
   @@index([proveedor])
   @@index([proveedor, zona])
 }
+
+/// Items principales del menú de navegación (Mac, iPhone, Promociones, etc.)
+model menu_item {
+  id_menu_item     Int      @id @default(autoincrement())
+  label            String   @db.VarChar(100)
+  href             String   @db.VarChar(255)
+  shop_label       String?  @db.VarChar(255)
+  /// "dinamico" = se puede agregar/quitar; "fijo" = solo activar/desactivar
+  tipo             String   @db.VarChar(20)
+  /// "promociones" para carga dinámica de children desde promos activas
+  dynamic_children String?  @db.VarChar(50)
+  badge            String?  @db.VarChar(50)
+  orden            Int
+  activo           Boolean  @default(true)
+
+  hijos menu_item_hijo[]
+
+  @@index([activo, orden])
+}
+
+/// Sub-items del dropdown de un menu_item
+model menu_item_hijo {
+  id_menu_hijo  Int      @id @default(autoincrement())
+  id_menu_item  Int
+  label         String   @db.VarChar(100)
+  href          String   @db.VarChar(255)
+  badge         String?  @db.VarChar(50)
+  icon          String?  @db.VarChar(255)
+  variant       String   @default("product") @db.VarChar(20)
+  orden         Int
+  activo        Boolean  @default(true)
+
+  parent menu_item @relation(fields: [id_menu_item], references: [id_menu_item], onDelete: Cascade)
+
+  @@index([id_menu_item, activo, orden])
+}
