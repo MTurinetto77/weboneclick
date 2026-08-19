@@ -67,7 +67,8 @@
     "nanoid": "3.3.17",
     "minimatch": "^10.2.6",
     "brace-expansion": "^5.0.8",
-    "nodemailer": "^9.0.1"
+    "nodemailer": "^9.0.1",
+    "deepmerge-ts": "^8.0.0"
   },
   "description": "Sitio web de **[OneClick](https://www.oneclickstore.com/)** (Apple Premium Reseller): catálogo público sincronizado con Odoo, carrito/checkout, páginas institucionales y panel de administración.",
   "main": "index.js",
