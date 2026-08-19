@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import { toggleMenuItem, moveMenuItem, deleteMenuItem } from "./actions";
+import { toggleMenuItem, moveMenuItem, deleteMenuItem, createMenuItem } from "./actions";
+import { MenuItemModal } from "./menu-item-modal";
 
 export default async function AdminMenuPage() {
   await requireAdmin();
@@ -28,13 +29,12 @@ export default async function AdminMenuPage() {
             activar/desactivar.
           </p>
         </div>
-        <Link
-          href="/admin/menu/nuevo"
-          className="btn btn-primary"
-          style={{ padding: "0.35rem 0.75rem" }}
-        >
-          Crear
-        </Link>
+        <MenuItemModal
+          kind="item"
+          data={null}
+          action={createMenuItem as never}
+          trigger={<span className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>+ Crear</span>}
+        />
       </div>
 
       <table className="table table-compact">

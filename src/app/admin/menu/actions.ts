@@ -14,6 +14,41 @@ function revalidateMenu() {
   revalidatePath("/admin/menu");
 }
 
+/**
+ * Builds the href for a category based on its nombre hierarchy.
+ * Nombre format: "Parent / Child" → href "/parent-slug/child-slug"
+ * For root categories (no " / "): href "/slug"
+ *
+ * The catch-all route resolves /a/b via slug join "a-b" fallback,
+ * so we reconstruct the path from the nombre parts and slugify each.
+ */
+async function buildCategoryHref(id_categoria: number): Promise<string> {
+  const cat = await prisma.categoria.findUnique({
+    where: { id_categoria },
+    select: { slug: true, nombre: true },
+  });
+  if (!cat) throw new Error("Categoría no encontrada");
+
+  const parts = cat.nombre.split(" / ");
+  if (parts.length >= 2) {
+    const slugify = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return "/" + parts.map(slugify).join("/");
+  }
+  return `/${cat.slug}`;
+}
+
+/** Resolves href: if id_categoria is provided, compute from slug path; otherwise use manual href */
+async function resolveHref(formData: FormData): Promise<{ href: string; id_categoria: number | null }> {
+  const rawCat = Number(formData.get("id_categoria") || 0);
+  if (rawCat > 0) {
+    return { href: await buildCategoryHref(rawCat), id_categoria: rawCat };
+  }
+  const href = String(formData.get("href") || "").trim();
+  if (!href) throw new Error("Href o categoría requerido");
+  return { href, id_categoria: null };
+}
+
 // --------------- Menu Item ---------------
 
 export async function createMenuItem(formData: FormData) {
@@ -21,9 +56,8 @@ export async function createMenuItem(formData: FormData) {
 
   const label = String(formData.get("label") || "").trim();
   if (!label) throw new Error("Label requerido");
-  const href = String(formData.get("href") || "").trim();
-  if (!href) throw new Error("Href requerido");
 
+  const { href, id_categoria } = await resolveHref(formData);
   const tipo = String(formData.get("tipo") || "dinamico").trim();
   const shop_label = String(formData.get("shop_label") || "").trim() || null;
   const dynamic_children = String(formData.get("dynamic_children") || "").trim() || null;
@@ -34,6 +68,7 @@ export async function createMenuItem(formData: FormData) {
     data: {
       label,
       href,
+      id_categoria,
       shop_label,
       tipo,
       dynamic_children,
@@ -54,14 +89,15 @@ export async function updateMenuItem(id: number, formData: FormData) {
 
   const label = String(formData.get("label") || "").trim();
   if (!label) throw new Error("Label requerido");
-  const href = String(formData.get("href") || "").trim();
-  if (!href) throw new Error("Href requerido");
+
+  const { href, id_categoria } = await resolveHref(formData);
 
   await prisma.menu_item.update({
     where: { id_menu_item: id },
     data: {
       label,
       href,
+      id_categoria,
       shop_label: String(formData.get("shop_label") || "").trim() || null,
       tipo: existing.tipo === "fijo" ? "fijo" : String(formData.get("tipo") || "dinamico").trim(),
       dynamic_children: String(formData.get("dynamic_children") || "").trim() || null,
@@ -127,13 +163,14 @@ export async function upsertMenuChild(id_menu_item: number, formData: FormData) 
   const id_menu_hijo = Number(formData.get("id_menu_hijo") || 0);
   const label = String(formData.get("label") || "").trim();
   if (!label) throw new Error("Label requerido");
-  const href = String(formData.get("href") || "").trim();
-  if (!href) throw new Error("Href requerido");
+
+  const { href, id_categoria } = await resolveHref(formData);
 
   const data = {
     id_menu_item,
     label,
     href,
+    id_categoria,
     badge: String(formData.get("badge") || "").trim() || null,
     icon: String(formData.get("icon") || "").trim() || null,
     variant: String(formData.get("variant") || "product").trim(),

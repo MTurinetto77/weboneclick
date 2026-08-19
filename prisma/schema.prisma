@@ -306,6 +306,8 @@ model categoria {
   caracteristicas caracteristica_categoria[]
   familias        familia[]
   promociones     promocion_categoria[]
+  menu_items      menu_item[]                @relation("menu_item_categoria_rel")
+  menu_hijos      menu_item_hijo[]           @relation("menu_item_hijo_categoria_rel")
 }
 
 model promocion {
@@ -630,6 +632,8 @@ model menu_item {
   id_menu_item     Int      @id @default(autoincrement())
   label            String   @db.VarChar(100)
   href             String   @db.VarChar(255)
+  /// FK opcional a categoría — cuando está seteado, href se computa desde la categoría
+  id_categoria     Int?
   shop_label       String?  @db.VarChar(255)
   /// "dinamico" = se puede agregar/quitar; "fijo" = solo activar/desactivar
   tipo             String   @db.VarChar(20)
@@ -639,9 +643,11 @@ model menu_item {
   orden            Int
   activo           Boolean  @default(true)
 
-  hijos menu_item_hijo[]
+  categoria categoria? @relation("menu_item_categoria_rel", fields: [id_categoria], references: [id_categoria], onDelete: SetNull)
+  hijos     menu_item_hijo[]
 
   @@index([activo, orden])
+  @@index([id_categoria])
 }
 
 /// Sub-items del dropdown de un menu_item
@@ -650,13 +656,17 @@ model menu_item_hijo {
   id_menu_item  Int
   label         String   @db.VarChar(100)
   href          String   @db.VarChar(255)
+  /// FK opcional a categoría — cuando está seteado, href se computa desde la categoría
+  id_categoria  Int?
   badge         String?  @db.VarChar(50)
   icon          String?  @db.VarChar(255)
   variant       String   @default("product") @db.VarChar(20)
   orden         Int
   activo        Boolean  @default(true)
 
-  parent menu_item @relation(fields: [id_menu_item], references: [id_menu_item], onDelete: Cascade)
+  parent    menu_item @relation(fields: [id_menu_item], references: [id_menu_item], onDelete: Cascade)
+  categoria categoria? @relation("menu_item_hijo_categoria_rel", fields: [id_categoria], references: [id_categoria], onDelete: SetNull)
 
   @@index([id_menu_item, activo, orden])
+  @@index([id_categoria])
 }
