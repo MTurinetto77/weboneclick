@@ -9,7 +9,7 @@ function createClient() {
 function getClient() {
   const existing = globalForPrisma.prisma;
   // Tras `prisma generate`, el singleton de HMR puede quedar sin modelos nuevos
-  if (existing && "exclusion_fiscal" in existing) {
+  if (existing && "menu_item" in existing) {
     return existing;
   }
   const client = createClient();

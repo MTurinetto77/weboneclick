@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ShopPriceSlider } from "@/components/shop-price-slider";
+import { ShopFiltersToggle } from "@/components/shop-filters-toggle";
 import { buildShopHref, type ShopQuery } from "@/lib/shop-query";
 import type { ShopBrandFacet, ShopCategoryNode, ShopFacets } from "@/lib/products";
 
@@ -14,19 +15,32 @@ type Props = {
 };
 
 export function ShopSidebar({ facets, query, basePath = "/shop" }: Props) {
+  const activos = contarFiltrosActivos(query);
   return (
     <aside className="oc-shop-sidebar">
-      <ShopPriceSlider
-        priceMin={facets.priceMin}
-        priceMax={facets.priceMax}
-        query={query}
-        basePath={basePath}
-      />
-      <StockFilter query={query} basePath={basePath} />
-      <CategoryFilter categories={facets.categories} query={query} basePath={basePath} />
-      <BrandFilter brands={facets.brands} query={query} basePath={basePath} />
+      <ShopFiltersToggle activos={activos}>
+        <ShopPriceSlider
+          priceMin={facets.priceMin}
+          priceMax={facets.priceMax}
+          query={query}
+          basePath={basePath}
+        />
+        <StockFilter query={query} basePath={basePath} />
+        <CategoryFilter categories={facets.categories} query={query} basePath={basePath} />
+        <BrandFilter brands={facets.brands} query={query} basePath={basePath} />
+      </ShopFiltersToggle>
     </aside>
   );
+}
+
+/** Filtros que el usuario aplicó — el precio cuenta como uno solo aunque use min y max */
+function contarFiltrosActivos(query: ShopQuery): number {
+  let n = 0;
+  if (query.cat) n++;
+  if (query.marca) n++;
+  if (query.stock === "1") n++;
+  if (query.min || query.max) n++;
+  return n;
 }
 
 function StockFilter({ query, basePath }: { query: ShopQuery; basePath: string }) {
