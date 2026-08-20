@@ -326,6 +326,9 @@ img { max-width: 100%; display: block; }
   display: flex;
   flex-direction: column;
   background: #fff;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 0 14px rgba(0, 0, 0, 0.08);
   visibility: hidden;
   opacity: 0;
@@ -403,6 +406,15 @@ img { max-width: 100%; display: block; }
   appearance: none;
 }
 
+.oc-search-full-hint {
+  width: min(760px, 100%);
+  margin: 0.9rem 0 0;
+  text-align: center;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #86868b;
+}
+
 .oc-search-full-quick {
   display: flex;
   flex-wrap: wrap;
@@ -437,6 +449,39 @@ img { max-width: 100%; display: block; }
   .oc-search-full-close {
     top: 14px;
     right: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* El contenido queda centrado dentro del alto realmente visible
+     (--oc-search-vh), asi con el teclado abierto no queda tapado. */
+  .oc-search-full-inner {
+    flex: 0 0 auto;
+    height: var(--oc-search-vh, 100dvh);
+    justify-content: center;
+    padding: 64px 15px;
+  }
+
+  .oc-search-full-form {
+    padding-inline: 0;
+    padding-bottom: 14px;
+  }
+
+  .oc-search-full-form input {
+    font-size: 20px;
+  }
+
+  .oc-search-full-hint {
+    font-size: 0.78rem;
+  }
+
+  .oc-search-full-quick {
+    margin-top: 1.1rem;
+  }
+
+  .oc-search-full-chip {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.9rem;
   }
 }
 

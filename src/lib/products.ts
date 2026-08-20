@@ -645,6 +645,9 @@ const PRODUCT_LIST_SELECT = {
   },
 } as const;
 
+/** Mínimo de caracteres para que la búsqueda considere el prefijo de SKU */
+const SKU_SEARCH_MIN_LEN = 5;
+
 export async function getActiveProducts(options?: {
   q?: string;
   categoriaId?: number;
@@ -674,7 +677,14 @@ export async function getActiveProducts(options?: {
   }
 
   if (options?.q) {
-    where.titulo = { contains: options.q };
+    const q = options.q.trim();
+    if (q) {
+      const or: Prisma.productoWhereInput[] = [{ titulo: { contains: q } }];
+      // Búsqueda por SKU: alcanza con escribir el prefijo del código
+      // (los primeros 5 caracteres, p. ej. "MTP03" → "MTP03BE/A").
+      if (q.length >= SKU_SEARCH_MIN_LEN) or.push({ sku: { startsWith: q } });
+      where.OR = or;
+    }
   }
 
   if (options?.marcaId) {

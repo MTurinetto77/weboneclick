@@ -8,7 +8,7 @@ import { getActivePromosNav, isPromoIconImage } from "@/lib/promos";
 import { CartDrawer, CartTrigger, type CartDrawerItem } from "@/components/cart-drawer";
 import { MobileNavDrawer } from "@/components/mobile-nav-drawer";
 import { NewsletterForm } from "@/components/newsletter-form";
-import { SearchOverlay } from "@/components/search-overlay";
+import { SearchDialog, SearchOverlay } from "@/components/search-overlay";
 import { uploadPublicUrl } from "@/lib/utils";
 import { canAccessAdminPanel, isAdmin } from "@/lib/auth-guard";
 
@@ -63,6 +63,8 @@ export async function SiteHeader() {
           <CartTrigger itemCount={cart.itemCount} className="oc-header-mobile-cart" />
         </div>
       </div>
+
+      <SearchDialog />
 
       <CartDrawer
         items={drawerItems}
