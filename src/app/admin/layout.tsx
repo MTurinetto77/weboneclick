@@ -14,6 +14,7 @@ const links = [
   { href: "/admin/marcas", label: "Marcas" },
   { href: "/admin/menu", label: "Menú principal" },
   { href: "/admin/banners", label: "Banners" },
+  { href: "/admin/banners/prototipo", label: "› Editor visual (beta)" },
   { href: "/admin/promociones", label: "Promociones" },
   { href: "/admin/regalos", label: "Regalos" },
   { href: "/admin/descuentos", label: "Descuentos" },

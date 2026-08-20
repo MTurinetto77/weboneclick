@@ -41,6 +41,9 @@ export default async function AdminBannersPage() {
             Imágenes dinámicas con vigencia desde / hasta. Orden menor = primero.
           </p>
         </div>
+        <Link href="/admin/banners/prototipo" className="btn btn-ghost" style={{ padding: "0.35rem 0.75rem" }}>
+          Editor visual (prototipo)
+        </Link>
         <Link href="/admin/banners/nuevo" className="btn btn-primary" style={{ padding: "0.35rem 0.75rem" }}>
           Crear
         </Link>
@@ -67,12 +70,32 @@ export default async function AdminBannersPage() {
             <tr key={b.id_banner}>
               <td>{b.id_banner}</td>
               <td>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={bannerImageUrl(b.imagen_desktop)}
-                  alt={b.titulo}
-                  style={{ width: 90, height: 34, objectFit: "cover", borderRadius: 4, display: "block" }}
-                />
+                {bannerImageUrl(b.imagen_desktop) ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={bannerImageUrl(b.imagen_desktop)}
+                      alt={b.titulo}
+                      style={{ width: 90, height: 34, objectFit: "cover", borderRadius: 4, display: "block" }}
+                    />
+                  </>
+                ) : (
+                  <span
+                    className="muted"
+                    style={{
+                      display: "block",
+                      width: 90,
+                      height: 34,
+                      lineHeight: "34px",
+                      textAlign: "center",
+                      fontSize: "0.7rem",
+                      background: "#f2f2f4",
+                      borderRadius: 4,
+                    }}
+                  >
+                    sin imagen
+                  </span>
+                )}
               </td>
               <td>{b.titulo}</td>
               <td>{b.ubicacion}</td>
