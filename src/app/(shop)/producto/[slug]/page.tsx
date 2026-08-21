@@ -18,7 +18,12 @@ import {
   resolveStoreAvailability,
   sortProductImageLinks,
 } from "@/lib/products";
-import { formatPriceArs, precioSinImpuestos, productoCalificaDescuentoContado } from "@/lib/pricing";
+import {
+  DEFAULT_CUOTAS_MAX,
+  formatPriceArs,
+  precioSinImpuestos,
+  productoCalificaDescuentoContado,
+} from "@/lib/pricing";
 import { getDescuentoContadoConfig, getValorEnvioGratis } from "@/lib/parametros";
 import {
   extractBoxAndWarranty,
@@ -28,9 +33,11 @@ import {
   getMacbookNeoGalleryExtras,
   getMacbookNeoPageData,
   getMacbookNeoSpecs,
+  parseCpuGpuCaption,
   parseSpecChips,
   type ProductFeature,
 } from "@/lib/macbook-neo";
+import { splitSpecHighlights, type SpecHighlight } from "@/lib/spec-highlights";
 import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
 
 type Params = Promise<{ slug: string }>;
@@ -50,6 +57,21 @@ function WishlistLink() {
       </span>
       Añadir a lista de deseos
     </Link>
+  );
+}
+
+/** Specs destacadas en tarjeta (procesador, RAM + almacenamiento, batería). */
+function SpecHighlightCards({ items }: { items: SpecHighlight[] }) {
+  if (items.length === 0) return null;
+  return (
+    <ul className="oc-pdp-spec-cards">
+      {items.map((item) => (
+        <li className="oc-pdp-spec-card" key={item.key}>
+          <strong>{item.value}</strong>
+          <span>{item.caption}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -142,6 +164,7 @@ function NeoFeatureBlocks({
   hidden,
   descripcionHtml,
   specRows,
+  specHighlights,
   boxText,
   compareData,
   accessories,
@@ -151,6 +174,7 @@ function NeoFeatureBlocks({
   hidden?: boolean;
   descripcionHtml: string;
   specRows: { key: string; label: string; value: string }[];
+  specHighlights: SpecHighlight[];
   boxText: string;
   compareData: NeoCompareData | null;
   accessories: NeoAccessoryItems;
@@ -322,14 +346,17 @@ function NeoFeatureBlocks({
               id: "especificaciones",
               title: "Especificaciones",
               content: (
-                <dl className="oc-pdp-specs-grid">
-                  {specRows.map((row) => (
-                    <div className="oc-pdp-specs-row" key={row.key}>
-                      <dt>{row.label}</dt>
-                      <dd>{row.value}</dd>
-                    </div>
-                  ))}
-                </dl>
+                <>
+                  <SpecHighlightCards items={specHighlights} />
+                  <dl className="oc-pdp-specs-grid">
+                    {specRows.map((row) => (
+                      <div className="oc-pdp-specs-row" key={row.key}>
+                        <dt>{row.label}</dt>
+                        <dd>{row.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </>
               ),
             },
             {
@@ -469,7 +496,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const cuotas = product.cuotas_max ?? 12;
+  const cuotas = product.cuotas_max ?? DEFAULT_CUOTAS_MAX;
   const venta = precioEfectivo(product.precio, product.precio_con_desc);
   const sinImp = precioSinImpuestos(venta);
   const descConfig = await getDescuentoContadoConfig();
@@ -529,6 +556,11 @@ export default async function ProductoPage({ params }: { params: Params }) {
         label: c.caracteristica.nombre,
         value: c.valor,
       }));
+
+  const { highlights: specHighlights, rest: specListRows } = splitSpecHighlights(specRows, {
+    procesadorCaption:
+      isMacbookNeo && current ? parseCpuGpuCaption(current.titulo) : undefined,
+  });
 
   const sections = [
     ...(isMacbookNeo ? [{ id: "oc-pdp-caracteristicas", label: "Características" }] : []),
@@ -681,7 +713,8 @@ export default async function ProductoPage({ params }: { params: Params }) {
           features={neoFeatures}
           hidden={defaultActiveSectionId !== "oc-pdp-caracteristicas"}
           descripcionHtml={product.descripcion}
-          specRows={specRows}
+          specRows={specListRows}
+          specHighlights={specHighlights}
           boxText={box ?? "MacBook Neo, Adaptador de Corriente USB-C, Cable de carga USB-C."}
           compareData={
             airComparison && current
@@ -706,8 +739,9 @@ export default async function ProductoPage({ params }: { params: Params }) {
           style={hiddenSectionStyle("oc-pdp-especificaciones")}
         >
           <h2>Ficha técnica</h2>
+          <SpecHighlightCards items={specHighlights} />
           <dl className="oc-pdp-specs-grid">
-            {specRows.map((row) => (
+            {specListRows.map((row) => (
               <div className="oc-pdp-specs-row" key={row.key}>
                 <dt>{row.label}</dt>
                 <dd>{row.value}</dd>

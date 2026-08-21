@@ -2642,10 +2642,52 @@ img { max-width: 100%; display: block; }
 }
 
 @media (max-width: 560px) {
-  .oc-pdp-meta-card {
-    flex-basis: 100%;
+  /* En mobile las tres cards quedan apiladas: mismo layout interno para las
+     tres (texto alineado bajo el título) y el CTA sube a la línea del detalle
+     para no sumar un renglón por card. */
+  .oc-pdp-meta {
+    gap: 0.5rem;
   }
 
+  .oc-pdp-meta-card {
+    flex-basis: 100%;
+    gap: 0.2rem;
+    padding: 0.8rem 0.95rem 0.85rem;
+  }
+
+  .oc-pdp-meta-card.is-envio {
+    flex-flow: column nowrap;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .oc-pdp-meta-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .oc-pdp-meta-top strong {
+    font-size: 0.88rem;
+  }
+
+  .oc-pdp-meta-foot,
+  .oc-pdp-meta-card.is-envio .oc-pdp-meta-foot {
+    flex-flow: row wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.15rem 0.75rem;
+    width: 100%;
+    padding-left: calc(20px + 0.5rem);
+  }
+
+  .oc-pdp-meta-detail {
+    font-size: 0.76rem;
+  }
+
+  .oc-pdp-meta-cta {
+    margin-top: 0;
+    font-size: 0.76rem;
+  }
 }
 
 /* Modal del PDP */
@@ -2945,6 +2987,39 @@ img { max-width: 100%; display: block; }
   font-size: 0.92rem;
 }
 
+/* Specs destacadas en tarjeta: procesador, RAM + almacenamiento, batería. */
+.oc-pdp-spec-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  list-style: none;
+  margin: 0 0 1.75rem;
+  padding: 0;
+}
+
+.oc-pdp-spec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.5rem 1.5rem 1.35rem;
+  background: #f5f5f7;
+  border-radius: 18px;
+}
+
+.oc-pdp-spec-card strong {
+  font-size: clamp(1.3rem, 2vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--oc-ink);
+}
+
+.oc-pdp-spec-card span {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--oc-muted);
+}
+
 .oc-pdp-specs-grid {
   margin: 0;
   display: grid;
@@ -3003,13 +3078,16 @@ body:has(.oc-pdp-theme-neo) {
   grid-template-columns: 1.15fr 0.85fr;
 }
 
+/* La foto del producto trae mucho aire propio, así que un stage de 560px
+   empujaba las miniaturas muy abajo (la galería quedaba ~180px más larga que
+   el buybox). Se acota para que la tira de miniaturas suba. */
 .oc-pdp-theme-neo .oc-gallery-stage {
-  min-height: 560px;
-  padding: 3rem;
+  min-height: 440px;
+  padding: 2rem;
 }
 
 .oc-pdp-theme-neo .oc-gallery-main {
-  max-height: 620px;
+  max-height: 480px;
 }
 
 .oc-pdp-theme-neo .oc-gallery-thumb {

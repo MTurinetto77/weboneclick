@@ -3,23 +3,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { NavItem } from "@/lib/nav";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 export function MobileNavDrawer({ nav }: { nav: NavItem[] }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (

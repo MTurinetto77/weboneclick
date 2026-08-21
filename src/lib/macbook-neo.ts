@@ -69,9 +69,9 @@ function parseChipName(titulo: string): string {
   return m ? `A18${m[1] ?? ""}` : "A18";
 }
 
-function parseCpuGpuCaption(titulo: string): string {
-  const m = titulo.match(/(\d+CPU)\s+(\d+GPU)/);
-  return m ? `${m[1]} · ${m[2]}` : "";
+export function parseCpuGpuCaption(titulo: string): string {
+  const m = titulo.match(/(\d+)CPU\s+(\d+)GPU/);
+  return m ? `${m[1]} CPU · ${m[2]} GPU` : "";
 }
 
 function parseRam(titulo: string): string {

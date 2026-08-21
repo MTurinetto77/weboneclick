@@ -3,6 +3,13 @@
 /** Factor aproximado impuestos nacionales (precio con impuestos / sin impuestos) */
 export const IMPUESTOS_NACIONALES_FACTOR = 1.105;
 
+/**
+ * Cuotas sin interés cuando el producto no trae tope propio (`cuotas_max`).
+ * Hoy ningún producto lo trae desde Odoo, así que este valor es el que se
+ * muestra en toda la web y el que topea el checkout.
+ */
+export const DEFAULT_CUOTAS_MAX = 18;
+
 /** Cuotas sin interés habituales en AR; se recortan al tope del producto. */
 const CUOTAS_SIN_INTERES = [1, 3, 6, 9, 12, 18, 24];
 

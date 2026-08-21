@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import { shopCookieOptions } from "@/lib/cookie-options";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_CUOTAS_MAX } from "@/lib/pricing";
 import { pickCurrentPriceInfo, precioEfectivo, resolveStockAvailability } from "@/lib/products";
 import {
   ALMACEN_WEB_SELECT,
@@ -42,9 +43,6 @@ export type ResolvedCartItem = {
   subtotal: number | null;
   disponible: boolean;
 };
-
-/** Default comercial cuando el producto no tiene tope cargado (paridad PDP). */
-export const DEFAULT_CUOTAS_MAX = 12;
 
 /**
  * Máximo de cuotas del carrito: el menor `cuotas_max` entre ítems disponibles

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MAIN_NAV } from "@/lib/nav";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 const QUICK_LINKS = MAIN_NAV.slice(0, 6).map((item) => ({
   label: item.label,
@@ -18,19 +19,16 @@ export function SearchOverlay() {
     setOpen(false);
   }, [pathname]);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     inputRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (

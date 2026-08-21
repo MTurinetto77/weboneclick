@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { removeFromCart } from "@/app/(shop)/carrito/actions";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 export type CartDrawerItem = {
   id_producto: number;
@@ -81,18 +82,15 @@ export function CartDrawer({
   }, []);
 
   // Bloquear scroll del body con el drawer abierto + cerrar con Escape
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (

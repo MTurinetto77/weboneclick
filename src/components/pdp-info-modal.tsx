@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 type Props = {
   open: boolean;
@@ -11,18 +12,15 @@ type Props = {
 
 /** Modal liviano del PDP (condiciones de pago, disponibilidad en sucursales). */
 export function PdpInfoModal({ open, title, onClose, children }: Props) {
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open) return null;

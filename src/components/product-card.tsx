@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AddToCartButton } from "@/components/add-to-cart";
 import { ProductPrice } from "@/components/product-price";
 import {
+  DEFAULT_CUOTAS_MAX,
   formatPriceArs,
   precioSinImpuestos,
   productoCalificaDescuentoContado,
@@ -19,7 +20,7 @@ type Props = {
 export function ProductCard({ product, descuentoContado = null }: Props) {
   const venta = precioEfectivo(product.precio, product.precio_con_desc);
   const sinImp = precioSinImpuestos(venta);
-  const cuotas = product.cuotas_max ?? 12;
+  const cuotas = product.cuotas_max ?? DEFAULT_CUOTAS_MAX;
   const outOfStock = product.stockTracked && product.stockTotal <= 0;
   const muestraContado =
     descuentoContado != null &&

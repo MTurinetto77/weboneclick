@@ -9,6 +9,7 @@ import {
   type AddToCartSummary,
 } from "@/app/(shop)/carrito/actions";
 import { trackAddToCart } from "@/lib/analytics";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 
 function formatArs(value: number | null): string {
   if (value == null) return "Consultar";
@@ -97,17 +98,14 @@ function AddedToCartModal({
   onAdd: (id_producto: number) => void;
 }) {
   // Bloquear scroll + cerrar con Escape
+  useBodyScrollLock(true);
+
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   const body = !summary.ok ? (
