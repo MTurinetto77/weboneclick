@@ -2311,17 +2311,6 @@ img { max-width: 100%; display: block; }
   order: 1;
 }
 
-.oc-pdp-cuotas-badge {
-  display: inline-block;
-  margin: 0.9rem 0 0.6rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  background: #f5f5f7;
-  color: var(--oc-ink);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
 .oc-pdp-stock-badge {
   display: inline-flex;
   align-items: center;
@@ -2522,103 +2511,296 @@ img { max-width: 100%; display: block; }
   line-height: 1.45;
 }
 
-.oc-pdp-delivery {
-  display: flex;
-  gap: 0.85rem;
-  align-items: center;
-  padding: 0.95rem 1.1rem;
-  margin: 0.85rem 0 0.65rem;
-  background: #f3fceb;
-  border: 1px solid #e0efd2;
-  border-radius: 10px;
-}
-
-.oc-pdp-delivery-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: block;
-  object-fit: contain;
-}
-
-.oc-pdp-delivery-text {
-  min-width: 0;
-}
-
-.oc-pdp-delivery strong {
-  display: block;
-  font-size: 0.95rem;
-  font-weight: 700;
-  line-height: 1.3;
-  color: #1d1d1f;
-}
-
-.oc-pdp-delivery p {
-  margin: 0.15rem 0 0;
-  color: #1d1d1f;
-  font-size: 0.88rem;
-  font-weight: 400;
-  line-height: 1.35;
-}
-
-.oc-pdp-bank {
-  padding: 0.85rem 0 0.35rem;
-  margin-top: 0.35rem;
-}
-
-.oc-pdp-bank h4 {
-  margin: 0;
-  padding-bottom: 0.55rem;
-  border-bottom: 1px solid #e5e5e5;
-  font-size: 0.95rem;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--oc-ink);
-  font-weight: 700;
-}
-
-.oc-pdp-bank-row {
+/* Cards del buybox: cuotas (debajo de las variantes), envío y disponibilidad. */
+.oc-pdp-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.85rem 1rem;
-  padding: 0.85rem 0 0.75rem;
-  border-bottom: 1px solid #e5e5e5;
+  gap: 0.6rem;
+  margin: 1rem 0 0.6rem;
 }
 
-.oc-pdp-bank-info {
-  flex: 1 1 12rem;
+.oc-pdp-meta-card {
+  flex: 1 1 13rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.9rem 1rem 0.95rem;
+  text-align: left;
+  font: inherit;
+  color: var(--oc-ink);
+  background: #fff;
+  border: 1px solid var(--oc-border);
+  border-radius: 20px;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.oc-pdp-meta-card.is-envio {
+  flex-basis: 100%;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 0.15rem 0.75rem;
+}
+
+.oc-pdp-meta-card.is-envio .oc-pdp-meta-top {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.oc-pdp-meta-card.is-envio .oc-pdp-meta-foot {
+  flex: 1 1 100%;
+  padding-left: calc(22px + 0.5rem);
+}
+
+.oc-pdp-meta-card.is-action {
+  cursor: pointer;
+}
+
+.oc-pdp-meta-card.is-action:hover,
+.oc-pdp-meta-card.is-action:focus-visible {
+  transform: translateY(-1px);
+}
+
+.oc-pdp-meta-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   min-width: 0;
 }
 
-.oc-pdp-bank-title {
-  margin: 0 0 0.2rem;
-  font-size: 1.125rem;
+.oc-pdp-meta-top strong {
+  font-size: 0.92rem;
   font-weight: 600;
   line-height: 1.25;
-  text-transform: none;
+}
+
+.oc-pdp-meta-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
   color: var(--oc-ink);
 }
 
-.oc-pdp-bank-sub {
-  margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 400;
-  line-height: 1.35;
-  text-transform: uppercase;
-  color: var(--oc-red);
-}
-
-.oc-pdp-bank-pay {
+.oc-pdp-meta-foot {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem 0.85rem;
-  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
 }
 
-.oc-pdp-bank-cards {
+.oc-pdp-meta-detail {
+  font-size: 0.79rem;
+  line-height: 1.35;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-meta-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 0.05rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--oc-blue);
+}
+
+.oc-pdp-meta-chevron {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+}
+
+/* Cuotas: acento verde. */
+.oc-pdp-meta-card.is-pago {
+  background: #f2faf4;
+  border-color: #cbe7d4;
+}
+
+.oc-pdp-meta-card.is-pago .oc-pdp-meta-icon {
+  color: var(--oc-green);
+}
+
+.oc-pdp-meta-card.is-pago .oc-pdp-meta-detail {
+  color: #2f6b4a;
+  font-size: 0.83rem;
+}
+
+.oc-pdp-meta-card.is-pago .oc-pdp-meta-cta {
+  color: var(--oc-green);
+}
+
+.oc-pdp-meta-card.is-pago.is-action:hover,
+.oc-pdp-meta-card.is-pago.is-action:focus-visible {
+  border-color: var(--oc-green);
+}
+
+.oc-pdp-meta-card.is-tiendas.is-action:hover,
+.oc-pdp-meta-card.is-tiendas.is-action:focus-visible {
+  border-color: #b9b9c0;
+  background: #fafafb;
+}
+
+@media (max-width: 560px) {
+  .oc-pdp-meta-card {
+    flex-basis: 100%;
+  }
+
+}
+
+/* Modal del PDP */
+.oc-pdp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.oc-pdp-modal {
+  width: min(28rem, 100%);
+  max-height: min(85vh, 44rem);
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: var(--oc-shadow);
+  overflow: hidden;
+}
+
+.oc-pdp-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem 0.85rem;
+  border-bottom: 1px solid #ededed;
+}
+
+.oc-pdp-modal-head h3 {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.oc-pdp-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #f0f0f2;
+  color: var(--oc-ink);
+  cursor: pointer;
+}
+
+.oc-pdp-modal-close:hover {
+  background: #e4e4e8;
+}
+
+.oc-pdp-modal-body {
+  padding: 0.9rem 1.1rem 1.15rem;
+  overflow-y: auto;
+}
+
+.oc-pdp-modal-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-modal-link {
+  display: inline-block;
+  margin-top: 0.7rem;
+  font-size: 0.82rem;
+  color: var(--oc-blue);
+  text-decoration: none;
+}
+
+.oc-pdp-modal-link:hover {
+  text-decoration: underline;
+}
+
+/* Planes de cuotas */
+.oc-pdp-plans {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.oc-pdp-plans li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.oc-pdp-plans li:last-child {
+  border-bottom: 0;
+}
+
+.oc-pdp-plan-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.oc-pdp-plan-left strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.oc-pdp-plan-tag {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--oc-muted);
+}
+
+.oc-pdp-plans li.is-sin-interes .oc-pdp-plan-tag {
+  color: var(--oc-green);
+  font-weight: 600;
+}
+
+.oc-pdp-plan-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  text-align: right;
+}
+
+.oc-pdp-plan-right strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.oc-pdp-plan-right span {
+  font-size: 0.72rem;
+  color: var(--oc-muted);
+  white-space: nowrap;
+}
+
+.oc-pdp-plans-cards {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #ededed;
+}
+
+.oc-pdp-plans-cards ul {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -2627,114 +2809,89 @@ img { max-width: 100%; display: block; }
   padding: 0;
 }
 
-.oc-pdp-bank-cards li {
+.oc-pdp-plans-cards li {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3.4rem;
-  height: 2.15rem;
-  padding: 0.2rem 0.3rem;
-  border: 1px solid #ddd;
+  width: 3rem;
+  height: 1.9rem;
+  padding: 0.15rem 0.25rem;
+  border: 1px solid #e2e2e2;
   border-radius: 4px;
   background: #fff;
 }
 
-.oc-pdp-bank-cards img {
+.oc-pdp-plans-cards img {
   display: block;
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
+  height: auto;
   object-fit: contain;
 }
 
-.oc-pdp-bank-mp {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-  padding-left: 0.65rem;
-  border-left: 1px solid #e5e5e5;
-}
-
-.oc-pdp-bank-mp span {
-  font-size: 0.5rem;
-  font-weight: 400;
-  color: var(--oc-ink);
-  line-height: 1;
-}
-
-.oc-pdp-bank-mp img {
-  display: block;
+.oc-pdp-plans-mp img {
   width: 4.5rem;
-  height: auto;
 }
 
-@media (max-width: 560px) {
-  .oc-pdp-bank-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .oc-pdp-bank-info {
-    flex: 0 1 auto;
-  }
-
-  .oc-pdp-bank-mp {
-    padding-left: 0;
-    border-left: 0;
-    border-top: 1px solid #e5e5e5;
-    padding-top: 0.55rem;
-    align-items: flex-start;
-  }
+/* Disponibilidad por sucursal */
+.oc-pdp-availability {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
-.oc-pdp-stores {
-  margin-top: 1.15rem;
-  padding-top: 1rem;
-  border-top: 1px solid #eee;
-}
-
-.oc-pdp-stores h4 {
-  margin: 0 0 0.65rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.oc-pdp-stores-columns {
+.oc-pdp-availability li {
   display: flex;
-  gap: 0.35rem 1.25rem;
   align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.oc-pdp-stores-col {
-  flex: 1;
-  min-width: 0;
+.oc-pdp-availability li:last-child {
+  border-bottom: 0;
+}
+
+.oc-pdp-availability li > span {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.1rem;
+  min-width: 0;
 }
 
-.oc-pdp-store-item {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.92rem;
-  line-height: 1.35;
-  color: var(--oc-ink, #1a1a1a);
+.oc-pdp-availability strong {
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
-.oc-pdp-store-item strong {
-  font-weight: 700;
+.oc-pdp-availability li > span > span {
+  font-size: 0.76rem;
+  color: var(--oc-muted);
 }
 
-.oc-pdp-stock-icon {
+.oc-pdp-availability li.is-no strong {
+  color: var(--oc-muted);
+  font-weight: 500;
+}
+
+.oc-pdp-store-mark {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
+  margin-top: 0.15rem;
 }
 
-@media (max-width: 520px) {
-  .oc-pdp-stores-columns {
-    flex-direction: column;
+.oc-pdp-availability li.is-ok .oc-pdp-store-mark {
+  color: var(--oc-green);
+}
+
+.oc-pdp-availability li.is-no .oc-pdp-store-mark {
+  color: #c7c7cc;
+}
+
+@media (max-width: 480px) {
+  .oc-pdp-modal {
+    width: 100%;
+    max-height: 88vh;
   }
 }
 
@@ -2876,11 +3033,6 @@ body:has(.oc-pdp-theme-neo) {
 }
 
 .oc-pdp-theme-neo .oc-pdp-brand {
-  color: #e30613;
-}
-
-.oc-pdp-theme-neo .oc-pdp-cuotas-badge {
-  background: #fff5f5;
   color: #e30613;
 }
 

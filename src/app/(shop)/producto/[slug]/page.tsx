@@ -10,7 +10,7 @@ import { ProductNeoAccordion } from "@/components/product-neo-accordion";
 import { ProductNeoVariantSelector } from "@/components/product-neo-variant-selector";
 import { ProductPrice } from "@/components/product-price";
 import { ProductReserveForm } from "@/components/product-reserve-form";
-import { ProductStoreAvailability } from "@/components/product-store-availability";
+import { ProductBuyboxMeta } from "@/components/product-buybox-meta";
 import {
   getActiveProducts,
   getProductBySlug,
@@ -19,7 +19,7 @@ import {
   sortProductImageLinks,
 } from "@/lib/products";
 import { formatPriceArs, precioSinImpuestos, productoCalificaDescuentoContado } from "@/lib/pricing";
-import { getDescuentoContadoConfig } from "@/lib/parametros";
+import { getDescuentoContadoConfig, getValorEnvioGratis } from "@/lib/parametros";
 import {
   extractBoxAndWarranty,
   getMacbookAirComparison,
@@ -34,26 +34,6 @@ import {
 import { uploadPublicUrl, whatsappUrl } from "@/lib/utils";
 
 type Params = Promise<{ slug: string }>;
-
-function DeliveryBlock() {
-  return (
-    <div className="oc-pdp-delivery">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="oc-pdp-delivery-icon"
-        src="/delivery-24hs.svg"
-        alt=""
-        width={40}
-        height={40}
-        aria-hidden
-      />
-      <div className="oc-pdp-delivery-text">
-        <strong>Entrega dentro de las 24hs en AMBA</strong>
-        <p>Recibilo en 24hs comprando antes de las 12hs</p>
-      </div>
-    </div>
-  );
-}
 
 function WishlistLink() {
   return (
@@ -70,46 +50,6 @@ function WishlistLink() {
       </span>
       Añadir a lista de deseos
     </Link>
-  );
-}
-
-function BankPromoBlock({
-  cuotas,
-  cuotaMonto,
-}: {
-  cuotas: number;
-  cuotaMonto: number | null;
-}) {
-  return (
-    <div className="oc-pdp-bank">
-      <h4>Promociones Bancarias</h4>
-      <div className="oc-pdp-bank-row">
-        <div className="oc-pdp-bank-info">
-          <p className="oc-pdp-bank-title">{cuotas} cuotas sin interés</p>
-          <p className="oc-pdp-bank-sub">
-            Con todas las tarjetas y bancos
-            {cuotaMonto != null ? ` - Cuotas de ${formatPriceArs(cuotaMonto)}` : null}
-          </p>
-        </div>
-        <div className="oc-pdp-bank-pay">
-          <ul className="oc-pdp-bank-cards" aria-label="Tarjetas">
-            <li>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/payment/mastercard.jpg" alt="Mastercard" width={56} height={36} />
-            </li>
-            <li>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/payment/visa.jpg" alt="VISA" width={56} height={36} />
-            </li>
-          </ul>
-          <div className="oc-pdp-bank-mp">
-            <span>Pagando con:</span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/payment/mercadopago.png" alt="Mercado Pago" width={72} height={19} />
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -533,14 +473,14 @@ export default async function ProductoPage({ params }: { params: Params }) {
   const venta = precioEfectivo(product.precio, product.precio_con_desc);
   const sinImp = precioSinImpuestos(venta);
   const descConfig = await getDescuentoContadoConfig();
+  const valorEnvioGratis = await getValorEnvioGratis();
   const muestraContado = productoCalificaDescuentoContado(
     product.cuotas_max,
     descConfig.umbralCuotas,
   );
   const inStock = product.inStock;
   const storeAvailability = resolveStoreAvailability(product.stocks);
-  const cuotaMonto =
-    venta != null && cuotas > 0 ? Number(venta) / cuotas : null;
+  const envioGratis = venta != null && Number(venta) >= valorEnvioGratis;
   const waReserve = whatsappUrl(product.titulo, product.id_producto, "reserva");
   const maxQty =
     product.stockTracked && product.stockTotal > 0
@@ -666,9 +606,6 @@ export default async function ProductoPage({ params }: { params: Params }) {
 
           {inStock ? (
             <>
-              <span className="oc-pdp-cuotas-badge">
-                Hasta {cuotas} cuotas sin interés
-              </span>
               {muestraContado ? (
                 <p className="oc-contado">
                   Pagando contado {descConfig.porcentaje}% de descuento
@@ -687,10 +624,12 @@ export default async function ProductoPage({ params }: { params: Params }) {
 
               <WishlistLink />
 
-              <DeliveryBlock />
-              <BankPromoBlock cuotas={cuotas} cuotaMonto={cuotaMonto} />
-
-              <ProductStoreAvailability items={storeAvailability} />
+              <ProductBuyboxMeta
+                cuotas={cuotas}
+                precio={venta != null ? Number(venta) : null}
+                stores={storeAvailability}
+                envioGratis={envioGratis}
+              />
             </>
           ) : (
             <>
@@ -717,8 +656,12 @@ export default async function ProductoPage({ params }: { params: Params }) {
                 </a>
               </div>
 
-              <DeliveryBlock />
-              <BankPromoBlock cuotas={cuotas} cuotaMonto={cuotaMonto} />
+              <ProductBuyboxMeta
+                cuotas={cuotas}
+                precio={venta != null ? Number(venta) : null}
+                stores={storeAvailability}
+                envioGratis={envioGratis}
+              />
             </>
           )}
         </div>
