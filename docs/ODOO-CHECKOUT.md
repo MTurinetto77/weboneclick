@@ -366,6 +366,7 @@ Orden de referencia Woo legacy: `sale.order` 156122 = `OCW-212217`
 |-------|-------|
 | `type_id` | 38 (Ecommerce) |
 | `team_id` | 2 (WEB) |
+| `user_id` | ApiSync (`ODOO_UID`); se fuerza aunque el partner tenga otro Comercial |
 | `warehouse_id` (envío) | 14 (`WH` / Warehouse) |
 | Sucursales retiro | 1, 7, 8, 9, 10, 11 |
 | Recibo ejemplo | journal 104, method line 174, receiptbook 2 |

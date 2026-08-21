@@ -105,6 +105,11 @@ async function authenticate(): Promise<number> {
   return cachedUid;
 }
 
+/** UID de la sesión API (ApiSync en prod). */
+export async function getOdooUid(): Promise<number> {
+  return authenticate();
+}
+
 /** Idioma de traducciones Odoo (label Spanish (AR) / Español (AR)). */
 export const ODOO_LANG = "es_AR";
 

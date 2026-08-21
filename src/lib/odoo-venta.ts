@@ -11,6 +11,7 @@ import {
 } from "@/lib/odoo-stock";
 import { getOdooConfig, isOdooSyncEnabled, type OdooConfig } from "@/lib/odoo-config";
 import { grossToNet, round2 } from "@/lib/odoo-amount";
+import { getOdooUid } from "@/lib/odoo";
 import {
   odooCallMethod,
   odooCreate,
@@ -464,6 +465,24 @@ async function ensureSaleOrderShippingPartner(
   });
 }
 
+/**
+ * Si el partner ya existe con Comercial distinto (ej. vendedor de tienda),
+ * Odoo puede copiarlo a la sale.order. Forzamos el UID de la API (ApiSync).
+ */
+async function ensureSaleOrderSalesperson(
+  orderId: number,
+  salespersonUid: number,
+): Promise<void> {
+  const [row] = await odooRead<{
+    user_id: [number, string] | false;
+  }>("sale.order", [orderId], ["user_id"]);
+  const current = Array.isArray(row?.user_id) ? row.user_id[0] : null;
+  if (current === salespersonUid) return;
+  await odooWrite("sale.order", [orderId], {
+    user_id: salespersonUid,
+  });
+}
+
 /** Comentarios de entrega → `stock.picking.note` (campo Notas de la entrega). */
 async function writePickingDeliveryNotes(
   orderId: number,
@@ -681,11 +700,15 @@ async function createOdooSaleOrder(
     internalNotes.push(`Cupón web ${venta.cupon.codigo}: −$${monto}`);
   }
 
+  // Comercial = ApiSync (ODOO_UID), no el vendedor del partner existente.
+  const salespersonUid = await getOdooUid();
+
   const orderId = await odooCreate("sale.order", {
     name: orderName,
     partner_id: partnerId,
     partner_invoice_id: invoicePartnerId,
     partner_shipping_id: shippingPartnerId,
+    user_id: salespersonUid,
     type_id: cfg.saleOrderTypeId,
     team_id: cfg.saleTeamId,
     company_id: cfg.companyId,
@@ -707,6 +730,7 @@ async function createOdooSaleOrder(
   // El tipo Ecommerce puede pisar warehouse_id al crear; lo reafirmamos ya.
   await ensureSaleOrderWarehouse(orderId, warehouseOdooId);
   await ensureSaleOrderShippingPartner(orderId, shippingPartnerId);
+  await ensureSaleOrderSalesperson(orderId, salespersonUid);
 
   // La pricelist de Odoo puede aplicar descuentos promocionales; forzamos
   // price_unit + discount=0 (el cupón web ya está en el precio cobrado).
@@ -787,6 +811,7 @@ async function createOdooSaleOrder(
   // Por si confirm / writes disparan el recompute desde type_id.
   await ensureSaleOrderWarehouse(orderId, warehouseOdooId);
   await ensureSaleOrderShippingPartner(orderId, shippingPartnerId);
+  await ensureSaleOrderSalesperson(orderId, salespersonUid);
   await writePickingDeliveryNotes(orderId, deliveryComments);
 
   const finalName = created?.name ?? orderName;
