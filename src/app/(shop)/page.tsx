@@ -59,21 +59,21 @@ export default async function HomePage() {
     <>
       <HomeHeroCarousel banners={heroBanners} />
 
-      {/* Barra utilitaria oscura debajo del hero */}
+      {/* Barra utilitaria debajo del hero */}
       <section className="oc-utility-bar">
         <div className="container oc-utility-bar-inner">
           <p className="oc-utility-brand">
             <span className="oc-utility-ico" aria-hidden>
               <UtilityAppleIcon />
             </span>
-            OneClick - Apple Premium Reseller
+            OneClick <span className="oc-utility-sub">Apple Premium Reseller</span>
           </p>
           <div className="oc-utility-links">
             <Link href="/seguimiento-de-envios">
               <span className="oc-utility-ico" aria-hidden>
                 <UtilityPackageIcon />
               </span>
-              Seguí tu compra
+              Seguí <span className="oc-utility-sub">tu compra</span>
             </Link>
             <Link href="/tiendas">
               <span className="oc-utility-ico" aria-hidden>
@@ -91,14 +91,14 @@ export default async function HomePage() {
               <span className="oc-utility-ico" aria-hidden>
                 <UtilityChatIcon />
               </span>
-              Preguntas frecuentes
+              Preguntas <span className="oc-utility-sub">frecuentes</span>
             </Link>
           </div>
           <Link href="/servicio-tecnico" className="oc-utility-service">
             <span className="oc-utility-ico" aria-hidden>
               <UtilityToolsIcon />
             </span>
-            Servicio técnico personalizado
+            Servicio técnico <span className="oc-utility-sub">personalizado</span>
           </Link>
         </div>
       </section>

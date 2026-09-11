@@ -117,67 +117,83 @@ function AddedToCartModal({
     </div>
   ) : (
     <div className="oc-atc-modal" onClick={(e) => e.stopPropagation()}>
-      <button type="button" className="oc-atc-close" onClick={onClose} aria-label="Cerrar">
-        <CloseIcon />
-      </button>
+      <header className="oc-atc-head">
+        <span className="oc-atc-badge">
+          <CheckIcon />
+        </span>
+        <p className="oc-atc-head-title">Agregado al carrito</p>
+        <button type="button" className="oc-atc-close" onClick={onClose} aria-label="Cerrar">
+          <CloseIcon />
+        </button>
+      </header>
 
-      <div className="oc-atc-hero">
-        <div className="oc-atc-hero-media">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={summary.imagen || "/placeholder-product.svg"} alt={summary.titulo} />
-        </div>
-        <div className="oc-atc-hero-info">
-          <h3>El producto se ha agregado a tu compra!</h3>
-          <p className="oc-atc-cart-line">
-            Tu carro actual (<strong>{summary.itemCount}</strong>{" "}
-            {summary.itemCount === 1 ? "item" : "items"}):{" "}
-            <strong>{formatArs(summary.subtotal)}</strong>
-          </p>
-          <div className="oc-atc-actions">
-            <Link href="/carrito" className="oc-btn oc-btn-dark">
-              Ver Carro
-            </Link>
-            <button type="button" className="oc-btn oc-btn-dark" onClick={onClose}>
-              Continuar
-            </button>
-            <Link href="/checkout" className="oc-btn oc-btn-red">
-              Pagar Ahora!
-            </Link>
+      <div className="oc-atc-body">
+        <div className="oc-atc-item">
+          <div className="oc-atc-item-media">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={summary.imagen || "/placeholder-product.svg"} alt={summary.titulo} />
           </div>
-          <p className="oc-atc-meta">
-            Cantidad: <strong>{summary.cantidad}</strong>
-          </p>
-          <p className="oc-atc-meta">Total: {formatArs(summary.subtotal)}</p>
+          <div className="oc-atc-item-info">
+            <p className="oc-atc-item-title">{summary.titulo}</p>
+            <p className="oc-atc-item-meta">Cantidad: {summary.cantidad}</p>
+          </div>
+          <p className="oc-atc-item-price">{formatArs(summary.precio)}</p>
         </div>
+
+        <div className="oc-atc-subtotal">
+          <span>
+            Subtotal · {summary.itemCount} {summary.itemCount === 1 ? "producto" : "productos"}
+          </span>
+          <strong>{formatArs(summary.subtotal)}</strong>
+        </div>
+
+        <div className="oc-atc-actions">
+          <Link href="/checkout" className="oc-atc-cta oc-atc-cta-primary">
+            Finalizar compra
+          </Link>
+          <Link href="/carrito" className="oc-atc-cta oc-atc-cta-ghost">
+            Ver carrito
+          </Link>
+        </div>
+
+        <button type="button" className="oc-atc-continue" onClick={onClose}>
+          Seguir comprando
+        </button>
       </div>
 
       {summary.related.length > 0 && (
         <div className="oc-atc-related">
-          <h4>
-            Generalmente se compran junto con <strong>{summary.titulo}</strong>
-          </h4>
-          <div className="oc-atc-related-row">
+          <h4>Completá tu compra</h4>
+          <ul className="oc-atc-related-list">
             {summary.related.map((r) => (
-              <article key={r.id_producto} className="oc-atc-related-card">
+              <li key={r.id_producto} className="oc-atc-related-item">
                 <Link href={`/producto/${r.slug}`} className="oc-atc-related-media">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={r.imagen || "/placeholder-product.svg"} alt={r.titulo} />
                 </Link>
-                <p className="oc-atc-related-title" title={r.titulo}>
-                  {r.titulo}
-                </p>
-                <p className="oc-atc-related-price">{formatArs(r.precio)}</p>
+                <div className="oc-atc-related-info">
+                  <Link
+                    href={`/producto/${r.slug}`}
+                    className="oc-atc-related-title"
+                    title={r.titulo}
+                  >
+                    {r.titulo}
+                  </Link>
+                  <p className="oc-atc-related-price">{formatArs(r.precio)}</p>
+                </div>
                 <button
                   type="button"
                   className="oc-atc-related-add"
                   disabled={pending}
                   onClick={() => onAdd(r.id_producto)}
+                  aria-label={`Agregar ${r.titulo} al carrito`}
+                  title="Agregar al carrito"
                 >
-                  Añadir al carrito
+                  <PlusIcon />
                 </button>
-              </article>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
     </div>
@@ -188,6 +204,33 @@ function AddedToCartModal({
       {body}
     </div>,
     document.body
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M12 5v14M5 12h14"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 13l4 4L19 7"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

@@ -328,6 +328,7 @@ export function SiteFooter() {
         ↑
       </a>
 
+      {/* Botón flotante de WhatsApp: oculto a pedido. Descomentar para reactivar.
       <a
         className="oc-whatsapp"
         href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "5491100000000"}`}
@@ -339,6 +340,7 @@ export function SiteFooter() {
         </span>
         <span className="oc-whatsapp-label">Atención personalizada</span>
       </a>
+      */}
     </footer>
   );
 }
