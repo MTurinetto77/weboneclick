@@ -3,9 +3,19 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { pickCurrentPrice } from "@/lib/products";
 import { formatPrice } from "@/lib/utils";
+import { DescuentoGeneralImportModal } from "@/components/admin/descuento-general-import-modal";
 import { ProductoSyncModal } from "@/components/admin/producto-sync-modal";
 
-type SearchParams = Promise<{ q?: string; page?: string }>;
+type SearchParams = Promise<{
+  q?: string;
+  page?: string;
+  dg_err?: string;
+  dg_ok?: string;
+  dg_applied?: string;
+  dg_cleared?: string;
+  dg_missing?: string;
+  dg_miss_list?: string;
+}>;
 
 const PAGE_SIZE = 15;
 
@@ -14,6 +24,13 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
   const params = await searchParams;
   const q = params.q?.trim() || undefined;
   const page = Math.max(1, Number(params.page || 1) || 1);
+  const dgErr = params.dg_err;
+  const dgOk = params.dg_ok;
+  const dgApplied = params.dg_applied;
+  const dgCleared = params.dg_cleared;
+  const dgMissing = params.dg_missing;
+  const dgMissList = params.dg_miss_list;
+  const showDgResult = Boolean(dgErr || dgOk);
 
   const where = q
     ? {
@@ -68,6 +85,7 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
           </p>
         </div>
         <ProductoSyncModal />
+        <DescuentoGeneralImportModal />
         <a href={exportHref} className="btn btn-secondary" style={{ padding: "0.35rem 0.75rem" }}>
           Exportar CSV
         </a>
@@ -75,6 +93,56 @@ export default async function AdminProductosPage({ searchParams }: { searchParam
           Crear
         </Link>
       </div>
+
+      {showDgResult ? (
+        <div
+          className="admin-card"
+          style={{
+            marginBottom: "0.85rem",
+            padding: "0.75rem 1rem",
+            background: dgErr ? "#fff5f5" : "#f3faf5",
+          }}
+        >
+          {dgErr === "archivo" && (
+            <p style={{ margin: 0 }}>Seleccioná un archivo CSV para importar.</p>
+          )}
+          {dgErr === "vacio" && (
+            <p style={{ margin: 0 }}>
+              El CSV no tiene filas válidas (<code>sku</code> + <code>poc_descuento</code>).
+            </p>
+          )}
+          {!dgErr && (
+            <p style={{ margin: 0 }}>
+              Importación descuento general: <strong>{dgOk || "0"}</strong> actualizados
+              {dgApplied != null ? (
+                <>
+                  {" "}
+                  (<strong>{dgApplied}</strong> con descuento
+                  {dgCleared && Number(dgCleared) > 0 ? (
+                    <>
+                      , <strong>{dgCleared}</strong> quitados
+                    </>
+                  ) : null}
+                  )
+                </>
+              ) : null}
+              {dgMissing && Number(dgMissing) > 0 ? (
+                <>
+                  ; <strong>{dgMissing}</strong> SKU no encontrados
+                  {dgMissList ? (
+                    <>
+                      {" "}
+                      ({dgMissList}
+                      {Number(dgMissing) > 15 ? "…" : ""})
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+              .
+            </p>
+          )}
+        </div>
+      ) : null}
 
       <form
         method="get"

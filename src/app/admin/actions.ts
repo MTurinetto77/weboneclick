@@ -378,3 +378,134 @@ function userFromForm(formData: FormData) {
     activo: formData.get("activo") === "on",
   };
 }
+
+const PCT_HEADER_RE =
+  /^(poc_descuento|pct_descuento|descuento_general|descuento|porcentaje)$/i;
+
+function parseCsvCells(line: string): string[] {
+  return line
+    .split(/[,;\t]/)
+    .map((c) => c.trim().replace(/^["']|["']$/g, ""));
+}
+
+/**
+ * CSV con columnas `sku` + `poc_descuento` (también acepta pct_descuento /
+ * descuento_general / descuento). Sin encabezado: col0=sku, col1=%.
+ * Última fila gana si el SKU se repite.
+ */
+function parseDescuentoGeneralCsv(
+  text: string,
+): { sku: string; pct: number }[] {
+  const lines = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return [];
+
+  const header = parseCsvCells(lines[0]);
+  let skuIdx = header.findIndex((c) => /^sku$/i.test(c));
+  let pctIdx = header.findIndex((c) => PCT_HEADER_RE.test(c));
+  let start = 0;
+  if (skuIdx >= 0 && pctIdx >= 0) {
+    start = 1;
+  } else {
+    skuIdx = 0;
+    pctIdx = 1;
+  }
+
+  const bySku = new Map<string, number>();
+  for (let i = start; i < lines.length; i++) {
+    const cells = parseCsvCells(lines[i]);
+    const sku = (cells[skuIdx] || "").trim();
+    const raw = (cells[pctIdx] || "").trim().replace(",", ".");
+    if (!sku || raw === "") continue;
+    const pct = Number(raw);
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) continue;
+    bySku.set(sku, pct);
+  }
+  return [...bySku.entries()].map(([sku, pct]) => ({ sku, pct }));
+}
+
+/** Importa CSV sku + poc_descuento → producto.descuento_general. 0 → null. */
+export async function importDescuentoGeneralCsv(formData: FormData) {
+  await guard();
+
+  const file = formData.get("csv");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect("/admin/productos?dg_err=archivo");
+  }
+
+  const text = await file.text();
+  const rows = parseDescuentoGeneralCsv(text);
+  if (!rows.length) {
+    redirect("/admin/productos?dg_err=vacio");
+  }
+
+  const skus = rows.map((r) => r.sku);
+  const productos = await prisma.producto.findMany({
+    where: { sku: { in: skus } },
+    select: { id_producto: true, sku: true, slug: true },
+  });
+
+  const bySku = new Map(
+    productos
+      .filter((p): p is { id_producto: number; sku: string; slug: string } =>
+        Boolean(p.sku),
+      )
+      .map((p) => [p.sku, p]),
+  );
+  const bySkuLower = new Map(
+    [...bySku.entries()].map(([sku, p]) => [sku.toLowerCase(), p]),
+  );
+
+  const missing: string[] = [];
+  /** id_producto → valor a persistir (null = quitar descuento) */
+  const updates = new Map<number, number | null>();
+  const slugsToRevalidate = new Set<string>();
+
+  for (const row of rows) {
+    const product =
+      bySku.get(row.sku) ?? bySkuLower.get(row.sku.toLowerCase());
+    if (!product) {
+      missing.push(row.sku);
+      continue;
+    }
+    // 0 → null: deja de aplicar (misma regla que el form de producto)
+    const value =
+      row.pct > 0 ? Math.round(row.pct * 100) / 100 : null;
+    updates.set(product.id_producto, value);
+    if (product.slug) slugsToRevalidate.add(product.slug);
+  }
+
+  if (updates.size) {
+    await prisma.$transaction(
+      [...updates.entries()].map(([id_producto, descuento_general]) =>
+        prisma.producto.update({
+          where: { id_producto },
+          data: { descuento_general },
+        }),
+      ),
+    );
+  }
+
+  revalidateCatalog();
+  revalidatePath("/admin/productos");
+  for (const slug of slugsToRevalidate) {
+    revalidatePath(`/producto/${slug}`);
+  }
+
+  const cleared = [...updates.values()].filter((v) => v == null).length;
+  const applied = updates.size - cleared;
+  const params = new URLSearchParams({
+    dg_ok: String(updates.size),
+    dg_applied: String(applied),
+    dg_cleared: String(cleared),
+    dg_missing: String(missing.length),
+  });
+  if (missing.length) {
+    params.set("dg_miss_list", missing.slice(0, 15).join(","));
+  }
+  redirect(`/admin/productos?${params.toString()}`);
+}
+
