@@ -190,22 +190,39 @@ export async function deleteCaracteristicaProducto(
   revalidatePath(`/catalogo/${id_producto}`);
 }
 
+function descripcionDesdeNombreArchivo(name: string) {
+  const base = name.replace(/^.*[\\/]/, "").trim();
+  const sinExt = base.replace(/\.[^.]+$/, "");
+  return (sinExt || base || "Imagen producto").slice(0, 255);
+}
+
 export async function uploadProductoImagen(id_producto: number, formData: FormData) {
   await guard();
-  const file = formData.get("imagen");
-  if (!(file instanceof File) || file.size === 0) throw new Error("Archivo requerido");
+  const files = formData
+    .getAll("imagen")
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
+  if (files.length === 0) throw new Error("Archivo requerido");
 
-  const link = await saveUploadedFile(file);
-  const archivo = await prisma.archivo.create({
-    data: {
-      link,
-      tipo: "imagen_principal",
-      descripcion: String(formData.get("descripcion") || "Imagen producto"),
-    },
-  });
-  await prisma.archivo_producto.create({
-    data: { id_archivo: archivo.id_archivo, id_producto },
-  });
+  const descripcionForm = String(formData.get("descripcion") || "").trim();
+  const multiple = files.length > 1;
+
+  for (const file of files) {
+    const link = await saveUploadedFile(file);
+    const descripcion = multiple
+      ? descripcionDesdeNombreArchivo(file.name)
+      : descripcionForm || descripcionDesdeNombreArchivo(file.name) || "Imagen producto";
+    const archivo = await prisma.archivo.create({
+      data: {
+        link,
+        tipo: "imagen_principal",
+        descripcion,
+      },
+    });
+    await prisma.archivo_producto.create({
+      data: { id_archivo: archivo.id_archivo, id_producto },
+    });
+  }
 
   const producto = await prisma.producto.findUnique({
     where: { id_producto },

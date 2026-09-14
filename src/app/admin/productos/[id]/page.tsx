@@ -265,7 +265,14 @@ export default async function AdminProductoDetailPage({ params }: { params: Para
         <div className="admin-card">
           <h2>Imágenes</h2>
           <div className="admin-img-grid">
-            {product.archivos.map((ap) => (
+            {[...product.archivos]
+              .sort((a, b) =>
+                a.archivo.descripcion.localeCompare(b.archivo.descripcion, undefined, {
+                  sensitivity: "base",
+                  numeric: true,
+                })
+              )
+              .map((ap) => (
               <div key={ap.id_archivo}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={uploadPublicUrl(ap.archivo.link)} alt={ap.archivo.descripcion} />
@@ -278,8 +285,19 @@ export default async function AdminProductoDetailPage({ params }: { params: Para
             ))}
           </div>
           <form action={uploadProductoImagen.bind(null, id_producto)} className="admin-inline-form">
-            <input name="imagen" type="file" accept="image/*" required style={{ flex: "1.5 1 8rem" }} />
-            <input name="descripcion" placeholder="Descripción" style={{ flex: "1 1 6rem" }} />
+            <input
+              name="imagen"
+              type="file"
+              accept="image/*"
+              multiple
+              required
+              style={{ flex: "1.5 1 8rem" }}
+            />
+            <input
+              name="descripcion"
+              placeholder="Descripción (solo 1 archivo)"
+              style={{ flex: "1 1 6rem" }}
+            />
             <button className="btn btn-secondary" type="submit">
               Subir
             </button>
