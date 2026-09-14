@@ -7,6 +7,10 @@ import {
   type StockRow,
 } from "@/lib/almacenes";
 import { normalizeDescuentoGeneral } from "@/lib/pricing";
+import {
+  scoreTitleRelevance,
+  tokenizeSearchQuery,
+} from "@/lib/product-search";
 
 export type ProductListItem = {
   id_producto: number;
@@ -717,10 +721,30 @@ async function getActiveProductsUncached(options?: {
     where.id_producto = { in: options.ids };
   }
 
+  /** Tokens de búsqueda (si hay `q`); usados también para ranking. */
+  let searchTokens: string[] = [];
+  let searchQ = "";
+
   if (options?.q) {
     const q = options.q.trim();
     if (q) {
-      const or: Prisma.productoWhereInput[] = [{ titulo: { contains: q } }];
+      searchQ = q;
+      searchTokens = tokenizeSearchQuery(q);
+      const or: Prisma.productoWhereInput[] = [];
+
+      if (searchTokens.length > 0) {
+        // Matching por intención: todos los tokens deben aparecer en el título
+        // (no exige la frase contigua). Ej: "funda iPhone 17" → "Funda para iPhone 17 Pro".
+        or.push({
+          AND: searchTokens.map((token) => ({
+            titulo: { contains: token },
+          })),
+        });
+      } else {
+        // Solo stopwords / tokens cortos: caer al substring del q crudo.
+        or.push({ titulo: { contains: q } });
+      }
+
       // Búsqueda por SKU: alcanza con escribir el prefijo del código
       // (los primeros 5 caracteres, p. ej. "MTP03" → "MTP03BE/A").
       if (q.length >= SKU_SEARCH_MIN_LEN) or.push({ sku: { startsWith: q } });
@@ -812,6 +836,7 @@ async function getActiveProductsUncached(options?: {
     cantidad_vendida: number;
     inStock: boolean;
     precio: number | null;
+    relevance: number;
   };
 
   let ranked: Ranked[] = candidates.map((c) => {
@@ -822,6 +847,9 @@ async function getActiveProductsUncached(options?: {
       cantidad_vendida: c.cantidad_vendida,
       inStock: stock.inStock,
       precio: priceMap?.get(c.id_producto) ?? null,
+      relevance: searchQ
+        ? scoreTitleRelevance(c.titulo, searchQ, searchTokens)
+        : 0,
     };
   });
 
@@ -838,6 +866,7 @@ async function getActiveProductsUncached(options?: {
 
   ranked.sort((a, b) => {
     if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
+    if (searchQ && a.relevance !== b.relevance) return b.relevance - a.relevance;
     if (order === "precio-asc") {
       return (a.precio ?? Number.POSITIVE_INFINITY) - (b.precio ?? Number.POSITIVE_INFINITY);
     }
