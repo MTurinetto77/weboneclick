@@ -17,12 +17,47 @@ import { getOdooConfig } from "@/lib/odoo-config";
 import { TIPO_RELACION_ACCESORIO } from "@/lib/productos-relacionados";
 import { slugify } from "@/lib/slug";
 import { withCronLock } from "@/lib/cron-lock";
+import { resolveUploadsPath } from "@/lib/uploads";
 import type {
   SyncBatchResult,
   SyncProductoBySkuResult,
   SyncStats,
   SyncType,
 } from "@/lib/odoo-sync-types";
+
+/** Extensión real según magic bytes (Odoo puede mandar PNG/WebP aunque el campo sea image_1920). */
+function imageExtFromBuffer(buf: Buffer): ".jpg" | ".png" | ".webp" | ".gif" {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return ".jpg";
+  }
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  ) {
+    return ".png";
+  }
+  if (
+    buf.length >= 12 &&
+    buf.toString("ascii", 0, 4) === "RIFF" &&
+    buf.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return ".webp";
+  }
+  if (buf.length >= 6 && buf.toString("ascii", 0, 3) === "GIF") {
+    return ".gif";
+  }
+  return ".jpg";
+}
+
+function decodeOdooImageBase64(base64: string): Buffer {
+  const raw = base64.includes(",")
+    ? base64.slice(base64.indexOf(",") + 1)
+    : base64;
+  return Buffer.from(raw.replace(/\s/g, ""), "base64");
+}
 
 export type {
   SyncBatchResult,
@@ -407,15 +442,19 @@ async function saveProductImage(
   titulo: string
 ): Promise<string | null> {
   try {
-    const buf = Buffer.from(base64, "base64");
+    const buf = decodeOdooImageBase64(base64);
+    if (buf.length < 32) return null;
     const hash = createHash("md5").update(buf).digest("hex").slice(0, 10);
-    const uploadsDir = process.env.UPLOADS_DIR || "uploads";
-    const relDir = path.join("productos", String(folderKey));
-    const absDir = path.join(process.cwd(), uploadsDir, relDir);
-    await mkdir(absDir, { recursive: true });
-    const filename = `${hash}.jpg`;
-    await writeFile(path.join(absDir, filename), buf);
-    return path.posix.join(relDir.replace(/\\/g, "/"), filename);
+    const ext = imageExtFromBuffer(buf);
+    const relDir = path.posix.join("productos", String(folderKey));
+    const filename = `${hash}${ext}`;
+    const relative = path.posix.join(relDir, filename);
+    const absolute = resolveUploadsPath(relative);
+    await mkdir(/* turbopackIgnore: true */ path.dirname(absolute), {
+      recursive: true,
+    });
+    await writeFile(/* turbopackIgnore: true */ absolute, buf);
+    return relative;
   } catch (e) {
     console.error(`image save failed for product ${folderKey} (${titulo}):`, e);
     return null;
