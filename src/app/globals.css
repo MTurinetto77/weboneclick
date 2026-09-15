@@ -7517,6 +7517,12 @@ img { max-width: 100%; display: block; }
   cursor: pointer;
 }
 
+a.oc-atc-related-add {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
 .oc-atc-related-add:hover {
   background: #000;
 }
