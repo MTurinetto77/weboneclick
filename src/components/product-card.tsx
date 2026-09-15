@@ -84,7 +84,7 @@ export function ProductCard({ product, descuentoContado = null }: Props) {
           porcentaje_desc={product.porcentaje_desc}
           precio_con_desc={product.precio_con_desc}
         />
-        <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>
+        {venta != null && <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>}
         {hasGeneral && precio1Cuota != null ? (
           <p className="oc-contado">
             1 cuota {formatPriceArs(precio1Cuota)} (−
@@ -100,9 +100,9 @@ export function ProductCard({ product, descuentoContado = null }: Props) {
           <p className="oc-sin-imp">Sin imp nacionales: {formatPriceArs(sinImp)}</p>
         )}
         <div className="oc-add-form">
-          {outOfStock ? (
+          {outOfStock || venta == null ? (
             <Link href={`/producto/${product.slug}`} className="oc-btn oc-btn-cart">
-              <span className="oc-btn-cart-label">Ver</span>
+              <span className="oc-btn-cart-label">{outOfStock ? "Ver" : "Consultar"}</span>
             </Link>
           ) : (
             <AddToCartButton idProducto={product.id_producto} className="oc-btn oc-btn-cart">

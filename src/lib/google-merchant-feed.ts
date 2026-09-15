@@ -5,6 +5,7 @@ import {
   resolveStockAvailability,
   sortProductImageLinks,
 } from "@/lib/products";
+import { esPrecioVisible } from "@/lib/pricing";
 import { uploadPublicUrl } from "@/lib/utils";
 
 const CURRENCY = "ARS";
@@ -140,7 +141,7 @@ export async function loadGoogleMerchantFeedItems(): Promise<{
     const saleCandidate =
       priceRow.precio_con_desc != null ? Number(priceRow.precio_con_desc) : null;
     const effective = precioEfectivo(listPrice, saleCandidate);
-    if (effective == null || !Number.isFinite(effective) || effective <= 0) {
+    if (!esPrecioVisible(listPrice) || !esPrecioVisible(effective)) {
       noPrice += 1;
       continue;
     }
