@@ -11,7 +11,10 @@ import {
   type CartLine,
 } from "@/lib/cart";
 import { getActiveProducts, pickCurrentPriceInfo, precioEfectivo } from "@/lib/products";
-import { getRelatedProductIds } from "@/lib/productos-relacionados";
+import {
+  getOptionalBundleProducts,
+  getRelatedProductIds,
+} from "@/lib/productos-relacionados";
 import { uploadPublicUrl } from "@/lib/utils";
 
 async function getStockState(id_producto: number): Promise<{
@@ -63,6 +66,14 @@ export async function addToCart(formData: FormData) {
   redirect("/carrito");
 }
 
+export type CartRelatedProduct = {
+  id_producto: number;
+  titulo: string;
+  slug: string;
+  imagen: string | null;
+  precio: number | null;
+};
+
 export type AddToCartSummary =
   | { ok: false; error: string }
   | {
@@ -75,14 +86,14 @@ export type AddToCartSummary =
       cantidad: number;
       itemCount: number;
       subtotal: number;
-      related: {
-        id_producto: number;
-        titulo: string;
-        slug: string;
-        imagen: string | null;
-        precio: number | null;
-      }[];
+      related: CartRelatedProduct[];
+      /** Bundle post-ATC: productos opcionales Odoo */
+      opcionales: CartRelatedProduct[];
     };
+
+export type AddMultipleToCartResult =
+  | { ok: false; error: string }
+  | { ok: true; itemCount: number; subtotal: number };
 
 /** Agrega al carrito y devuelve el resumen para el popup "producto agregado". */
 export async function addToCartWithSummary(input: {
@@ -128,10 +139,11 @@ export async function addToCartWithSummary(input: {
   revalidatePath("/");
 
   const cart = await resolveCart();
+  const cartIds = cart.lines.map((l) => l.id_producto);
 
   // "Generalmente se compran junto con…": accesorios Odoo (productos_relacionados)
   const relatedIds = await getRelatedProductIds(id_producto);
-  let related: Extract<AddToCartSummary, { ok: true }>["related"] = [];
+  let related: CartRelatedProduct[] = [];
   if (relatedIds.length) {
     const { items } = await getActiveProducts({
       ids: relatedIds,
@@ -151,6 +163,8 @@ export async function addToCartWithSummary(input: {
       }));
   }
 
+  const opcionales = await getOptionalBundleProducts(id_producto, cartIds);
+
   const imagenLink = product.archivos[0]?.archivo.link ?? null;
   return {
     ok: true,
@@ -162,7 +176,50 @@ export async function addToCartWithSummary(input: {
     itemCount: cart.itemCount,
     subtotal: cart.subtotal,
     related,
+    opcionales,
   };
+}
+
+/** Agrega varios productos al carrito (bundle opcionales) sin cascada de modales. */
+export async function addMultipleToCartWithSummary(input: {
+  ids: number[];
+}): Promise<AddMultipleToCartResult> {
+  const ids = [...new Set(input.ids.map(Number).filter((id) => id > 0))];
+  if (!ids.length) {
+    const cart = await resolveCart();
+    return { ok: true, itemCount: cart.itemCount, subtotal: cart.subtotal };
+  }
+
+  let lines = await readCartLines();
+
+  for (const id_producto of ids) {
+    const product = await prisma.producto.findFirst({
+      where: { id_producto, activo: true },
+      include: { precios: true },
+    });
+    if (!product) continue;
+
+    const priceInfo = pickCurrentPriceInfo(product.precios);
+    const precio = precioEfectivo(priceInfo.precio, priceInfo.precio_con_desc);
+    if (precio == null) continue;
+
+    const { tracked, available } = await getStockState(id_producto);
+    if (tracked && available <= 0) continue;
+
+    const existing = lines.find((l) => l.id_producto === id_producto)?.cantidad ?? 0;
+    const max = tracked ? available : existing + 100;
+    const desired = Math.min(max, existing + 1);
+    if (desired <= existing) continue;
+    lines = upsertLine(lines, id_producto, desired);
+  }
+
+  await writeCartLines(lines);
+  revalidatePath("/carrito");
+  revalidatePath("/shop");
+  revalidatePath("/");
+
+  const cart = await resolveCart();
+  return { ok: true, itemCount: cart.itemCount, subtotal: cart.subtotal };
 }
 
 export async function updateQuantity(formData: FormData) {
