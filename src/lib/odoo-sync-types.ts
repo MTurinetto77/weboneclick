@@ -10,7 +10,7 @@ export type SyncStats = {
   productos: { created: number; updated: number; deactivated: number; images: number };
   precios: { inserted: number };
   stock: { upserted: number };
-  /** Productos principales a los que se les actualizó la lista de relaciones (accesorios). */
+  /** Productos principales a los que se les actualizó relaciones (accesorio/alterno/opcional). */
   relaciones: { updated: number };
   errors: string[];
   dryRun: boolean;

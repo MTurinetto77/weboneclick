@@ -14,7 +14,12 @@ import {
   type OdooMany2One,
 } from "@/lib/odoo";
 import { getOdooConfig } from "@/lib/odoo-config";
-import { TIPO_RELACION_ACCESORIO } from "@/lib/productos-relacionados";
+import {
+  TIPO_RELACION_ACCESORIO,
+  TIPO_RELACION_ALTERNO,
+  TIPO_RELACION_OPCIONAL,
+  type TipoRelacionProducto,
+} from "@/lib/productos-relacionados";
 import { slugify } from "@/lib/slug";
 import { withCronLock } from "@/lib/cron-lock";
 import { resolveUploadsPath } from "@/lib/uploads";
@@ -810,34 +815,145 @@ async function loadSaleTaxRates(): Promise<Map<number, number>> {
   return new Map(rows.map((r) => [r.id, Number(r.amount)]));
 }
 
+type OdooTemplateRelaciones = {
+  id: number;
+  accessory_product_ids: number[];
+  alternative_product_ids: number[];
+  optional_product_ids: number[];
+};
+
+/** Mapea IDs de product.product → id_producto local (vía odoo_id). */
+function mapProductOdooIdsToLocal(
+  odooProductIds: number[],
+  localByOdoo: Map<number, number>,
+  selfId: number
+): number[] {
+  const relatedOrdered: number[] = [];
+  const seen = new Set<number>();
+  for (const oid of odooProductIds) {
+    const idRel = localByOdoo.get(oid);
+    if (idRel == null || idRel === selfId || seen.has(idRel)) continue;
+    seen.add(idRel);
+    relatedOrdered.push(idRel);
+  }
+  return relatedOrdered;
+}
+
 /**
- * Reemplaza productos_relacionados tipo "accesorio" desde
- * product.template.accessory_product_ids (IDs de product.product).
+ * Mapea IDs de product.template → un id_producto local por template
+ * (primera variante por odoo id asc que exista en el sitio).
  */
-async function syncAccesoriosRelaciones(
+function mapTemplateIdsToLocal(
+  relatedTmplIds: number[],
+  localByRelatedTmpl: Map<number, number>,
+  selfId: number
+): number[] {
+  const relatedOrdered: number[] = [];
+  const seen = new Set<number>();
+  for (const tmplId of relatedTmplIds) {
+    const idRel = localByRelatedTmpl.get(tmplId);
+    if (idRel == null || idRel === selfId || seen.has(idRel)) continue;
+    seen.add(idRel);
+    relatedOrdered.push(idRel);
+  }
+  return relatedOrdered;
+}
+
+async function replaceRelacionesTipo(
+  id_producto: number,
+  tipo_relacion: TipoRelacionProducto,
+  relatedOrdered: number[],
+  dryRun: boolean
+): Promise<void> {
+  if (dryRun) return;
+  await prisma.productos_relacionados.deleteMany({
+    where: { id_producto, tipo_relacion },
+  });
+  if (relatedOrdered.length) {
+    await prisma.productos_relacionados.createMany({
+      data: relatedOrdered.map((id_producto_relacionado, orden) => ({
+        id_producto,
+        id_producto_relacionado,
+        tipo_relacion,
+        orden,
+      })),
+    });
+  }
+}
+
+/**
+ * Reemplaza productos_relacionados desde product.template:
+ * - accesorio ← accessory_product_ids (product.product)
+ * - alterno ← alternative_product_ids (product.template)
+ * - opcional ← optional_product_ids (product.template)
+ */
+async function syncProductosRelaciones(
   items: { id_producto: number; product_tmpl_id: number }[],
   stats: SyncStats
 ): Promise<void> {
   if (!items.length) return;
 
   const tmplIds = [...new Set(items.map((i) => i.product_tmpl_id))];
-  const templates = await executeKw<
-    { id: number; accessory_product_ids: number[] }[]
-  >("product.template", "read", [tmplIds, ["accessory_product_ids"]], {
-    context: getOdooReadContext(),
-  });
+  const templates = await executeKw<OdooTemplateRelaciones[]>(
+    "product.template",
+    "read",
+    [
+      tmplIds,
+      ["accessory_product_ids", "alternative_product_ids", "optional_product_ids"],
+    ],
+    { context: getOdooReadContext() }
+  );
 
   const accByTmpl = new Map(
     templates.map((t) => [t.id, t.accessory_product_ids ?? []])
+  );
+  const altByTmpl = new Map(
+    templates.map((t) => [t.id, t.alternative_product_ids ?? []])
+  );
+  const optByTmpl = new Map(
+    templates.map((t) => [t.id, t.optional_product_ids ?? []])
   );
 
   const allAccOdooIds = [
     ...new Set(templates.flatMap((t) => t.accessory_product_ids ?? [])),
   ];
+  const relatedTmplIds = [
+    ...new Set(
+      templates.flatMap((t) => [
+        ...(t.alternative_product_ids ?? []),
+        ...(t.optional_product_ids ?? []),
+      ])
+    ),
+  ];
+
+  const variantsByTmpl = new Map<number, number[]>();
+  if (relatedTmplIds.length) {
+    const variants = await searchRead<{
+      id: number;
+      product_tmpl_id: OdooMany2One;
+    }>(
+      "product.product",
+      [["product_tmpl_id", "in", relatedTmplIds]],
+      ["id", "product_tmpl_id"],
+      { order: "id asc", limit: Math.max(2000, relatedTmplIds.length * 10) }
+    );
+    for (const v of variants) {
+      const tid = m2oId(v.product_tmpl_id);
+      if (tid == null) continue;
+      const list = variantsByTmpl.get(tid);
+      if (list) list.push(v.id);
+      else variantsByTmpl.set(tid, [v.id]);
+    }
+  }
+
+  const allVariantOdooIds = [
+    ...new Set([...variantsByTmpl.values()].flat()),
+  ];
+  const allOdooIds = [...new Set([...allAccOdooIds, ...allVariantOdooIds])];
   const locals =
-    allAccOdooIds.length > 0
+    allOdooIds.length > 0
       ? await prisma.producto.findMany({
-          where: { odoo_id: { in: allAccOdooIds } },
+          where: { odoo_id: { in: allOdooIds } },
           select: { id_producto: true, odoo_id: true },
         })
       : [];
@@ -847,38 +963,58 @@ async function syncAccesoriosRelaciones(
       .map((p) => [p.odoo_id, p.id_producto])
   );
 
-  for (const item of items) {
-    const accOdooIds = accByTmpl.get(item.product_tmpl_id) ?? [];
-    const relatedOrdered: number[] = [];
-    const seen = new Set<number>();
-    for (const oid of accOdooIds) {
-      const idRel = localByOdoo.get(oid);
-      if (idRel == null || idRel === item.id_producto || seen.has(idRel)) continue;
-      seen.add(idRel);
-      relatedOrdered.push(idRel);
+  /** related template id → primer id_producto local (variante con menor odoo id). */
+  const localByRelatedTmpl = new Map<number, number>();
+  for (const [tid, variantIds] of variantsByTmpl) {
+    for (const oid of variantIds) {
+      const localId = localByOdoo.get(oid);
+      if (localId != null) {
+        localByRelatedTmpl.set(tid, localId);
+        break;
+      }
     }
+  }
+
+  for (const item of items) {
+    const accesorios = mapProductOdooIdsToLocal(
+      accByTmpl.get(item.product_tmpl_id) ?? [],
+      localByOdoo,
+      item.id_producto
+    );
+    const alternos = mapTemplateIdsToLocal(
+      altByTmpl.get(item.product_tmpl_id) ?? [],
+      localByRelatedTmpl,
+      item.id_producto
+    );
+    const opcionales = mapTemplateIdsToLocal(
+      optByTmpl.get(item.product_tmpl_id) ?? [],
+      localByRelatedTmpl,
+      item.id_producto
+    );
 
     if (stats.dryRun) {
       stats.relaciones.updated += 1;
       continue;
     }
 
-    await prisma.productos_relacionados.deleteMany({
-      where: {
-        id_producto: item.id_producto,
-        tipo_relacion: TIPO_RELACION_ACCESORIO,
-      },
-    });
-    if (relatedOrdered.length) {
-      await prisma.productos_relacionados.createMany({
-        data: relatedOrdered.map((id_producto_relacionado, orden) => ({
-          id_producto: item.id_producto,
-          id_producto_relacionado,
-          tipo_relacion: TIPO_RELACION_ACCESORIO,
-          orden,
-        })),
-      });
-    }
+    await replaceRelacionesTipo(
+      item.id_producto,
+      TIPO_RELACION_ACCESORIO,
+      accesorios,
+      false
+    );
+    await replaceRelacionesTipo(
+      item.id_producto,
+      TIPO_RELACION_ALTERNO,
+      alternos,
+      false
+    );
+    await replaceRelacionesTipo(
+      item.id_producto,
+      TIPO_RELACION_OPCIONAL,
+      opcionales,
+      false
+    );
     stats.relaciones.updated += 1;
   }
 }
@@ -1207,10 +1343,10 @@ export async function runProductosSyncBatch(options?: {
 
   if (forRelaciones.length) {
     try {
-      await syncAccesoriosRelaciones(forRelaciones, stats);
+      await syncProductosRelaciones(forRelaciones, stats);
     } catch (e) {
       stats.errors.push(
-        `accesorios lote offset=${offset}: ${e instanceof Error ? e.message : String(e)}`
+        `relaciones lote offset=${offset}: ${e instanceof Error ? e.message : String(e)}`
       );
     }
   }
@@ -1838,13 +1974,13 @@ export async function syncProductoBySku(
       const tmplId = m2oId(row.product_tmpl_id);
       if (tmplId) {
         try {
-          await syncAccesoriosRelaciones(
+          await syncProductosRelaciones(
             [{ id_producto: localId, product_tmpl_id: tmplId }],
             stats
           );
         } catch (e) {
           stats.errors.push(
-            `accesorios sku ${sku}: ${e instanceof Error ? e.message : String(e)}`
+            `relaciones sku ${sku}: ${e instanceof Error ? e.message : String(e)}`
           );
         }
       }

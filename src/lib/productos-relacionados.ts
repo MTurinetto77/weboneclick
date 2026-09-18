@@ -3,8 +3,13 @@ import { getActiveProducts, type ProductListItem } from "@/lib/products";
 
 /** Tipos de relación producto ↔ producto (cross-sell desde Odoo). */
 export const TIPO_RELACION_ACCESORIO = "accesorio" as const;
+export const TIPO_RELACION_ALTERNO = "alterno" as const;
+export const TIPO_RELACION_OPCIONAL = "opcional" as const;
 
-export type TipoRelacionProducto = typeof TIPO_RELACION_ACCESORIO;
+export type TipoRelacionProducto =
+  | typeof TIPO_RELACION_ACCESORIO
+  | typeof TIPO_RELACION_ALTERNO
+  | typeof TIPO_RELACION_OPCIONAL;
 
 const MAX_RELATED = 8;
 

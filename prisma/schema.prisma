@@ -231,11 +231,11 @@ model producto {
   avisos_stock    aviso_stock[]
 }
 
-/// Cross-sell / accesorios desde Odoo (accessory_product_ids)
+/// Cross-sell desde Odoo: accesorio / alterno / opcional
 model productos_relacionados {
   id_producto             Int
   id_producto_relacionado Int
-  /// Por ahora: "accesorio"
+  /// accesorio | alterno | opcional
   tipo_relacion           String @db.VarChar(50)
   orden                   Int    @default(0)
 

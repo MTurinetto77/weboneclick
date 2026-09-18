@@ -21,7 +21,7 @@ const ACTIONS: SyncAction[] = [
   {
     type: "productos",
     label: "Sincronizar productos",
-    help: "Precios, altas/bajas, categorías, almacenes, marcas, etiquetas y accesorios.",
+    help: "Precios, altas/bajas, categorías, almacenes, marcas, etiquetas y relaciones (accesorios, alternos, opcionales).",
   },
   {
     type: "imagenes",
@@ -88,7 +88,7 @@ function formatSummary(type: SyncType, stats: SyncStats): string {
     `Productos +${stats.productos.created} / ~${stats.productos.updated}`,
     `desactivados ${stats.productos.deactivated}`,
     `precios ${stats.precios.inserted}`,
-    `accesorios ${stats.relaciones.updated}`,
+    `relaciones ${stats.relaciones.updated}`,
   ].join(" · ");
 }
 
