@@ -1,7 +1,7 @@
 import { ALMACEN_WEB_SELECT } from "@/lib/almacenes";
 import { isMailConfigured, sendMail } from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
-import { resolveStockAvailability } from "@/lib/products";
+import { pickCurrentPriceInfo, precioEfectivo, resolveStockAvailability } from "@/lib/products";
 import { absoluteUrl } from "@/lib/seo/site";
 
 export type StockAlertStats = {
@@ -67,6 +67,10 @@ export async function runStockAlerts(
           stocks: {
             select: { cantidad: true, almacen: { select: ALMACEN_WEB_SELECT } },
           },
+          precios: {
+            orderBy: { fecha_desde: "desc" },
+            select: { fecha_desde: true, precio: true, porcentaje_desc: true, precio_con_desc: true },
+          },
         },
       },
     },
@@ -88,7 +92,10 @@ export async function runStockAlerts(
     if (disponibles.has(p.id_producto)) continue;
     // stockTracked = false significa producto aún no sincronizado: no dispara aviso.
     const { stockTracked, inStock } = resolveStockAvailability(p.stocks);
-    disponibles.set(p.id_producto, p.activo && stockTracked && inStock);
+    // Sin precio visible (< mínimo, "Consultar") todavía no se puede comprar: no avisar.
+    const priceInfo = pickCurrentPriceInfo(p.precios);
+    const conPrecio = precioEfectivo(priceInfo.precio, priceInfo.precio_con_desc) != null;
+    disponibles.set(p.id_producto, p.activo && stockTracked && inStock && conPrecio);
   }
   stats.productosConStock = [...disponibles.values()].filter(Boolean).length;
 

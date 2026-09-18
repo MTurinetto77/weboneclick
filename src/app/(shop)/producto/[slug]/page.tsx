@@ -244,7 +244,8 @@ export default async function ProductoPage({ params }: { params: Params }) {
             precio_con_desc={product.precio_con_desc}
           />
 
-          {inStock ? (
+          {/* Sin precio visible (< mínimo) → mismo bloque de reserva/consulta que sin stock */}
+          {inStock && venta != null ? (
             <>
               <p className="oc-cuotas">Hasta {cuotas} Cuotas sin interés.</p>
               {hasGeneral && precio1Cuota != null && descuentoGeneral != null ? (
@@ -278,7 +279,7 @@ export default async function ProductoPage({ params }: { params: Params }) {
             </>
           ) : (
             <>
-              <p className="oc-pdp-oos-label">Sin existencias</p>
+              {!inStock && <p className="oc-pdp-oos-label">Sin existencias</p>}
               <ProductReserveForm
                 productId={product.id_producto}
                 productTitle={product.titulo}

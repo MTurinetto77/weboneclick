@@ -6,7 +6,7 @@ import {
   sumSellableStock,
   type StockRow,
 } from "@/lib/almacenes";
-import { normalizeDescuentoGeneral } from "@/lib/pricing";
+import { esPrecioVisible, normalizeDescuentoGeneral } from "@/lib/pricing";
 import {
   scoreTitleRelevance,
   tokenizeSearchQuery,
@@ -157,15 +157,36 @@ export type AppliedCharacteristicFilter = {
   max?: number;
 };
 
-function pickCurrentPriceInfo(
-  precios: {
-    fecha_desde: Date;
-    precio: Prisma.Decimal;
-    porcentaje_desc?: Prisma.Decimal | null;
-    precio_con_desc?: Prisma.Decimal | null;
-  }[],
-  today = new Date()
-): CurrentPriceInfo {
+type PrecioRow = {
+  fecha_desde: Date;
+  precio: Prisma.Decimal;
+  porcentaje_desc?: Prisma.Decimal | null;
+  precio_con_desc?: Prisma.Decimal | null;
+};
+
+const SIN_PRECIO: CurrentPriceInfo = {
+  precio: null,
+  porcentaje_desc: null,
+  precio_con_desc: null,
+};
+
+/**
+ * Precio vigente para la tienda. Si el precio (lista o con promo) es menor a
+ * PRECIO_MINIMO_VISIBLE se trata como sin precio → "Consultar", no comprable.
+ */
+function pickCurrentPriceInfo(precios: PrecioRow[], today = new Date()): CurrentPriceInfo {
+  const info = pickRawPriceInfo(precios, today);
+  if (
+    !esPrecioVisible(info.precio) ||
+    !esPrecioVisible(precioEfectivo(info.precio, info.precio_con_desc))
+  ) {
+    return SIN_PRECIO;
+  }
+  return info;
+}
+
+/** Precio vigente sin aplicar el mínimo visible (admin / export). */
+export function pickRawPriceInfo(precios: PrecioRow[], today = new Date()): CurrentPriceInfo {
   const eligible = precios
     .filter((p) => p.fecha_desde <= today)
     .sort((a, b) => b.fecha_desde.getTime() - a.fecha_desde.getTime());
@@ -186,17 +207,9 @@ function pickCurrentPriceInfo(
   };
 }
 
-/** Precio de lista vigente (max fecha_desde ≤ hoy). */
-function pickCurrentPrice(
-  precios: {
-    fecha_desde: Date;
-    precio: Prisma.Decimal;
-    porcentaje_desc?: Prisma.Decimal | null;
-    precio_con_desc?: Prisma.Decimal | null;
-  }[],
-  today = new Date()
-): number | null {
-  return pickCurrentPriceInfo(precios, today).precio;
+/** Precio de lista vigente (max fecha_desde ≤ hoy), sin mínimo visible (admin). */
+function pickCurrentPrice(precios: PrecioRow[], today = new Date()): number | null {
+  return pickRawPriceInfo(precios, today).precio;
 }
 
 let categoryTreeCache: { id_categoria: number; id_cat_superior: number | null }[] | null = null;
@@ -607,13 +620,17 @@ async function currentPricesByProductIds(
     },
   });
   const map = new Map<number, number>();
+  const seen = new Set<number>();
   for (const row of rows) {
-    if (!map.has(row.id_producto)) {
-      const efectivo = precioEfectivo(
-        Number(row.precio),
-        row.precio_con_desc != null ? Number(row.precio_con_desc) : null
-      );
-      if (efectivo != null) map.set(row.id_producto, efectivo);
+    // Solo el precio vigente (primero por fecha desc); si es < mínimo, queda sin precio.
+    if (seen.has(row.id_producto)) continue;
+    seen.add(row.id_producto);
+    const efectivo = precioEfectivo(
+      Number(row.precio),
+      row.precio_con_desc != null ? Number(row.precio_con_desc) : null
+    );
+    if (esPrecioVisible(Number(row.precio)) && esPrecioVisible(efectivo)) {
+      map.set(row.id_producto, efectivo);
     }
   }
   return map;

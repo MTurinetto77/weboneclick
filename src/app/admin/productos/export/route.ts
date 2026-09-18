@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { pickCurrentPriceInfo, precioEfectivo } from "@/lib/products";
+import { pickRawPriceInfo, precioEfectivo } from "@/lib/products";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
   const lines = [
     header.map(csvCell).join(","),
     ...rows.map((p) => {
-      const info = pickCurrentPriceInfo(p.precios);
+      const info = pickRawPriceInfo(p.precios);
       const efectivo = precioEfectivo(info.precio, info.precio_con_desc);
       return [
         p.id_producto,

@@ -168,15 +168,23 @@ function AddedToCartModal({
                 <p className="oc-atc-related-title" title={r.titulo}>
                   {r.titulo}
                 </p>
-                <p className="oc-atc-related-price">{formatArs(r.precio)}</p>
-                <button
-                  type="button"
-                  className="oc-atc-related-add"
-                  disabled={pending}
-                  onClick={() => onAdd(r.id_producto)}
-                >
-                  Añadir al carrito
-                </button>
+                {r.precio == null ? (
+                  <Link href={`/producto/${r.slug}`} className="oc-atc-related-add">
+                    Consultar
+                  </Link>
+                ) : (
+                  <>
+                    <p className="oc-atc-related-price">{formatArs(r.precio)}</p>
+                    <button
+                      type="button"
+                      className="oc-atc-related-add"
+                      disabled={pending}
+                      onClick={() => onAdd(r.id_producto)}
+                    >
+                      Añadir al carrito
+                    </button>
+                  </>
+                )}
               </article>
             ))}
           </div>

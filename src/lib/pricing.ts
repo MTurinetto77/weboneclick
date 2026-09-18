@@ -3,6 +3,16 @@
 /** Factor aproximado impuestos nacionales (precio con impuestos / sin impuestos) */
 export const IMPUESTOS_NACIONALES_FACTOR = 1.105;
 
+/**
+ * Precios de lista por debajo de este monto se consideran placeholder:
+ * en la tienda se muestran como "Consultar" y no se pueden comprar.
+ */
+export const PRECIO_MINIMO_VISIBLE = 5;
+
+export function esPrecioVisible(precio: number | null | undefined): precio is number {
+  return precio != null && Number.isFinite(precio) && precio >= PRECIO_MINIMO_VISIBLE;
+}
+
 /** Cuotas sin interés habituales en AR; se recortan al tope del producto. */
 const CUOTAS_SIN_INTERES = [1, 3, 6, 9, 12, 18, 24];
 

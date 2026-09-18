@@ -111,6 +111,12 @@ export async function addToCartWithSummary(input: {
     return { ok: false, error: "Producto sin stock" };
   }
 
+  const priceInfo = pickCurrentPriceInfo(product.precios);
+  const precio = precioEfectivo(priceInfo.precio, priceInfo.precio_con_desc);
+  if (precio == null) {
+    return { ok: false, error: "Este producto no tiene precio publicado. Consultalo desde su página." };
+  }
+
   const lines = await readCartLines();
   const existing = lines.find((l) => l.id_producto === id_producto)?.cantidad ?? 0;
   const max = tracked ? available : existing + cantidad + 99;
@@ -146,13 +152,12 @@ export async function addToCartWithSummary(input: {
   }
 
   const imagenLink = product.archivos[0]?.archivo.link ?? null;
-  const priceInfo = pickCurrentPriceInfo(product.precios);
   return {
     ok: true,
     id_producto,
     titulo: product.titulo,
     imagen: imagenLink ? uploadPublicUrl(imagenLink) : null,
-    precio: precioEfectivo(priceInfo.precio, priceInfo.precio_con_desc),
+    precio,
     cantidad,
     itemCount: cart.itemCount,
     subtotal: cart.subtotal,
