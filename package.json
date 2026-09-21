@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next dev --webpack",
     "dev:turbo": "node --max-old-space-size=8192 ./node_modules/next/dist/bin/next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "start": "node scripts/start-server.mjs",
     "start:next": "next start",
     "lint": "eslint",
