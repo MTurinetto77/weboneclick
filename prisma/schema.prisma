@@ -38,6 +38,30 @@ model etiqueta_producto {
   @@id([id_etiqueta, id_producto])
 }
 
+/// Etiquetas manuales de la web (badge imagen en la card), independientes de Odoo y de promociones
+model etiqueta_web {
+  id_etiqueta_web Int     @id @default(autoincrement())
+  nombre          String  @db.VarChar(255)
+  imagen          String? @db.VarChar(500)
+  prioridad       Int     @default(0)
+  activo          Boolean @default(true)
+
+  productos etiqueta_web_producto[]
+
+  @@map("etiquetas_web")
+}
+
+model etiqueta_web_producto {
+  id_etiqueta_web Int
+  id_producto     Int
+
+  etiqueta etiqueta_web @relation(fields: [id_etiqueta_web], references: [id_etiqueta_web], onDelete: Cascade)
+  producto producto     @relation(fields: [id_producto], references: [id_producto], onDelete: Cascade)
+
+  @@id([id_etiqueta_web, id_producto])
+  @@map("etiquetas_web_productos")
+}
+
 model familia {
   id_familia   Int     @id @default(autoincrement())
   nombre       String  @db.VarChar(255)
@@ -229,6 +253,7 @@ model producto {
   relaciones      productos_relacionados[] @relation("relaciones_origen")
   relacionado_de  productos_relacionados[] @relation("relaciones_destino")
   avisos_stock    aviso_stock[]
+  etiquetas_web   etiqueta_web_producto[]
 }
 
 /// Cross-sell desde Odoo: accesorio / alterno / opcional

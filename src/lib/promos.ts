@@ -100,14 +100,37 @@ export async function resolvePromoProductIds(
 }
 
 /**
- * Mapa id_producto → etiqueta_imagen de la promo activa con menor prioridad
- * que tenga etiqueta y contenga al producto (directo, por categoría o por cuotas).
+ * Mapa id_producto → imagen de badge para la card.
+ * Primero la etiqueta web manual activa de menor prioridad; si no tiene,
+ * la etiqueta_imagen de la promo activa de menor prioridad que contenga
+ * al producto (directo, por categoría o por cuotas).
  */
 export async function getPromoBadges(
   productIds: number[]
 ): Promise<Map<number, string>> {
   const map = new Map<number, string>();
   if (!productIds.length) return map;
+
+  const etiquetas = await prisma.etiqueta_web_producto.findMany({
+    where: {
+      id_producto: { in: productIds },
+      etiqueta: { activo: true, imagen: { not: null } },
+    },
+    select: {
+      id_producto: true,
+      etiqueta: { select: { imagen: true } },
+    },
+    orderBy: [
+      { etiqueta: { prioridad: "asc" } },
+      { id_etiqueta_web: "asc" },
+    ],
+  });
+  for (const row of etiquetas) {
+    if (row.etiqueta.imagen && !map.has(row.id_producto)) {
+      map.set(row.id_producto, row.etiqueta.imagen);
+    }
+  }
+  if (map.size === productIds.length) return map;
 
   const promos = await prisma.promocion.findMany({
     where: {

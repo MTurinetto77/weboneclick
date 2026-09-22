@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { deleteUploadedFile, saveUploadedFile } from "@/lib/uploads";
 import { slugify } from "@/lib/slug";
+import { parseSkusFromCsv } from "@/lib/csv-skus";
 
 async function guard() {
   await requireAdmin();
@@ -203,43 +204,6 @@ export async function removePromocionProducto(id_promocion: number, id_producto:
   await prisma.promocion_producto.deleteMany({ where: { id_promocion, id_producto } });
   revalidatePromo(promo?.slug);
   revalidatePath(`/admin/promociones/${id_promocion}`);
-}
-
-/** Extrae SKUs de un CSV: una columna `sku`, o una fila/celda por SKU. */
-function parseSkusFromCsv(text: string): string[] {
-  const lines = text
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  const skus: string[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const cells = lines[i]
-      .split(/[,;\t]/)
-      .map((c) => c.trim().replace(/^["']|["']$/g, ""))
-      .filter(Boolean);
-    if (!cells.length) continue;
-    // Saltar encabezado
-    if (i === 0 && cells.length === 1 && /^sku$/i.test(cells[0])) continue;
-    if (i === 0 && cells.length > 1) {
-      const skuIdx = cells.findIndex((c) => /^sku$/i.test(c));
-      if (skuIdx >= 0) {
-        // Header multi-columna: tomar solo la columna sku en el resto
-        for (let j = 1; j < lines.length; j++) {
-          const row = lines[j]
-            .split(/[,;\t]/)
-            .map((c) => c.trim().replace(/^["']|["']$/g, ""));
-          const v = row[skuIdx]?.trim();
-          if (v) skus.push(v);
-        }
-        return [...new Set(skus)];
-      }
-    }
-    // Una o más celdas por fila = SKUs
-    for (const c of cells) skus.push(c);
-  }
-  return [...new Set(skus)];
 }
 
 export async function importPromocionProductosCsv(id_promocion: number, formData: FormData) {
