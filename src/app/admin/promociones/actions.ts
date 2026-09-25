@@ -17,6 +17,23 @@ function isImagePath(value: string | null | undefined) {
   return value.includes("/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(value);
 }
 
+function parseDate(raw: FormDataEntryValue | null) {
+  const value = String(raw || "").trim();
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** Vigencia opcional: cualquiera de los dos extremos puede quedar vacío. */
+function parseVigencia(formData: FormData) {
+  const vigencia_desde = parseDate(formData.get("vigencia_desde"));
+  const vigencia_hasta = parseDate(formData.get("vigencia_hasta"));
+  if (vigencia_desde && vigencia_hasta && vigencia_hasta < vigencia_desde) {
+    throw new Error("La vigencia hasta no puede ser anterior a la vigencia desde");
+  }
+  return { vigencia_desde, vigencia_hasta };
+}
+
 function revalidatePromo(slug?: string | null) {
   revalidatePath("/admin/promociones");
   revalidatePath("/");
@@ -43,6 +60,7 @@ export async function createPromocion(formData: FormData) {
   const prioridad = Number(formData.get("prioridad") || 0);
   const slugInput = String(formData.get("slug") || "").trim();
   const slug = await uniquePromoSlug(slugInput || nombre);
+  const vigencia = parseVigencia(formData);
 
   let icono = iconoText;
   const iconFile = formData.get("icono_imagen");
@@ -65,6 +83,7 @@ export async function createPromocion(formData: FormData) {
       prioridad: Number.isFinite(prioridad) ? prioridad : 0,
       slug,
       activo: true,
+      ...vigencia,
     },
   });
 
@@ -86,6 +105,7 @@ export async function updatePromocion(id_promocion: number, formData: FormData) 
   const slugInput = String(formData.get("slug") || "").trim();
   const slug = await uniquePromoSlug(slugInput || nombre, id_promocion);
   const activo = formData.get("activo") === "on";
+  const vigencia = parseVigencia(formData);
   const quitarEtiqueta = formData.get("quitar_etiqueta") === "on";
   const quitarIconoImg = formData.get("quitar_icono_img") === "on";
 
@@ -142,6 +162,7 @@ export async function updatePromocion(id_promocion: number, formData: FormData) 
         prioridad: Number.isFinite(prioridad) ? prioridad : 0,
         slug,
         activo,
+        ...vigencia,
         por_cuotas,
         cuotas,
         categorias: {

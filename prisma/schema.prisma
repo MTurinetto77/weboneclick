@@ -371,6 +371,9 @@ model promocion {
   prioridad       Int     @default(0)
   slug            String  @unique @db.VarChar(255)
   activo          Boolean @default(true)
+  /// Ventana de vigencia opcional: vacío = sin límite por ese lado.
+  vigencia_desde  DateTime?
+  vigencia_hasta  DateTime?
   /// Si true, la promo incluye productos con producto.cuotas_max = cuotas (sin lista manual).
   por_cuotas      Boolean @default(false)
   cuotas          Int?

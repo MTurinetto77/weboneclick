@@ -1,6 +1,18 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { promoEstado } from "@/lib/promos";
+
+const ESTADO_LABEL = {
+  inactiva: "No",
+  programada: "Programada",
+  vigente: "Sí",
+  vencida: "Vencida",
+} as const;
+
+function fmtFecha(d: Date | null) {
+  return d ? d.toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" }) : "—";
+}
 
 export default async function AdminPromocionesPage() {
   await requireAdmin();
@@ -42,6 +54,8 @@ export default async function AdminPromocionesPage() {
             <th>Subtítulo</th>
             <th>Slug</th>
             <th>Activo</th>
+            <th>Desde</th>
+            <th>Hasta</th>
             <th>Cats</th>
             <th>Prods</th>
             <th></th>
@@ -60,7 +74,9 @@ export default async function AdminPromocionesPage() {
               <td>
                 <Link href={`/${p.slug}`}>/{p.slug}</Link>
               </td>
-              <td>{p.activo ? "Sí" : "No"}</td>
+              <td>{ESTADO_LABEL[promoEstado(p)]}</td>
+              <td>{fmtFecha(p.vigencia_desde)}</td>
+              <td>{fmtFecha(p.vigencia_hasta)}</td>
               <td>{p._count.categorias}</td>
               <td>{p._count.productos}</td>
               <td>
@@ -70,7 +86,7 @@ export default async function AdminPromocionesPage() {
           ))}
           {!promociones.length && (
             <tr>
-              <td colSpan={9} className="muted">
+              <td colSpan={11} className="muted">
                 No hay promociones cargadas.
               </td>
             </tr>

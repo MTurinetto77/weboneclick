@@ -42,6 +42,14 @@ export default async function AdminNuevaPromocionPage() {
             <label>Slug (sección URL)</label>
             <input name="slug" placeholder="vacaciones-de-invierno" />
           </div>
+          <div className="form-field">
+            <label>Vigencia desde (opcional, vacío = desde ya)</label>
+            <input name="vigencia_desde" type="datetime-local" />
+          </div>
+          <div className="form-field">
+            <label>Vigencia hasta (opcional, vacío = sin fin)</label>
+            <input name="vigencia_hasta" type="datetime-local" />
+          </div>
           <button className="btn btn-primary" type="submit">
             Crear
           </button>

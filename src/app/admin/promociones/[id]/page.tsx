@@ -4,7 +4,7 @@ import { PromoCuotasFields } from "@/components/admin/promo-cuotas-fields";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { uploadPublicUrl } from "@/lib/utils";
-import { isPromoIconImage } from "@/lib/promos";
+import { isPromoIconImage, promoEstado, toDatetimeLocal } from "@/lib/promos";
 import {
   addPromocionProducto,
   deletePromocion,
@@ -17,6 +17,13 @@ type Params = Promise<{ id: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const btnSm = { padding: "0.15rem 0.4rem", fontSize: "0.75rem" } as const;
+
+const ESTADO_LABEL = {
+  inactiva: "Inactiva: no se muestra en la tienda.",
+  programada: "Programada: se publica cuando empiece la vigencia.",
+  vigente: "Vigente: se muestra en la tienda.",
+  vencida: "Vencida: terminó la vigencia y ya no se muestra.",
+} as const;
 
 function spStr(v: string | string[] | undefined) {
   return typeof v === "string" ? v : "";
@@ -159,6 +166,29 @@ export default async function AdminPromocionDetailPage({
                 </label>
               </div>
             </div>
+
+            <div className="admin-edit-inline">
+              <div className="form-field">
+                <label>Vigencia desde (vacío = desde ya)</label>
+                <input
+                  name="vigencia_desde"
+                  type="datetime-local"
+                  defaultValue={toDatetimeLocal(promo.vigencia_desde)}
+                />
+              </div>
+              <div className="form-field">
+                <label>Vigencia hasta (vacío = sin fin)</label>
+                <input
+                  name="vigencia_hasta"
+                  type="datetime-local"
+                  defaultValue={toDatetimeLocal(promo.vigencia_hasta)}
+                />
+              </div>
+            </div>
+            <p className="muted" style={{ margin: "-0.25rem 0 0.5rem", fontSize: "0.8rem" }}>
+              {ESTADO_LABEL[promoEstado(promo)]} Para mostrarse tiene que estar marcada como
+              activa y dentro de la vigencia.
+            </p>
 
             <div className="admin-edit-inline">
               <div className="form-field">

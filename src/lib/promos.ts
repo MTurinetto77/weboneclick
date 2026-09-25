@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveCategoryFilterIds } from "@/lib/products";
 
@@ -25,10 +26,44 @@ export type PromoDetail = {
   productos: { id_producto: number }[];
 };
 
+/**
+ * Promo publicada: `activo` y dentro de la vigencia. Cada extremo vacío deja la
+ * ventana abierta de ese lado, así las promos sin fechas siguen como antes.
+ */
+export function promoVigenteWhere(now = new Date()): Prisma.promocionWhereInput {
+  return {
+    activo: true,
+    AND: [
+      { OR: [{ vigencia_desde: null }, { vigencia_desde: { lte: now } }] },
+      { OR: [{ vigencia_hasta: null }, { vigencia_hasta: { gte: now } }] },
+    ],
+  };
+}
+
+export type PromoEstado = "inactiva" | "programada" | "vigente" | "vencida";
+
+/** Mismo criterio que `promoVigenteWhere`, para mostrar el estado en el admin. */
+export function promoEstado(
+  promo: { activo: boolean; vigencia_desde: Date | null; vigencia_hasta: Date | null },
+  now = new Date()
+): PromoEstado {
+  if (!promo.activo) return "inactiva";
+  if (promo.vigencia_desde && promo.vigencia_desde > now) return "programada";
+  if (promo.vigencia_hasta && promo.vigencia_hasta < now) return "vencida";
+  return "vigente";
+}
+
+/** Valor para `<input type="datetime-local">`. */
+export function toDatetimeLocal(d: Date | null) {
+  if (!d) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Promociones activas para el mega-menú, ordenadas por prioridad (menor primero). */
 export async function getActivePromosNav(): Promise<PromoNavItem[]> {
   return prisma.promocion.findMany({
-    where: { activo: true },
+    where: promoVigenteWhere(),
     select: {
       id_promocion: true,
       nombre: true,
@@ -43,7 +78,7 @@ export async function getActivePromosNav(): Promise<PromoNavItem[]> {
 
 export async function getPromoBySlug(slug: string): Promise<PromoDetail | null> {
   return prisma.promocion.findFirst({
-    where: { slug, activo: true },
+    where: { slug, ...promoVigenteWhere() },
     select: {
       id_promocion: true,
       nombre: true,
@@ -134,7 +169,7 @@ export async function getPromoBadges(
 
   const promos = await prisma.promocion.findMany({
     where: {
-      activo: true,
+      ...promoVigenteWhere(),
       etiqueta_imagen: { not: null },
     },
     select: {
