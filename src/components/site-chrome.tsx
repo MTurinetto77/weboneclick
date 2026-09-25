@@ -338,6 +338,7 @@ export function SiteFooter() {
         href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_PHONE || "5491100000000"}`}
         target="_blank"
         rel="noreferrer"
+        aria-label="Atención personalizada por WhatsApp"
       >
         <span className="oc-whatsapp-icon" aria-hidden>
           <WhatsAppIcon />

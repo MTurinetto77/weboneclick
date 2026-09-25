@@ -1116,6 +1116,12 @@ img { max-width: 100%; display: block; }
   color: #000;
 }
 
+@media (max-width: 768px) {
+  .oc-whatsapp-label {
+    display: none;
+  }
+}
+
 .oc-footer {
   background: #fff;
   color: #1d1d1f;
